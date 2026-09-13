@@ -205,21 +205,8 @@ PRs welcome — the codebase is small and friendly. 🤝
 
 <br>
 
-Super Z did **all of it**:
-
-unpacking & reverse-engineering the codebase 📦 · embedding the helper exes so
-it ships as one file 🔗 · rebranding every single byte to **FlatUI** 🎨 ·
-hunting down a nasty duplicate-webview crash 🐛 · cross-compiling a Windows
-binary from a Linux box 🐧→🪟 · rewriting the clipboard layer so screenshots
-paste as *real images*, the Lightshot way 📸 · fixing DPI scaling so region
-selection is pixel-perfect 🔍 · translating every last Russian string 🇬🇧 ·
-and giving the launcher its signature show-desktop entrance ✨
 
 <br>
-
-*Every feature, every fix, every line of Rust — written by an AI.*
-
-**If FlatUI made your desktop a little calmer, star the repo. ⭐**
 
 <br>
 
