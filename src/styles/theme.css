@@ -1,0 +1,145 @@
+/* =========================================================================
+   FLATUI THEME — Anthropic-inspired, Sand+Espresso palette
+   Mat/frosted aesthetic, minimal glow, premium feel
+   ========================================================================= */
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../assets/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../assets/fonts/JetBrainsMono-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../assets/fonts/JetBrainsMono-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter Variable";
+  src: url("../assets/fonts/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ===== Palette: Sand + Espresso — desaturated, premium ===== */
+  --bg-espresso: #4B3621;
+  --bg-espresso-deep: #3A2A1A;
+  --bg-espresso-raised: #54402D;
+  /* Frosted glass — espresso-based with strong backdrop blur */
+  --bg-espresso-frosted: rgba(58, 42, 26, 0.55);
+  --bg-espresso-glass: rgba(58, 42, 26, 0.65);
+
+  --sand: #C2B280;
+  --sand-bright: #D4C19C;
+  --sand-dim: #8A7B5C;
+  --sand-cream: #EDE4D3;
+
+  --accent-terracotta: #B8835A;
+  --accent-caramel: #D4A574;
+  --accent-soft: rgba(184, 131, 90, 0.10);
+
+  --border-subtle: rgba(194, 178, 128, 0.08);
+  --border-strong: rgba(194, 178, 128, 0.18);
+
+  --status-running: #D4A574;
+  --status-pinned: #8A7B5C;
+
+  /* Subtle, mat shadows (no aggressive glow) */
+  --shadow-window: 0 1px 4px rgba(0, 0, 0, 0.18);
+  --shadow-popup: 0 2px 12px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22);
+  --shadow-icon-hover: 0 1px 3px rgba(0, 0, 0, 0.14);
+
+  /* ===== Typography ===== */
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Mono", monospace;
+  --font-ui: "JetBrains Mono", "Inter Variable", system-ui, sans-serif;
+  --font-display: "JetBrains Mono", monospace;
+
+  /* ===== Sizing ===== */
+  --taskbar-height: 40px;
+  --taskbar-icon-size: 22px;
+  --taskbar-icon-padding: 7px;
+  --taskbar-icon-gap: 4px;
+
+  --launcher-grid-cols: 8;
+  --launcher-grid-gap: 12px;
+  --launcher-icon-size: 64px;
+  --launcher-icon-radius: 14px;
+
+  /* ===== Radius ===== */
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
+
+  /* ===== Easing ===== */
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-out-soft: cubic-bezier(0.32, 0.72, 0.45, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --z-taskbar: 1000;
+  --z-launcher: 2000;
+  --z-flyout: 1500;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--font-ui);
+  color: var(--sand);
+  user-select: none;
+  cursor: default;
+}
+
+.drag-region { -webkit-app-region: drag; height: 4px; }
+.no-drag { -webkit-app-region: no-drag; }
+
+@keyframes bounce-in {
+  0%   { transform: scale(0.96) translateY(6px); opacity: 0; }
+  60%  { transform: scale(1.01) translateY(-1px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes bounce-out {
+  0%   { transform: scale(1) translateY(0); opacity: 1; }
+  100% { transform: scale(0.97) translateY(6px); opacity: 0; }
+}
+@keyframes icon-pop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.12); }
+  100% { transform: scale(1.06); }
+}
+@keyframes fade-in {
+  0%   { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--sand-dim); }
+

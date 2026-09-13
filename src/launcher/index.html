@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlatUI</title>
+  <link rel="stylesheet" href="../styles/theme.css" />
+  <link rel="stylesheet" href="../styles/launcher.css" />
+</head>
+<body>
+  <!-- Expand animation overlay -->
+  <div class="expand-overlay" id="expand-overlay"></div>
+
+  <div class="launcher-root hidden" id="launcher">
+    <!-- Left side: action buttons -->
+    <div class="launcher-actions">
+      <button class="action-btn" id="winselect-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+      </button>
+      <button class="action-btn" id="minimize-all-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+      <button class="action-btn" id="run-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="4 17 10 11 4 5"/>
+          <line x1="12" y1="19" x2="20" y2="19"/>
+        </svg>
+      </button>
+      <button class="action-btn" id="blacklist-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2l9 4v6c0 5.5-3.5 10-9 12-5.5-2-9-6.5-9-12V6l9-4z"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Spotlight search bar -->
+    <div class="launcher-search-wrap">
+      <input
+        type="text"
+        class="launcher-search"
+        id="search"
+        placeholder="Flatlight"
+        autocomplete="off"
+        spellcheck="false"
+        autofocus
+      />
+      <svg class="launcher-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="m21 21-4.3-4.3"/>
+      </svg>
+    </div>
+
+    <!-- Desktop grid -->
+    <div class="launcher-grid" id="grid"></div>
+
+    <!-- Spotlight results -->
+    <div class="spotlight-results hidden" id="spotlight-results"></div>
+
+    <!-- Clipboard widget -->
+    <div class="widget clipboard-widget" id="clipboard-widget">
+      <div class="widget-header-row">
+        <span class="widget-header">Clipboard</span>
+        <button class="clipboard-clear" id="clipboard-clear">×</button>
+      </div>
+      <div class="clipboard-list" id="clipboard-list"></div>
+    </div>
+
+    <!-- Notes widget -->
+    <div class="widget notes-widget" id="notes-widget">
+      <div class="widget-header">Notes</div>
+      <textarea class="notes-textarea" id="notes-textarea" placeholder="Write something…" spellcheck="false"></textarea>
+    </div>
+
+    <!-- Sysmon widget -->
+    <div class="widget sysmon-widget" id="sysmon-widget">
+      <div class="widget-header">System</div>
+      <div class="sysmon-body">
+        <div class="sysmon-row"><span>CPU</span><div class="sysmon-bar"><div class="sysmon-fill" id="cpu-fill"></div></div><span id="cpu-val">0%</span></div>
+        <div class="sysmon-row"><span>RAM</span><div class="sysmon-bar"><div class="sysmon-fill" id="ram-fill"></div></div><span id="ram-val">0%</span></div>
+      </div>
+    </div>
+
+    <!-- Audio mixer widget -->
+    <div class="widget audio-widget" id="audio-widget">
+      <div class="widget-header">Volume</div>
+      <div class="audio-body">
+        <div class="audio-master-row">
+          <span class="audio-label">Master</span>
+          <input type="range" class="audio-slider" id="audio-master-slider" min="0" max="100" value="50" />
+          <span class="audio-val" id="audio-master-val">50%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Run dialog -->
+  <div class="run-dialog hidden" id="run-dialog">
+    <div class="run-dialog-content">
+      <div class="run-input-wrap">
+        <input type="text" class="run-input" id="run-input" placeholder="Enter command…" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="run-actions">
+        <button class="run-btn" id="run-admin">Admin</button>
+        <button class="run-btn" id="run-cancel">Cancel</button>
+        <button class="run-btn primary" id="run-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Window switcher overlay -->
+  <div class="win-switcher-overlay hidden" id="win-switcher-overlay">
+    <div class="win-switcher-content">
+      <div class="win-switcher-grid" id="win-switcher-grid"></div>
+    </div>
+  </div>
+
+  <!-- Blacklist overlay -->
+  <div class="win-switcher-overlay hidden" id="blacklist-overlay">
+    <div class="blacklist-content">
+      <div class="blacklist-title">Window Blacklist</div>
+      <div class="blacklist-grid" id="blacklist-grid"></div>
+      <div class="blacklist-hint">Blacklisted windows won't appear in switcher or taskbar</div>
+    </div>
+  </div>
+
+  <!-- Screenshot overlay -->
+  <div class="screenshot-overlay hidden" id="screenshot-overlay">
+    <canvas class="screenshot-canvas" id="screenshot-canvas"></canvas>
+    <div class="screenshot-hint" id="screenshot-hint">Select area</div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlatUI Setup</title>
+  <link rel="stylesheet" href="../styles/theme.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: rgba(75, 54, 33, 0.97);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .setup-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      /* Solid card panel so the text always has a readable background,
+         even when the window itself is transparent and the desktop behind
+         it is light/busy. */
+      background: rgba(36, 26, 17, 0.94);
+      border: 1px solid rgba(194, 178, 128, 0.22);
+      border-radius: 14px;
+      padding: 26px 44px 30px;
+      box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
+    }
+    .setup-logo {
+      font-family: var(--font-display);
+      font-size: 22px;
+      color: var(--sand-cream);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .setup-status {
+      font-family: var(--font-ui);
+      font-size: 13px;
+      color: var(--sand);
+      letter-spacing: 0.04em;
+      transition: opacity 300ms var(--ease-out-soft);
+    }
+    .setup-status.fading { opacity: 0; }
+    .setup-bar {
+      width: 200px;
+      height: 3px;
+      background: rgba(194, 178, 128, 0.15);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .setup-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent-terracotta);
+      border-radius: 2px;
+      transition: width 600ms var(--ease-out-expo);
+    }
+    body.exiting {
+      animation: fade-out 600ms var(--ease-out-expo) forwards;
+    }
+    @keyframes fade-out {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0.95); }
+    }
+  </style>
+</head>
+<body>
+  <div class="setup-content">
+    <div class="setup-logo">FlatUI</div>
+    <div class="setup-status" id="setup-status">Welcome</div>
+    <div class="setup-bar"><div class="setup-bar-fill" id="setup-bar-fill"></div></div>
+  </div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

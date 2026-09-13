@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FlatUI — Taskbar</title>
+  <link rel="stylesheet" href="../styles/theme.css" />
+  <link rel="stylesheet" href="../styles/taskbar.css" />
+</head>
+<body>
+  <div class="taskbar-root" id="taskbar">
+    <!-- Screenshot button (far left, edge-touching hitbox) -->
+    <div class="taskbar-screenshot" id="screenshot-btn" title="Screenshot">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </div>
+
+    <!-- Center zone: icons (Win11 style) -->
+    <div class="taskbar-center no-drag" id="zone-center">
+      <!-- icons injected here -->
+    </div>
+
+    <!-- Right zone: lang + volume + clock -->
+    <div class="taskbar-right no-drag" id="zone-right">
+      <div class="lang-indicator" id="lang-indicator">en</div>
+      <div class="volume-control" id="volume-control">
+        <svg class="volume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>
+        <div class="volume-slider-wrap" id="volume-slider-wrap">
+          <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="50" />
+        </div>
+      </div>
+      <div class="taskbar-clock" id="clock">
+        <div class="time" id="clock-time">--:--</div>
+        <div class="date" id="clock-date">--- --</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Window switcher flyout -->
+  <div class="win-switcher" id="win-switcher"></div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

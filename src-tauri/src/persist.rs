@@ -1,0 +1,307 @@
+// Persistence — load/save blacklist to file
+//
+// Path: %PROGRAMDATA%\FlatUI\blacklist.json
+// (ProgramData is world-readable but requires admin to write)
+//
+// If we can't write there (no admin), fallback to %LOCALAPPDATA%\FlatUI\blacklist.json
+
+use std::path::PathBuf;
+use std::fs;
+use crate::app_state::BlacklistEntry;
+
+fn data_dir() -> PathBuf {
+    // Always use LOCALAPPDATA — no admin required, user-specific
+    if let Some(lad) = std::env::var_os("LOCALAPPDATA") {
+        let dir = PathBuf::from(&lad).join("FlatUI");
+        let _ = fs::create_dir_all(&dir);
+        return dir;
+    }
+    if let Some(pd) = std::env::var_os("PROGRAMDATA") {
+        let dir = PathBuf::from(&pd).join("FlatUI");
+        let _ = fs::create_dir_all(&dir);
+        return dir;
+    }
+    PathBuf::from(".")
+}
+
+fn blacklist_path() -> PathBuf {
+    data_dir().join("blacklist.json")
+}
+
+pub fn load_blacklist() -> Vec<BlacklistEntry> {
+    let path = blacklist_path();
+    match fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    }
+}
+
+pub fn save_blacklist(entries: &[BlacklistEntry]) {
+    let path = blacklist_path();
+    if let Ok(s) = serde_json::to_string_pretty(entries) {
+        let _ = fs::write(&path, s);
+    }
+}
+
+// ===== Clipboard history =====
+pub fn load_clipboard() -> Vec<String> {
+    let path = data_dir().join("clipboard.json");
+    match fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    }
+}
+
+pub fn save_clipboard(items: &[String]) {
+    let path = data_dir().join("clipboard.json");
+    if let Ok(s) = serde_json::to_string_pretty(items) {
+        let _ = fs::write(&path, s);
+    }
+}
+
+// ===== Notes =====
+pub fn load_notes() -> String {
+    let path = data_dir().join("notes.txt");
+    fs::read_to_string(&path).unwrap_or_default()
+}
+
+pub fn save_notes(text: &str) {
+    let path = data_dir().join("notes.txt");
+    let _ = fs::write(&path, text);
+}
+
+// ===== Widget positions =====
+pub fn load_widget_positions() -> std::collections::HashMap<String, (f64, f64)> {
+    let path = data_dir().join("widgets.json");
+    match fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_default(),
+        Err(_) => std::collections::HashMap::new(),
+    }
+}
+
+pub fn save_widget_positions(positions: &std::collections::HashMap<String, (f64, f64)>) {
+    let path = data_dir().join("widgets.json");
+    if let Ok(s) = serde_json::to_string_pretty(positions) {
+        let _ = fs::write(&path, s);
+    }
+}
+
+// ===== Settings =====
+#[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
+pub struct Settings {
+    pub theme: String,
+    pub auto_fullscreen: bool,
+    pub refresh_interval: u64,
+    pub cube_animation: bool,
+}
+
+pub fn load_settings() -> Settings {
+    let path = data_dir().join("settings.json");
+    match fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_else(|_| Settings {
+            theme: "sand-cream".to_string(),
+            auto_fullscreen: true,
+            refresh_interval: 2,
+            cube_animation: true,
+        }),
+        Err(_) => Settings {
+            theme: "sand-cream".to_string(),
+            auto_fullscreen: true,
+            refresh_interval: 2,
+            cube_animation: true,
+        },
+    }
+}
+
+pub fn save_settings(settings: &Settings) {
+    let path = data_dir().join("settings.json");
+    if let Ok(s) = serde_json::to_string_pretty(settings) {
+        let _ = fs::write(&path, s);
+    }
+}
+
+// ===== Themes =====
+// themes.json format:
+// {
+//   "themes": [
+//     {
+//       "name": "sand-cream",
+//       "active": true,
+//       "colors": {
+//         "bg-espresso": "#4B3621",
+//         "bg-espresso-deep": "#3A2A1A",
+//         "bg-espresso-raised": "#54402D",
+//         "bg-espresso-frosted": "rgba(58,42,26,0.55)",
+//         "bg-espresso-glass": "rgba(58,42,26,0.65)",
+//         "sand": "#C2B280",
+//         "sand-bright": "#D4C19C",
+//         "sand-dim": "#8A7B5C",
+//         "sand-cream": "#EDE4D3",
+//         "accent-terracotta": "#B8835A",
+//         "accent-caramel": "#D4A574",
+//         "accent-soft": "rgba(184,131,90,0.18)",
+//         "border-subtle": "rgba(194,178,128,0.08)",
+//         "border-strong": "rgba(194,178,128,0.18)",
+//         "status-running": "#D4A574",
+//         "status-pinned": "#8A7B5C"
+//       }
+//     },
+//     ... other themes
+//   ]
+// }
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct ThemeColors {
+    #[serde(rename = "bg-espresso")]
+    pub bg_espresso: String,
+    #[serde(rename = "bg-espresso-deep")]
+    pub bg_espresso_deep: String,
+    #[serde(rename = "bg-espresso-raised")]
+    pub bg_espresso_raised: String,
+    #[serde(rename = "bg-espresso-frosted")]
+    pub bg_espresso_frosted: String,
+    #[serde(rename = "bg-espresso-glass")]
+    pub bg_espresso_glass: String,
+    pub sand: String,
+    #[serde(rename = "sand-bright")]
+    pub sand_bright: String,
+    #[serde(rename = "sand-dim")]
+    pub sand_dim: String,
+    #[serde(rename = "sand-cream")]
+    pub sand_cream: String,
+    #[serde(rename = "accent-terracotta")]
+    pub accent_terracotta: String,
+    #[serde(rename = "accent-caramel")]
+    pub accent_caramel: String,
+    #[serde(rename = "accent-soft")]
+    pub accent_soft: String,
+    #[serde(rename = "border-subtle")]
+    pub border_subtle: String,
+    #[serde(rename = "border-strong")]
+    pub border_strong: String,
+    #[serde(rename = "status-running")]
+    pub status_running: String,
+    #[serde(rename = "status-pinned")]
+    pub status_pinned: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct Theme {
+    pub name: String,
+    pub active: bool,
+    pub colors: ThemeColors,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+pub struct ThemesConfig {
+    pub themes: Vec<Theme>,
+}
+
+pub fn default_themes() -> ThemesConfig {
+    ThemesConfig {
+        themes: vec![
+            Theme {
+                name: "sand-cream".to_string(),
+                active: true,
+                colors: ThemeColors {
+                    bg_espresso: "#4B3621".to_string(),
+                    bg_espresso_deep: "#3A2A1A".to_string(),
+                    bg_espresso_raised: "#54402D".to_string(),
+                    bg_espresso_frosted: "rgba(58,42,26,0.55)".to_string(),
+                    bg_espresso_glass: "rgba(58,42,26,0.65)".to_string(),
+                    sand: "#C2B280".to_string(),
+                    sand_bright: "#D4C19C".to_string(),
+                    sand_dim: "#8A7B5C".to_string(),
+                    sand_cream: "#EDE4D3".to_string(),
+                    accent_terracotta: "#B8835A".to_string(),
+                    accent_caramel: "#D4A574".to_string(),
+                    accent_soft: "rgba(184,131,90,0.18)".to_string(),
+                    border_subtle: "rgba(194,178,128,0.08)".to_string(),
+                    border_strong: "rgba(194,178,128,0.18)".to_string(),
+                    status_running: "#D4A574".to_string(),
+                    status_pinned: "#8A7B5C".to_string(),
+                },
+            },
+            Theme {
+                name: "earthly-green".to_string(),
+                active: false,
+                colors: ThemeColors {
+                    bg_espresso: "#354f52".to_string(),
+                    bg_espresso_deep: "#2f3e46".to_string(),
+                    bg_espresso_raised: "#4a6166".to_string(),
+                    bg_espresso_frosted: "rgba(47,62,70,0.55)".to_string(),
+                    bg_espresso_glass: "rgba(47,62,70,0.65)".to_string(),
+                    sand: "#84a98c".to_string(),
+                    sand_bright: "#9bbfa0".to_string(),
+                    sand_dim: "#52796f".to_string(),
+                    sand_cream: "#cad2c5".to_string(),
+                    accent_terracotta: "#52796f".to_string(),
+                    accent_caramel: "#84a98c".to_string(),
+                    accent_soft: "rgba(82,121,111,0.18)".to_string(),
+                    border_subtle: "rgba(202,210,197,0.08)".to_string(),
+                    border_strong: "rgba(202,210,197,0.18)".to_string(),
+                    status_running: "#84a98c".to_string(),
+                    status_pinned: "#52796f".to_string(),
+                },
+            },
+            Theme {
+                name: "silver-lining".to_string(),
+                active: false,
+                colors: ThemeColors {
+                    bg_espresso: "#7f7f7f".to_string(),
+                    bg_espresso_deep: "#595959".to_string(),
+                    bg_espresso_raised: "#969696".to_string(),
+                    bg_espresso_frosted: "rgba(89,89,89,0.55)".to_string(),
+                    bg_espresso_glass: "rgba(89,89,89,0.65)".to_string(),
+                    sand: "#a5a5a5".to_string(),
+                    sand_bright: "#cccccc".to_string(),
+                    sand_dim: "#7f7f7f".to_string(),
+                    sand_cream: "#f2f2f2".to_string(),
+                    accent_terracotta: "#a5a5a5".to_string(),
+                    accent_caramel: "#cccccc".to_string(),
+                    accent_soft: "rgba(165,165,165,0.18)".to_string(),
+                    border_subtle: "rgba(242,242,242,0.08)".to_string(),
+                    border_strong: "rgba(242,242,242,0.18)".to_string(),
+                    status_running: "#cccccc".to_string(),
+                    status_pinned: "#a5a5a5".to_string(),
+                },
+            },
+        ],
+    }
+}
+
+pub fn load_themes() -> ThemesConfig {
+    let path = data_dir().join("themes.json");
+    match fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_else(|_| default_themes()),
+        Err(_) => {
+            // First run — create default themes file
+            let defaults = default_themes();
+            if let Ok(s) = serde_json::to_string_pretty(&defaults) {
+                let _ = fs::write(&path, s);
+            }
+            defaults
+        }
+    }
+}
+
+pub fn save_themes(config: &ThemesConfig) {
+    let path = data_dir().join("themes.json");
+    if let Ok(s) = serde_json::to_string_pretty(config) {
+        let _ = fs::write(&path, s);
+    }
+}
+
+pub fn get_active_theme() -> Option<Theme> {
+    let config = load_themes();
+    config.themes.into_iter().find(|t| t.active)
+}
+
+pub fn set_active_theme(name: &str) {
+    let mut config = load_themes();
+    for theme in &mut config.themes {
+        theme.active = theme.name == name;
+    }
+    save_themes(&config);
+}
+
