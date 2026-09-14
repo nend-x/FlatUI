@@ -40,6 +40,8 @@ const expandOverlay = document.getElementById("expand-overlay")!;
 const searchInput = document.getElementById("search") as HTMLInputElement;
 const grid = document.getElementById("grid")!;
 const spotlightResultsEl = document.getElementById("spotlight-results")!;
+const actionsWrap = document.querySelector<HTMLElement>(".launcher-actions")!;
+const searchWrap = document.querySelector<HTMLElement>(".launcher-search-wrap")!;
 const winselectBtn = document.getElementById("winselect-btn")!;
 const minimizeAllBtn = document.getElementById("minimize-all-btn")!;
 const runBtn = document.getElementById("run-btn")!;
@@ -288,20 +290,212 @@ async function loadWidgetPositions() {
   } catch {}
 }
 
-// ===== Expand animation =====
-function playExpandAnimation(): Promise<void> {
-  return new Promise((resolve) => {
-    // Reset overlay
-    expandOverlay.classList.remove("fading", "expanded");
-    expandOverlay.classList.add("expanding");
+// ===== Launcher open/close animation state machine =====
+//
+// Why this exists (bugfix): the old implementation sequenced the open
+// animation with wall-clock setTimeouts that were never cancelled. Toggling
+// faster than an animation ran let stale timers from a previous open fire
+// mid-animation — the background snapped to its final state and elements
+// appeared before the cube finished. On top of that, the cube animation was
+// started while the window was still hidden, so under heavy GPU load
+// (games) the animation clock ran ahead of the first presented frame and
+// the cube appeared speeded-up or fully skipped.
+//
+// The rules now:
+//   1. Every show/hide request bumps a session token. Async continuations
+//      (rAF waits, animationend waits, fallback timers) capture the token
+//      and bail out silently if it went stale — spamming the Win key can
+//      never leave orphaned callbacks mutating the DOM.
+//   2. The cube only starts once the window is actually visible AND the
+//      compositor has produced frames (2× requestAnimationFrame) — the
+//      animation clock and the presented output start together, no matter
+//      how loaded the system is.
+//   3. Sequencing is driven by real `animationend` events, not guessed
+//      milliseconds. Fallback timers exist only as a safety net and are
+//      session-guarded.
+//   4. Show: cube expands → finishes → content elements fade in.
+//      Hide:  content elements fade out → fully gone → THEN the cube
+//      collapses → the DOM snaps clean and the backend is told to hide
+//      the window at that exact moment. The close is the exact mirror of
+//      the open — content must never float over a moving background.
 
-    // After cube finishes expanding (~1280ms), mark as expanded (stays as background)
-    setTimeout(() => {
-      expandOverlay.classList.remove("expanding");
-      expandOverlay.classList.add("expanded");
-      resolve();
-    }, 1200);
+let launcherSession = 0;
+let sessionTimers: number[] = [];
+
+// NOTE: the OS `prefers-reduced-motion` setting is deliberately IGNORED.
+// Windows reports it whenever system animations are disabled (common on
+// gaming machines with "best performance" visual effects), and honoring
+// it made the launcher pop in with no animation at all. The shell pins
+// its own motion policy — the animation always runs.
+
+function trackTimer(id: number): void {
+  sessionTimers.push(id);
+}
+
+function cancelSessionTimers(): void {
+  for (const id of sessionTimers) clearTimeout(id);
+  sessionTimers = [];
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    trackTimer(window.setTimeout(resolve, ms));
   });
+}
+
+function nextFrame(): Promise<number> {
+  return new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+// Wait until the webview reports itself visible and has painted two frames.
+// This guarantees the cube animation starts together with the first
+// *presented* frame instead of against a hidden window (which made the
+// animation appear "sped up" or missing under GPU load in games).
+async function awaitOnScreen(session: number, maxWaitMs = 1500): Promise<boolean> {
+  const t0 = performance.now();
+  while (document.visibilityState !== "visible") {
+    if (launcherSession !== session) return false;
+    if (performance.now() - t0 > maxWaitMs) return false;
+    await sleep(16);
+  }
+  // Two rAFs: the first may coalesce with the show-paint, the second
+  // guarantees the compositor is actually producing frames.
+  await nextFrame();
+  if (launcherSession !== session) return false;
+  await nextFrame();
+  if (launcherSession !== session) return false;
+  return true;
+}
+
+// Resolve when the named CSS animation really ends on `el` (its own clock,
+// not a wall-clock guess). A safety timeout above the CSS duration covers
+// swallowed events; both paths resolve identically. `animationcancel` (the
+// class being ripped off by a newer session) also resolves so no caller
+// can ever dangle.
+function waitAnimationEnd(el: Element, animationName: string, safetyMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      el.removeEventListener("animationend", onEnd);
+      el.removeEventListener("animationcancel", onEnd);
+      clearTimeout(safety);
+      resolve();
+    };
+    const onEnd = (ev: Event) => {
+      if ((ev as AnimationEvent).animationName === animationName) finish();
+    };
+    el.addEventListener("animationend", onEnd);
+    el.addEventListener("animationcancel", onEnd);
+    const safety = window.setTimeout(finish, safetyMs);
+    trackTimer(safety);
+  });
+}
+
+// Snap the launcher DOM to its clean pre-open state. Idempotent; safe from
+// any session (in-flight callbacks are already session-guarded).
+function resetLauncherDom(): void {
+  root.classList.add("hidden");
+  root.classList.remove("opening", "closing");
+  expandOverlay.classList.remove("expanding", "expanded", "collapsing", "fading");
+  searchInput.value = "";
+  runDialog.classList.add("hidden");
+  winSwitcherOverlay.classList.add("hidden");
+  blacklistOverlay.classList.add("hidden");
+  blacklistBtn.classList.remove("active");
+  document.querySelectorAll(".context-menu").forEach((el) => el.remove());
+  document.querySelectorAll(".modal-backdrop").forEach((el) => el.remove());
+  applyFilter();
+}
+
+// Show sequence: window on screen → cube expands → cube DONE → elements in.
+async function showLauncherSequence(): Promise<void> {
+  const session = ++launcherSession;
+  cancelSessionTimers();
+  resetLauncherDom();
+
+  // Gate on real visibility + painted frames. If that ever times out
+  // (exotic webview states), open without the cube rather than freeze —
+  // graceful degradation instead of a desynced animation.
+  const onScreen = await awaitOnScreen(session);
+  if (launcherSession !== session) return;
+
+  if (onScreen) {
+    const ended = waitAnimationEnd(expandOverlay, "cube-expand", 2400);
+    expandOverlay.classList.add("expanding");
+    await ended;
+    if (launcherSession !== session) return;
+  }
+  expandOverlay.classList.remove("expanding");
+  expandOverlay.classList.add("expanded");
+
+  // Elements fade in strictly AFTER the background has finished.
+  root.classList.remove("hidden");
+  root.classList.add("opening");
+  searchInput.focus({ preventScroll: true });
+
+  // Drop .opening once the element cascade has finished (longest delay
+  // 400ms + 400ms duration + slack). Session-guarded, so a rapid
+  // re-toggle can never carry it into the next session.
+  trackTimer(
+    window.setTimeout(() => {
+      if (launcherSession === session) root.classList.remove("opening");
+    }, 1000)
+  );
+}
+
+// Hide sequence — the exact mirror of the open sequence, in two strict
+// phases:
+//   Phase 1: elements fade out over a fully-expanded, static background.
+//            (The content must never float over a collapsing background —
+//            it reads as broken layering.)
+//   Phase 2: elements fully gone → cube collapses over a clean screen →
+//            DOM snaps clean and the backend hides the window at exactly
+//            that moment (Rust delays its own hide as a fallback).
+async function hideLauncherSequence(): Promise<void> {
+  const session = ++launcherSession;
+  cancelSessionTimers();
+
+  // Nothing visible to animate (e.g. instant-hide paths) → snap clean.
+  if (root.classList.contains("hidden")) {
+    resetLauncherDom();
+    invoke("launcher_close_finished");
+    return;
+  }
+
+  // Phase 1 — elements out. The background stays fully expanded beneath
+  // them for the whole cascade.
+  root.classList.remove("opening"); // don't let opening styles fight the closing ones
+  root.classList.add("closing");
+  await waitElementCascadeOut();
+  if (launcherSession !== session) return; // re-shown mid-close
+  root.classList.add("hidden"); // content layer fully gone before the bg moves
+
+  // Phase 2 — the cube collapses. expanded is removed and collapsing added
+  // in one synchronous block, so no frame is ever painted in the base
+  // (collapsed, invisible) state — the collapse animation starts FROM the
+  // fullscreen appearance.
+  expandOverlay.classList.remove("expanded");
+  expandOverlay.classList.add("collapsing");
+  await waitAnimationEnd(expandOverlay, "cube-collapse", 1600);
+  if (launcherSession !== session) return; // re-shown mid-collapse
+  resetLauncherDom();
+  invoke("launcher_close_finished");
+}
+
+// Phase 1 helper: wait until the element fade-out cascade REALLY finished —
+// `animationend` on every element actually running `launcher-element-out`.
+// Elements that are display:none never start their animation, so they are
+// filtered out and we never wait on an event that cannot fire.
+function waitElementCascadeOut(): Promise<void> {
+  const els = [actionsWrap, searchWrap, grid, spotlightResultsEl].filter(
+    (el) => !el.classList.contains("hidden") && getComputedStyle(el).display !== "none"
+  );
+  if (els.length === 0) return Promise.resolve();
+  return Promise.all(
+    els.map((el) => waitAnimationEnd(el, "launcher-element-out", 1200))
+  ).then(() => undefined);
 }
 
 // ===== Desktop grid render =====
@@ -375,25 +569,7 @@ function updateSelection() {
 }
 
 function launch(item: LauncherItem | SearchResult) {
-  // Find the launcher-item element matching this item
-  const items = grid.querySelectorAll(".launcher-item");
-  let targetEl: HTMLElement | null = null;
-  items.forEach((el) => {
-    const labelEl = el.querySelector(".label");
-    if (labelEl && labelEl.textContent === item.name) {
-      targetEl = el as HTMLElement;
-    }
-  });
-
-  if (!targetEl) {
-    const spotlightItems = spotlightResultsEl.querySelectorAll(".spotlight-item");
-    spotlightItems.forEach((el, idx) => {
-      if (spotlightResults[idx] && spotlightResults[idx].name === item.name) {
-        targetEl = el as HTMLElement;
-      }
-    });
-  }
-
+  const targetEl = findLaunchTarget(item);
   if (targetEl) {
     targetEl.classList.add("launching");
     // Stop spinning after 3 seconds
@@ -404,6 +580,25 @@ function launch(item: LauncherItem | SearchResult) {
 
   doLaunch(item);
   closeLauncher();
+}
+
+// Find the DOM element that matches this item (grid first, then spotlight).
+// Plain loops with early return — no closure assignment, so the compiler
+// keeps the narrowing honest.
+function findLaunchTarget(item: LauncherItem | SearchResult): HTMLElement | null {
+  for (const el of Array.from(grid.querySelectorAll(".launcher-item"))) {
+    const labelEl = el.querySelector(".label");
+    if (labelEl && labelEl.textContent === item.name) {
+      return el as HTMLElement;
+    }
+  }
+  const spotlightItems = Array.from(spotlightResultsEl.querySelectorAll(".spotlight-item"));
+  for (let idx = 0; idx < spotlightItems.length; idx++) {
+    if (spotlightResults[idx] && spotlightResults[idx].name === item.name) {
+      return spotlightItems[idx] as HTMLElement;
+    }
+  }
+  return null;
 }
 
 function doLaunch(item: LauncherItem | SearchResult) {
@@ -431,33 +626,14 @@ function closeLauncher() {
   invoke("close_launcher");
 }
 
-// External close (from Win key toggle, or close_launcher call)
+// External close (from Win key toggle, or close_launcher call) — animated.
 listen("launcher://force-hidden", () => {
-  root.classList.add("hidden");
-  root.classList.remove("closing", "opening");
-  searchInput.value = "";
-  runDialog.classList.add("hidden");
-  winSwitcherOverlay.classList.add("hidden");
-  blacklistOverlay.classList.add("hidden");
-  blacklistBtn.classList.remove("active");
-  expandOverlay.classList.remove("expanded", "expanding", "collapsing");
-  applyFilter();
+  void hideLauncherSequence();
 });
 
-// External show (from Win key toggle)
-listen("launcher://force-shown", async () => {
-  // Make sure no leftover closing/collapsing classes from previous close
-  root.classList.remove("closing");
-  expandOverlay.classList.remove("collapsing", "expanded", "expanding");
-  await playExpandAnimation();
-  root.classList.remove("hidden");
-  root.classList.add("opening");
-  setTimeout(() => {
-    root.classList.remove("opening");
-  }, 800);
-  document.querySelectorAll(".context-menu").forEach((el) => el.remove());
-  document.querySelectorAll(".modal-backdrop").forEach((el) => el.remove());
-  setTimeout(() => searchInput.focus(), 400);
+// External show (from Win key toggle) — cube first, elements after.
+listen("launcher://force-shown", () => {
+  void showLauncherSequence();
 });
 
 // ===== Spotlight: when search non-empty, hide grid + show search results =====
@@ -1283,9 +1459,9 @@ async function init() {
   setInterval(updateSysmon, 2000);
   initWidgetDragging();
   await loadWidgetPositions();
-
-
-  setTimeout(() => searchInput.focus(), 400);
+  // NOTE: no focus timer here — the launcher page loads hidden; the show
+  // sequence (showLauncherSequence) focuses the search input at the right
+  // moment, after the background animation has finished.
 }
 
 init();
