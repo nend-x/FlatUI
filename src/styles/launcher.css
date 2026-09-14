@@ -14,19 +14,27 @@ html.background-ready, html.background-ready body {
 
 /* ===== Expand overlay — cube that grows from 0×0 to full screen =====
    The cube becomes the launcher background after expansion.
-   Custom frosted glass — espresso-based with strong backdrop blur. */
+   Custom frosted glass — espresso-based with strong backdrop blur.
+
+   Implementation note (bugfix): the cube used to animate width/height,
+   which re-runs LAYOUT on every frame of a fullscreen backdrop-filter
+   layer — expensive and frame-budget-sensitive under GPU load (games).
+   It now animates clip-path on an always-fullscreen element: identical
+   visual waypoints (0 → 80px rounded cube → fullscreen, radius 16 → 0),
+   zero layout work, and the blurred area stays proportional to the visible
+   cube instead of the whole screen. */
 .expand-overlay {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   /* Custom frosted glass — espresso-based with strong backdrop blur */
   background: rgba(58, 42, 26, 0.55);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border-radius: var(--radius-lg);
-  transform: translate(-50%, -50%) scale(0);
+  /* Collapsed state: zero-size rounded rect at screen center */
+  clip-path: inset(50% 50% round 16px);
   opacity: 0;
   pointer-events: none;
   z-index: 1999;
@@ -34,15 +42,13 @@ html.background-ready, html.background-ready body {
 
 .expand-overlay.expanding {
   animation: cube-expand 1280ms var(--ease-out-expo) forwards;
+  will-change: clip-path, opacity;
 }
 
 /* After expansion, the overlay stays as the launcher background.
    No fade-out — it becomes the persistent background. */
 .expand-overlay.expanded {
-  width: 100vw;
-  height: 100vh;
-  border-radius: 0;
-  transform: translate(-50%, -50%) scale(1);
+  clip-path: inset(0 0 round 0px);
   opacity: 1;
   pointer-events: auto;
 }
@@ -50,53 +56,36 @@ html.background-ready, html.background-ready body {
 /* Close animation: cube collapses back to 0×0 */
 .expand-overlay.collapsing {
   animation: cube-collapse 800ms var(--ease-out-expo) forwards;
+  will-change: clip-path, opacity;
 }
 
 @keyframes cube-collapse {
   0% {
-    width: 100vw;
-    height: 100vh;
-    transform: translate(-50%, -50%) scale(1);
+    clip-path: inset(0 0 round 0px);
     opacity: 1;
-    border-radius: 0;
   }
   60% {
-    width: 80px;
-    height: 80px;
-    transform: translate(-50%, -50%) scale(1);
+    clip-path: inset(calc(50% - 40px) calc(50% - 40px) round 16px);
     opacity: 1;
-    border-radius: var(--radius-lg);
   }
   100% {
-    width: 0px;
-    height: 0px;
-    transform: translate(-50%, -50%) scale(0);
+    clip-path: inset(50% 50% round 16px);
     opacity: 0;
-    border-radius: var(--radius-lg);
   }
 }
 
 @keyframes cube-expand {
   0% {
-    width: 0px;
-    height: 0px;
-    transform: translate(-50%, -50%) scale(0);
+    clip-path: inset(50% 50% round 16px);
     opacity: 0;
-    border-radius: 16px;
   }
   15% {
-    width: 80px;
-    height: 80px;
-    transform: translate(-50%, -50%) scale(1);
+    clip-path: inset(calc(50% - 40px) calc(50% - 40px) round 16px);
     opacity: 1;
-    border-radius: 16px;
   }
   100% {
-    width: 100vw;
-    height: 100vh;
-    transform: translate(-50%, -50%) scale(1);
+    clip-path: inset(0 0 round 0px);
     opacity: 1;
-    border-radius: 0;
   }
 }
 
@@ -158,6 +147,16 @@ html.background-ready, html.background-ready body {
   0%   { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-12px); }
 }
+
+/* ===== Reduced motion: deliberately NOT honored =====
+   FlatUI's launcher animation is a core part of the shell's identity, not
+   optional decoration. Windows reports `prefers-reduced-motion: reduce`
+   whenever system animations are off (e.g. "Adjust for best performance"
+   visual effects — a common gaming setup), and obeying it made the
+   launcher appear with zero animation. The shell therefore pins its own
+   motion policy: animations always run, at fixed durations, independent
+   of any OS/WebView setting. Timing robustness comes from the JS state
+   machine (see src/launcher/main.ts), not from muting the motion. */
 
 /* ===== Action buttons (left side) ===== */
 .launcher-actions {

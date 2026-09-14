@@ -1,0 +1,12 @@
+# Cross-compilation wiring (see README — "Cross-compiling from Linux").
+#
+# Links the msvc target with LLVM's lld-link, which cargo-xwin pairs with
+# the Windows SDK/CRT headers+libs it downloads via xwin. No extra flags
+# are needed once lld-link + llvm-rc are on PATH.
+[target.x86_64-pc-windows-msvc]
+linker = "lld-link"
+
+# Convenience on Linux CI: routes `cargo run --target x86_64-pc-windows-msvc`
+# through cargo-xwin. If cargo run complains on your machine, just remove
+# this line — plain `cargo build` works either way.
+runner = "cargo-xwin"

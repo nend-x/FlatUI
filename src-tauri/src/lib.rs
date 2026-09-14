@@ -17,10 +17,28 @@ mod setup;
 mod win32;
 
 use parking_lot::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager, WindowEvent};
 
 use app_state::AppState;
+
+// ===== Launcher visibility state machine =====
+//
+// Logical open/close state for the launcher, decoupled from raw window
+// visibility: during the close animation the window is STILL visible (the
+// frontend plays the collapse before we hide the window), so toggling off
+// `is_visible()` would mis-route a Win-key press that lands mid-animation.
+//
+// - LAUNCHER_OPEN — the launcher is logically open (or opening).
+// - CLOSE_SEQ     — monotonic sequence for pending delayed hides. A show
+//                   request bumps it, which cancels the pending hide.
+//
+// The frontend mirrors this with its own session tokens (see
+// src/launcher/main.ts) — together they make rapid toggling (Win-key spam)
+// glitch-free: every request cleanly cancels whatever is in flight.
+static LAUNCHER_OPEN: AtomicBool = AtomicBool::new(false);
+static CLOSE_SEQ: AtomicU64 = AtomicU64::new(0);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -169,6 +187,7 @@ pub fn run() {
             tray_click,
             toggle_launcher,
             close_launcher,
+            launcher_close_finished,
             launch_desktop_item,
             toggle_calendar_flyout,
             get_app_windows,
@@ -284,29 +303,90 @@ fn toggle_launcher(app: tauri::AppHandle) {
 }
 
 pub(crate) fn toggle_launcher_impl(app: &tauri::AppHandle) {
-    if let Some(launcher) = app.get_webview_window("launcher") {
-        let visible = launcher.is_visible().unwrap_or(false);
-        log::info!("launcher visible: {}", visible);
-        if visible {
-            let _ = launcher.hide();
-            let _ = app.emit("launcher://force-hidden", ());
-        } else {
-            fit_launcher_to_screen(app);
-            // Show-desktop effect: minimize every open window so the launcher
-            // sits on a clean desktop instead of on top of other windows.
-            #[cfg(windows)]
-            {
-                win32::window::minimize_all_windows();
-            }
-            let _ = app.emit("launcher://force-shown", ());
-            let _ = launcher.show();
-            let _ = launcher.set_focus();
-            let _ = launcher.set_always_on_top(true);
-            let handle = app.clone();
-            std::thread::spawn(move || refresh_desktop_items(&handle));
-        }
+    // Logical state, not window visibility: during the close animation the
+    // window is still visible, so is_visible() would mis-route a toggle.
+    if LAUNCHER_OPEN.load(Ordering::SeqCst) {
+        hide_launcher_animated(app);
     } else {
-        log::error!("launcher window not found");
+        show_launcher(app);
+    }
+}
+
+/// Show the launcher: window FIRST, event AFTER.
+///
+/// The frontend gates its open animation on real visibility + painted
+/// frames, so the cube always starts together with the first presented
+/// frame. (The old code emitted `force-shown` before showing the window —
+/// the animation clock then ran ahead of presentation under GPU load and
+/// the cube appeared speeded-up or fully skipped, e.g. while gaming.)
+fn show_launcher(app: &tauri::AppHandle) {
+    let Some(launcher) = app.get_webview_window("launcher") else {
+        log::error!("show_launcher: launcher window not found");
+        return;
+    };
+
+    // Cancel any pending delayed hide from an interrupted close.
+    CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
+    LAUNCHER_OPEN.store(true, Ordering::SeqCst);
+
+    fit_launcher_to_screen(app);
+    // Show-desktop effect: minimize every open window so the launcher
+    // sits on a clean desktop instead of on top of other windows.
+    #[cfg(windows)]
+    {
+        win32::window::minimize_all_windows();
+    }
+
+    let _ = launcher.set_always_on_top(true);
+    let _ = launcher.show();
+    let _ = launcher.set_focus();
+    // Emit AFTER the window is on screen — the frontend's animation gate
+    // then passes immediately instead of polling.
+    let _ = app.emit("launcher://force-shown", ());
+
+    let handle = app.clone();
+    std::thread::spawn(move || refresh_desktop_items(&handle));
+}
+
+/// Hide the launcher with the close animation.
+///
+/// Emits `force-hidden` (the frontend FIRST fades the elements out, THEN
+/// collapses the cube, then reports back via `launcher_close_finished`, at
+/// which point we hide the window). A fallback thread hides the window
+/// after 2.4 s in case that report is ever lost — the full two-phase close
+/// runs ~1.4 s (element cascade ~0.6 s + cube collapse 0.8 s), so the
+/// fallback must sit comfortably above it — superseded by any new show via
+/// CLOSE_SEQ.
+fn hide_launcher_animated(app: &tauri::AppHandle) {
+    if !LAUNCHER_OPEN.swap(false, Ordering::SeqCst) {
+        return; // already closing or closed — nothing to animate
+    }
+    let seq = CLOSE_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
+    let _ = app.emit("launcher://force-hidden", ());
+
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(2400));
+        if CLOSE_SEQ.load(Ordering::SeqCst) == seq {
+            if let Some(launcher) = handle.get_webview_window("launcher") {
+                let _ = launcher.hide();
+            }
+            log::info!("launcher hidden via fallback timer");
+        }
+    });
+}
+
+/// Called by the frontend the moment its close animation finished — hide
+/// the window at exactly the right time instead of a wall-clock guess.
+/// Guarded so a late report can never hide a freshly re-opened launcher.
+#[tauri::command]
+fn launcher_close_finished(app: tauri::AppHandle) {
+    if LAUNCHER_OPEN.load(Ordering::SeqCst) {
+        return; // a new show superseded the close while the report was in flight
+    }
+    CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
+    if let Some(launcher) = app.get_webview_window("launcher") {
+        let _ = launcher.hide();
     }
 }
 
@@ -330,10 +410,7 @@ fn fit_launcher_to_screen(app: &tauri::AppHandle) {
 
 #[tauri::command]
 fn close_launcher(app: tauri::AppHandle) {
-    if let Some(launcher) = app.get_webview_window("launcher") {
-        let _ = launcher.hide();
-        let _ = app.emit("launcher://force-hidden", ());
-    }
+    hide_launcher_animated(&app);
 }
 
 #[tauri::command]
@@ -453,8 +530,13 @@ fn minimize_all_windows(app: tauri::AppHandle) {
     log::info!("minimize_all_windows");
     #[cfg(windows)]
     {
-        // First hide the launcher window so it doesn't get minimized or block
+        // First hide the launcher window so it doesn't get minimized or
+        // block. This is an INSTANT hide (everything minimizes right now,
+        // so there is nothing pretty to animate over) — fix the state
+        // machine accordingly: cancel any pending animated close.
         if let Some(launcher) = app.get_webview_window("launcher") {
+            CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
+            LAUNCHER_OPEN.store(false, Ordering::SeqCst);
             let _ = launcher.hide();
             let _ = app.emit("launcher://force-hidden", ());
         }
@@ -1050,6 +1132,12 @@ fn set_clipboard_image(data_url: String) {
 #[tauri::command]
 fn show_launcher_for_screenshot(app: tauri::AppHandle) {
     if let Some(launcher) = app.get_webview_window("launcher") {
+        // Screenshot mode reuses the launcher window without the launcher
+        // UI. Mark it logically open so a later close_launcher (which the
+        // screenshot flow invokes) goes through the proper state machine
+        // and actually hides the window.
+        CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
+        LAUNCHER_OPEN.store(true, Ordering::SeqCst);
         fit_launcher_to_screen(&app);
         let _ = launcher.show();
         let _ = launcher.set_focus();
