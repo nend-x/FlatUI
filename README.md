@@ -47,6 +47,7 @@ Drop it anywhere, run it, done.
 | 🖥️ **Desktop items** | Browse and launch your real desktop files & folders from inside the launcher. |
 | 🚫 **Window blacklist** | Stubborn windows that shouldn't appear in previews can be blacklisted. |
 | 📦 **Single-file install** | `flatwin.exe` (AutoHotkey v2 Win-key hook) and `HideTaskbar.exe` are **embedded** in the binary via `include_bytes!` and self-extract to `%LOCALAPPDATA%\FlatUI\bin`. |
+| 💥 **Crash handler** | If FlatUI ever crashes (Rust panic *or* native Win32 exception like an access violation), a separate crash-reporter window pops up with the error type, exception code, stack trace, and version — so you actually know what happened instead of the app silently disappearing. |
 
 <br>
 
@@ -166,6 +167,8 @@ flatui/
 ├── src-tauri/
 │   ├── src/
 │   │   ├── lib.rs           #   app entry, ~50 Tauri commands
+│   │   ├── main.rs          #   binary entry — routes --crash-report to crash_handler
+│   │   ├── crash_handler.rs #   panic hook + Win32 unhandled-exception filter → MessageBox
 │   │   ├── embedded.rs      #   include_bytes! helper embedding
 │   │   ├── setup.rs         #   helper extraction + child-process launch
 │   │   ├── http_server.rs   #   127.0.0.1:2290/toggle (AHK → Rust bridge)
