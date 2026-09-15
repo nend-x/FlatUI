@@ -61,6 +61,30 @@ pub fn scan_desktop() -> core::Result<Vec<DesktopItem>> {
         }
     }
 
+    // Disambiguate colliding display names. Both "flatui" (folder) and
+    // "flatui.exe" share the same file stem, which made the two grid tiles
+    // indistinguishable and invited launching the wrong item. When a
+    // non-folder item shares its display name with any other item, show its
+    // full file name (with extension) instead — Explorer does the same.
+    {
+        let mut name_counts: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
+        for it in items.iter() {
+            *name_counts.entry(it.name.to_lowercase()).or_default() += 1;
+        }
+        for it in items.iter_mut() {
+            let count = name_counts.get(&it.name.to_lowercase()).copied().unwrap_or(0);
+            if count > 1 && !it.is_folder {
+                if let Some(fname) = std::path::Path::new(&it.path)
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                {
+                    it.name = fname.to_string();
+                }
+            }
+        }
+    }
+
     items.sort_by(|a, b| match (a.is_folder, b.is_folder) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
