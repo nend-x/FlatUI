@@ -9,6 +9,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app_state;
+pub mod crash_handler;
 mod embedded;
 mod http_server;
 mod persist;
@@ -42,6 +43,12 @@ static CLOSE_SEQ: AtomicU64 = AtomicU64::new(0);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Install the crash handler BEFORE anything else — before logger init,
+    // before Tauri builder, before any code that might panic. The handler
+    // spawns a separate `flatui.exe --crash-report <file>` subprocess so the
+    // crash dialog survives the parent's death. See `crash_handler.rs`.
+    crash_handler::install();
+
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format_timestamp_millis()
         .init();
