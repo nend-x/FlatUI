@@ -1576,6 +1576,36 @@ fn search_programs(query: String) -> Vec<SearchResult> {
             walk_programs(&desktop_dir, &q, &mut results, &mut seen_names, true);
         }
 
+        // Disambiguate colliding display names. The Start Menu walk recurses
+        // into Programs\Startup, so an autostart "FlatUI.lnk" (→ flatui.exe)
+        // is returned alongside a desktop folder "flatui" and "flatui.exe"
+        // — three results that all rendered as "flatui", with the exe
+        // shortcut sorting FIRST. Picking "the flatui entry" then launched
+        // the exe instead of the folder. Same rule as the desktop grid:
+        // when several results share a label, non-folder items show their
+        // full file name with extension, so the folder becomes the only
+        // entry named exactly "flatui".
+        {
+            let mut name_counts: std::collections::HashMap<String, usize> =
+                std::collections::HashMap::new();
+            for r in results.iter() {
+                *name_counts.entry(r.name.to_lowercase()).or_default() += 1;
+            }
+            for r in results.iter_mut() {
+                let count = name_counts.get(&r.name.to_lowercase()).copied().unwrap_or(0);
+                if count > 1 && !r.is_folder {
+                    if let Some(fname) =
+                        std::path::Path::new(&r.path).file_name().and_then(|s| s.to_str())
+                    {
+                        r.name = fname.to_string();
+                    }
+                }
+            }
+        }
+
+        // Sort by the (now disambiguated) label so the folder — the only
+        // entry still named exactly "flatui" — ranks above its same-stem
+        // .lnk/.exe siblings.
         results.sort_by(|a, b| {
             let ia = a.name.to_lowercase().find(&q).unwrap_or(usize::MAX);
             let ib = b.name.to_lowercase().find(&q).unwrap_or(usize::MAX);
