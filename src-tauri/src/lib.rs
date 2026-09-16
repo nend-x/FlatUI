@@ -426,14 +426,34 @@ fn launch_desktop_item(item_id: String, state: tauri::State<'_, Arc<Mutex<AppSta
         let s = state.lock();
         s.desktop_items.iter().find(|i| i.id == item_id).map(|i| i.path.clone())
     };
-    if let Some(p) = path {
-        log::info!("launch_desktop_item: {p}");
+    // The desktop scan guarantees id == absolute path, so when the cached
+    // state is stale (item created/renamed/deleted between scans) fall back
+    // to the id itself. This keeps the click targeting the EXACT item that
+    // was rendered — it must never degrade into a name-based lookup, which
+    // could launch a different item that merely shares the display name.
+    let target = match path {
+        Some(p) => Some(p),
+        None => {
+            if std::path::Path::new(&item_id).exists() {
+                log::warn!("launch_desktop_item: id not in cached state, using id as path: {item_id}");
+                Some(item_id)
+            } else {
+                log::error!("launch_desktop_item: item not found: {item_id}");
+                None
+            }
+        }
+    };
+    if let Some(p) = target {
+        let kind = if std::path::Path::new(&p).is_dir() { "dir" } else { "file" };
+        log::info!("launch_desktop_item: {p} (kind={kind})");
         #[cfg(windows)]
         {
             if let Err(e) = win32::shell::shell_execute(&p) {
                 log::error!("launch_desktop_item failed: {e}");
             }
         }
+        #[cfg(not(windows))]
+        let _ = &p;
     }
 }
 
@@ -1544,17 +1564,49 @@ fn search_programs(query: String) -> Vec<SearchResult> {
         ];
 
         for dir in start_menu_dirs {
-            walk_programs(&dir, &q, &mut results, &mut seen_names);
+            walk_programs(&dir, &q, &mut results, &mut seen_names, false);
         }
 
-        // Also include Desktop items
+        // Also include Desktop items. Directory entries are included here so
+        // that a desktop FOLDER is never shadowed by a same-named .exe/.lnk —
+        // both appear as separate, individually launchable results.
         if let Ok(desktop_dir) = std::env::var("USERPROFILE")
             .map(std::path::PathBuf::from)
             .map(|p| p.join("Desktop"))
         {
-            walk_programs(&desktop_dir, &q, &mut results, &mut seen_names);
+            walk_programs(&desktop_dir, &q, &mut results, &mut seen_names, true);
         }
 
+        // Disambiguate colliding display names. The Start Menu walk recurses
+        // into Programs\Startup, so an autostart "FlatUI.lnk" (→ flatui.exe)
+        // is returned alongside a desktop folder "flatui" and "flatui.exe"
+        // — three results that all rendered as "flatui", with the exe
+        // shortcut sorting FIRST. Picking "the flatui entry" then launched
+        // the exe instead of the folder. Same rule as the desktop grid:
+        // when several results share a label, non-folder items show their
+        // full file name with extension, so the folder becomes the only
+        // entry named exactly "flatui".
+        {
+            let mut name_counts: std::collections::HashMap<String, usize> =
+                std::collections::HashMap::new();
+            for r in results.iter() {
+                *name_counts.entry(r.name.to_lowercase()).or_default() += 1;
+            }
+            for r in results.iter_mut() {
+                let count = name_counts.get(&r.name.to_lowercase()).copied().unwrap_or(0);
+                if count > 1 && !r.is_folder {
+                    if let Some(fname) =
+                        std::path::Path::new(&r.path).file_name().and_then(|s| s.to_str())
+                    {
+                        r.name = fname.to_string();
+                    }
+                }
+            }
+        }
+
+        // Sort by the (now disambiguated) label so the folder — the only
+        // entry still named exactly "flatui" — ranks above its same-stem
+        // .lnk/.exe siblings.
         results.sort_by(|a, b| {
             let ia = a.name.to_lowercase().find(&q).unwrap_or(usize::MAX);
             let ib = b.name.to_lowercase().find(&q).unwrap_or(usize::MAX);
@@ -1576,6 +1628,7 @@ fn walk_programs(
     q: &str,
     results: &mut Vec<SearchResult>,
     seen: &mut std::collections::HashSet<String>,
+    include_dirs: bool,
 ) {
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
@@ -1583,14 +1636,22 @@ fn walk_programs(
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.is_dir() {
-            walk_programs(&path, q, results, seen);
-            continue;
-        }
-        // Only .lnk shortcuts and .exe files
-        let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
-        if ext != "lnk" && ext != "exe" {
-            continue;
+        let is_dir = path.is_dir();
+        if is_dir {
+            // Always recurse so nested shortcuts are still found.
+            walk_programs(&path, q, results, seen, include_dirs);
+            // Directory entries themselves are only returned for desktop
+            // scans, where a folder must stay launchable even when an exe
+            // with the same display name exists next to it.
+            if !include_dirs {
+                continue;
+            }
+        } else {
+            // Only .lnk shortcuts and .exe files
+            let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+            if ext != "lnk" && ext != "exe" {
+                continue;
+            }
         }
         let name = path
             .file_stem()
@@ -1604,19 +1665,24 @@ fn walk_programs(
         if !name_lower.contains(q) {
             continue;
         }
-        let key = name_lower.clone();
+        // Deduplicate by full PATH, not by display name. Deduping by name
+        // made the first same-named match win, so a desktop folder could be
+        // shadowed by (or resolve to) a completely different .exe/.lnk that
+        // merely shares the file stem.
+        let key = path.to_string_lossy().to_lowercase();
         if seen.contains(&key) {
             continue;
         }
         seen.insert(key);
 
         let icon = crate::win32::icon::extract_icon_for_path(&path.to_string_lossy());
+        let path_str = path.to_string_lossy().to_string();
         results.push(SearchResult {
-            id: path.to_string_lossy().to_string(),
+            id: path_str.clone(),
             name,
-            path: path.to_string_lossy().to_string(),
+            path: path_str,
             icon_data_url: icon,
-            is_folder: false,
+            is_folder: is_dir,
         });
     }
 }

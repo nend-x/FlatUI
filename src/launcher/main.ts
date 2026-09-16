@@ -4,6 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
+import { getVersion } from "@tauri-apps/api/app";
 
 interface LauncherItem {
   id: string;
@@ -506,6 +507,7 @@ function renderGrid() {
     el.className = "launcher-item";
     if (idx === selectedIdx) el.classList.add("selected");
     el.style.animationDelay = `${Math.min(idx * 10, 160)}ms`;
+    el.dataset.id = item.id;
 
     const iconBox = document.createElement("div");
     iconBox.className = "icon-box";
@@ -583,19 +585,30 @@ function launch(item: LauncherItem | SearchResult) {
 }
 
 // Find the DOM element that matches this item (grid first, then spotlight).
-// Plain loops with early return — no closure assignment, so the compiler
-// keeps the narrowing honest.
+// Items are matched by their unique id (full path) — NOT by display name.
+// Matching by name made the launch animation (and with it the perceived
+// click target) land on the first item that happened to share the label,
+// e.g. spinning the "flatui" FOLDER tile while actually launching
+// "flatui.exe". Plain loops with early return — no closure assignment, so
+// the compiler keeps the narrowing honest.
 function findLaunchTarget(item: LauncherItem | SearchResult): HTMLElement | null {
   for (const el of Array.from(grid.querySelectorAll(".launcher-item"))) {
-    const labelEl = el.querySelector(".label");
-    if (labelEl && labelEl.textContent === item.name) {
+    if ((el as HTMLElement).dataset.id === item.id) {
       return el as HTMLElement;
     }
   }
   const spotlightItems = Array.from(spotlightResultsEl.querySelectorAll(".spotlight-item"));
   for (let idx = 0; idx < spotlightItems.length; idx++) {
-    if (spotlightResults[idx] && spotlightResults[idx].name === item.name) {
+    if (spotlightResults[idx] && spotlightResults[idx].id === item.id) {
       return spotlightItems[idx] as HTMLElement;
+    }
+  }
+  // Fallback for items without an id-based match (e.g. system shortcuts):
+  // compare label text, but only when no id collision is possible.
+  for (const el of Array.from(grid.querySelectorAll(".launcher-item"))) {
+    const labelEl = el.querySelector(".label");
+    if (labelEl && labelEl.textContent === item.name && !(el as HTMLElement).dataset.id) {
+      return el as HTMLElement;
     }
   }
   return null;
@@ -721,6 +734,7 @@ function renderSpotlightResults() {
     const el = document.createElement("div");
     el.className = "spotlight-item";
     if (idx === spotlightSelectedIdx) el.classList.add("selected");
+    el.dataset.id = result.id;
 
     const iconWrap = document.createElement("div");
     iconWrap.className = "spotlight-item-icon";
@@ -1459,6 +1473,16 @@ async function init() {
   setInterval(updateSysmon, 2000);
   initWidgetDragging();
   await loadWidgetPositions();
+
+  // Surface the running build's version — an old resident instance must be
+  // unmistakable next to a freshly launched one.
+  try {
+    const v = await getVersion();
+    const badge = document.getElementById("version-badge");
+    if (badge) badge.textContent = `FlatUI v${v}`;
+  } catch {
+    /* badge stays empty — cosmetic only */
+  }
   // NOTE: no focus timer here — the launcher page loads hidden; the show
   // sequence (showLauncherSequence) focuses the search input at the right
   // moment, after the background animation has finished.
