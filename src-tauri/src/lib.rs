@@ -444,7 +444,8 @@ fn launch_desktop_item(item_id: String, state: tauri::State<'_, Arc<Mutex<AppSta
         }
     };
     if let Some(p) = target {
-        log::info!("launch_desktop_item: {p}");
+        let kind = if std::path::Path::new(&p).is_dir() { "dir" } else { "file" };
+        log::info!("launch_desktop_item: {p} (kind={kind})");
         #[cfg(windows)]
         {
             if let Err(e) = win32::shell::shell_execute(&p) {

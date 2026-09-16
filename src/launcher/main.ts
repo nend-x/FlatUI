@@ -4,6 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
+import { getVersion } from "@tauri-apps/api/app";
 
 interface LauncherItem {
   id: string;
@@ -1472,6 +1473,16 @@ async function init() {
   setInterval(updateSysmon, 2000);
   initWidgetDragging();
   await loadWidgetPositions();
+
+  // Surface the running build's version — an old resident instance must be
+  // unmistakable next to a freshly launched one.
+  try {
+    const v = await getVersion();
+    const badge = document.getElementById("version-badge");
+    if (badge) badge.textContent = `FlatUI v${v}`;
+  } catch {
+    /* badge stays empty — cosmetic only */
+  }
   // NOTE: no focus timer here — the launcher page loads hidden; the show
   // sequence (showLauncherSequence) focuses the search input at the right
   // moment, after the background animation has finished.

@@ -95,6 +95,19 @@ pub fn scan_desktop() -> core::Result<Vec<DesktopItem>> {
 }
 
 pub fn shell_execute(path: &str) -> core::Result<()> {
+    // FOLDERS must never go through ShellExecuteW with the folder path as
+    // lpFile. The whole launch chain above us is path-exact (the item id IS
+    // the absolute path, matched against the scan state), yet users saw a
+    // folder whose name collides with a same-named .exe sibling launch that
+    // .exe. With every layer passing the exact path, the one remaining place
+    // the two can swap is the final shell NAME RESOLUTION inside
+    // ShellExecuteW: for an extensionless lpFile the shell resolver may bind
+    // the sibling executable instead of the directory. Dispatch folders
+    // explicitly — no name left to resolve.
+    if std::path::Path::new(path).is_dir() {
+        return open_folder_in_explorer(path);
+    }
+
     let wide_path: Vec<u16> = OsStr::new(path).encode_wide().chain(std::iter::once(0)).collect();
     let verb: Vec<u16> = OsStr::new("open").encode_wide().chain(std::iter::once(0)).collect();
 
@@ -113,6 +126,83 @@ pub fn shell_execute(path: &str) -> core::Result<()> {
         return Err(core::Error::new(
             HRESULT(-1),
             format!("ShellExecuteW failed: error code {}", result.0 as usize),
+        ));
+    }
+    Ok(())
+}
+
+/// Open `path` (a directory) in Windows Explorer with zero name resolution.
+///
+/// We launch `%SystemRoot%\explorer.exe` — resolved from an absolute path, so
+/// it can never bind to anything else — and pass the folder path as a quoted
+/// ARGUMENT. The folder path travels as data: `explorer.exe` is not asked to
+/// "find" anything by name, and no shell resolver ever sees the extensionless
+/// path as an executable candidate. As a safety net, if the explicit dispatch
+/// fails we retry with the "explore" verb, which is folder-only by definition
+/// (it fails on non-folders rather than launching something else).
+fn open_folder_in_explorer(path: &str) -> core::Result<()> {
+    log::info!("open_folder_in_explorer: {path}");
+
+    let wide_dir: Vec<u16> = OsStr::new(path).encode_wide().chain(std::iter::once(0)).collect();
+
+    // 1) Explicit dispatch: <SystemRoot>\explorer.exe "<folder>"
+    let explorer_path = match std::env::var("SystemRoot") {
+        Ok(root) => std::path::PathBuf::from(root).join("explorer.exe"),
+        Err(_) => std::path::PathBuf::from("C:\\Windows\\explorer.exe"),
+    };
+    if explorer_path.is_file() {
+        let wide_explorer: Vec<u16> = OsStr::new(&explorer_path)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        // Quoted argument — paths from read_dir never end in a backslash, so
+        // the trailing quote cannot be escaped by the path itself.
+        let params = format!("\"{}\"", path);
+        let wide_params: Vec<u16> =
+            OsStr::new(&params).encode_wide().chain(std::iter::once(0)).collect();
+        let verb: Vec<u16> = OsStr::new("open").encode_wide().chain(std::iter::once(0)).collect();
+
+        let result = unsafe {
+            ShellExecuteW(
+                None,
+                PCWSTR(verb.as_ptr()),
+                PCWSTR(wide_explorer.as_ptr()),
+                PCWSTR(wide_params.as_ptr()),
+                PCWSTR::null(),
+                SW_SHOWNORMAL,
+            )
+        };
+        if result.0 as usize > 32 {
+            return Ok(());
+        }
+        log::warn!(
+            "open_folder_in_explorer: explicit explorer.exe dispatch failed (code {}), falling back to 'explore' verb",
+            result.0 as usize
+        );
+    } else {
+        log::warn!(
+            "open_folder_in_explorer: explorer.exe not found at {}, falling back to 'explore' verb",
+            explorer_path.display()
+        );
+    }
+
+    // 2) Fallback: the "explore" verb is defined only for directories — it
+    // cannot launch an executable, so the worst case here is a no-op error.
+    let verb: Vec<u16> = OsStr::new("explore").encode_wide().chain(std::iter::once(0)).collect();
+    let result = unsafe {
+        ShellExecuteW(
+            None,
+            PCWSTR(verb.as_ptr()),
+            PCWSTR(wide_dir.as_ptr()),
+            PCWSTR::null(),
+            PCWSTR::null(),
+            SW_SHOWNORMAL,
+        )
+    };
+    if result.0 as usize <= 32 {
+        return Err(core::Error::new(
+            HRESULT(-1),
+            format!("open_folder_in_explorer failed: error code {}", result.0 as usize),
         ));
     }
     Ok(())

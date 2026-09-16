@@ -1496,3 +1496,19 @@ html.background-ready, html.background-ready body {
   border-radius: 2px;
   transition: width 600ms var(--ease-out-expo);
 }
+
+/* ===== Version badge (bottom-left, diagnostic) =====
+   Shows the running build's version so an old resident instance can never
+   be mistaken for a freshly launched one. */
+.version-badge {
+  position: absolute;
+  left: 18px;
+  bottom: 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--sand-dim);
+  opacity: 0.55;
+  user-select: none;
+  pointer-events: none;
+}
