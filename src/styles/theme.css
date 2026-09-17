@@ -1,6 +1,8 @@
 /* =========================================================================
-   FLATUI THEME — Anthropic-inspired, Sand+Espresso palette
-   Mat/frosted aesthetic, minimal glow, premium feel
+   FLATUI THEME — "Espresso Atelier" visual redemption
+   Refined sand+espresso palette, measured motion, layered hairline depth.
+   Minimalist philosophy preserved: no glow, no gradients, no decoration
+   that doesn't carry meaning.
    ========================================================================= */
 
 @font-face {
@@ -33,61 +35,96 @@
 }
 
 :root {
-  /* ===== Palette: Sand + Espresso — desaturated, premium ===== */
-  --bg-espresso: #4B3621;
-  --bg-espresso-deep: #3A2A1A;
-  --bg-espresso-raised: #54402D;
-  /* Frosted glass — espresso-based with strong backdrop blur */
-  --bg-espresso-frosted: rgba(58, 42, 26, 0.55);
-  --bg-espresso-glass: rgba(58, 42, 26, 0.65);
+  /* ===== Palette: Espresso + Sand — refined, desaturated, premium =====
+     Coffee tones deepened for richer contrast; sand desaturated for less
+     "warm yellow" and more "parchment" feel. Accent is amber-leaning. */
+  --bg-espresso: #3D2C1E;
+  --bg-espresso-deep: #2A1E14;
+  --bg-espresso-raised: #4A382A;
+  /* Frosted glass — refined opacity for a more "mat paper" feel */
+  --bg-espresso-frosted: rgba(42, 30, 20, 0.58);
+  --bg-espresso-glass: rgba(42, 30, 20, 0.70);
+  --bg-espresso-glass-deep: rgba(28, 20, 14, 0.82);
 
-  --sand: #C2B280;
-  --sand-bright: #D4C19C;
-  --sand-dim: #8A7B5C;
-  --sand-cream: #EDE4D3;
+  --sand: #B8A77C;
+  --sand-bright: #CDB992;
+  --sand-dim: #7E6F52;
+  --sand-cream: #E6DBC4;
+  --sand-paper: #F2EAD6;
 
-  --accent-terracotta: #B8835A;
-  --accent-caramel: #D4A574;
-  --accent-soft: rgba(184, 131, 90, 0.10);
+  --accent-terracotta: #B07A4E;
+  --accent-caramel: #C99A6A;
+  --accent-amber: #D9A878;
+  --accent-soft: rgba(176, 122, 78, 0.12);
+  --accent-medium: rgba(176, 122, 78, 0.28);
 
-  --border-subtle: rgba(194, 178, 128, 0.08);
-  --border-strong: rgba(194, 178, 128, 0.18);
+  /* Refined hairline borders — never thick, never glowing */
+  --border-subtle: rgba(184, 167, 124, 0.07);
+  --border-faint: rgba(184, 167, 124, 0.04);
+  --border-soft: rgba(184, 167, 124, 0.12);
+  --border-strong: rgba(184, 167, 124, 0.20);
+  --border-accent: rgba(176, 122, 78, 0.38);
 
-  --status-running: #D4A574;
-  --status-pinned: #8A7B5C;
+  --status-running: #C99A6A;
+  --status-pinned: #7E6F52;
 
-  /* Subtle, mat shadows (no aggressive glow) */
-  --shadow-window: 0 1px 4px rgba(0, 0, 0, 0.18);
-  --shadow-popup: 0 2px 12px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22);
-  --shadow-icon-hover: 0 1px 3px rgba(0, 0, 0, 0.14);
+  /* Layered mat shadows — depth without glow.
+     Two-layer: short tight + long soft, both with warm undertone. */
+  --shadow-window: 0 1px 2px rgba(0, 0, 0, 0.20), 0 1px 1px rgba(0, 0, 0, 0.10);
+  --shadow-popup:
+    0 1px 2px rgba(0, 0, 0, 0.22),
+    0 4px 14px rgba(0, 0, 0, 0.32),
+    0 1px 1px rgba(0, 0, 0, 0.18);
+  --shadow-icon-hover: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow-lifted:
+    0 2px 4px rgba(0, 0, 0, 0.24),
+    0 8px 24px rgba(0, 0, 0, 0.40);
 
-  /* ===== Typography ===== */
+  /* ===== Typography =====
+     Inter Variable becomes the primary UI font (lighter, more legible at
+     small sizes than mono), JetBrains Mono reserved for display numerals. */
   --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Mono", monospace;
-  --font-ui: "JetBrains Mono", "Inter Variable", system-ui, sans-serif;
-  --font-display: "JetBrains Mono", monospace;
+  --font-ui: "Inter Variable", "JetBrains Mono", system-ui, sans-serif;
+  --font-display: "JetBrains Mono", "Inter Variable", monospace;
 
   /* ===== Sizing ===== */
-  --taskbar-height: 40px;
+  --taskbar-height: 42px;
   --taskbar-icon-size: 22px;
-  --taskbar-icon-padding: 7px;
+  --taskbar-icon-padding: 8px;
   --taskbar-icon-gap: 4px;
 
   --launcher-grid-cols: 8;
-  --launcher-grid-gap: 12px;
+  --launcher-grid-gap: 10px;
   --launcher-icon-size: 64px;
   --launcher-icon-radius: 14px;
 
-  /* ===== Radius ===== */
+  /* ===== Radius — tightened scale ===== */
+  --radius-xs: 3px;
   --radius-sm: 5px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  --radius-xl: 18px;
+  --radius-xl: 16px;
+  --radius-2xl: 22px;
 
-  /* ===== Easing ===== */
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
-  --ease-out-soft: cubic-bezier(0.32, 0.72, 0.45, 1);
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  /* ===== Easing — measured, deliberate =====
+     No aggressive bounces. Springs are soft, with subtle overshoot only
+     on the way OUT of an action, never on the way IN. */
+  --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);          /* snappy out-quint */
+  --ease-out-soft: cubic-bezier(0.32, 0.72, 0.45, 1);     /* gentle out-quart */
+  --ease-out-quint: cubic-bezier(0.16, 1, 0.3, 1);        /* decisive expo-out */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);         /* kept for back-compat */
+  --ease-spring: cubic-bezier(0.30, 1.05, 0.46, 1);       /* very soft spring */
+  --ease-spring-soft: cubic-bezier(0.25, 0.9, 0.4, 1);   /* barely perceptible spring */
+  --ease-in-out-soft: cubic-bezier(0.45, 0, 0.2, 1);     /* symmetric material */
+
+  /* ===== Durations — calibrated, all in ms ===== */
+  --dur-instant: 80ms;
+  --dur-quick: 140ms;
+  --dur-fast: 200ms;
+  --dur-medium: 320ms;
+  --dur-slow: 480ms;
+  --dur-launcher-open: 620ms;
+  --dur-launcher-close: 380ms;
 
   --z-taskbar: 1000;
   --z-launcher: 2000;
@@ -111,35 +148,113 @@ html, body {
   color: var(--sand);
   user-select: none;
   cursor: default;
+  font-feature-settings: "cv11", "ss01";
+  text-rendering: optimizeLegibility;
 }
 
 .drag-region { -webkit-app-region: drag; height: 4px; }
 .no-drag { -webkit-app-region: no-drag; }
 
-@keyframes bounce-in {
-  0%   { transform: scale(0.96) translateY(6px); opacity: 0; }
-  60%  { transform: scale(1.01) translateY(-1px); opacity: 1; }
-  100% { transform: scale(1) translateY(0); opacity: 1; }
-}
-@keyframes bounce-out {
-  0%   { transform: scale(1) translateY(0); opacity: 1; }
-  100% { transform: scale(0.97) translateY(6px); opacity: 0; }
-}
-@keyframes icon-pop {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.12); }
-  100% { transform: scale(1.06); }
-}
-@keyframes fade-in {
-  0%   { opacity: 0; transform: translateY(4px); }
+/* ===== Shared keyframe primitives — every animation in FlatUI uses one of
+   these. This is what gives the shell a coherent motion vocabulary. ===== */
+
+/* Fade + lift in — used by staggered grid items, search bar, action row */
+@keyframes fade-up {
+  0%   { opacity: 0; transform: translateY(8px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
+/* Fade + drop in — used by dialogs (run dialog, settings) */
+@keyframes fade-down {
+  0%   { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Pure fade — used by overlays, results */
+@keyframes fade-in {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes fade-out {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Iris wipe — radial circle expanding from center, replaces the cube.
+   Paint-only (no layout), works on the same backdrop-filter layer the
+   cube used. The circle starts at radius 0 and ends covering the viewport
+   diagonal, so it always fully reveals regardless of aspect ratio.
+   Keyframe names kept as `cube-expand`/`cube-collapse` for back-compat
+   with the JS state machine in main.ts (it awaits animationend by name). */
+@keyframes cube-expand {
+  0%   { clip-path: circle(0% at 50% 50%); opacity: 0; }
+  12%  { clip-path: circle(4% at 50% 50%); opacity: 1; }
+  100% { clip-path: circle(150% at 50% 50%); opacity: 1; }
+}
+
+@keyframes cube-collapse {
+  0%   { clip-path: circle(150% at 50% 50%); opacity: 1; }
+  60%  { clip-path: circle(6% at 50% 50%); opacity: 1; }
+  100% { clip-path: circle(0% at 50% 50%); opacity: 0; }
+}
+
+/* Soft pop — used by modals, settings; subtle scale-in with no overshoot */
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pop-out {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.97); }
+}
+
+/* Cascade — for staggered card grids (window switcher, blacklist).
+   Items translate + scale simultaneously for a "rising into place" feel. */
+@keyframes cascade-in {
+  0%   { opacity: 0; transform: translateY(12px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Slide — for spotlight items, list rows */
+@keyframes slide-in-x {
+  0%   { opacity: 0; transform: translateX(-6px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+/* Subtle breath — used by idle widgets to give the shell a "living" feel
+   without being distracting. Very low amplitude, slow cycle. */
+@keyframes breath {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-0.5px); }
+}
+
+/* Indicator grow — taskbar running indicator grows from dot to bar */
+@keyframes indicator-grow {
+  0%   { width: 3px; opacity: 0.5; }
+  100% { width: 14px; opacity: 0.9; }
+}
+
+/* Press feedback — for action buttons (depth via scale + tint shift) */
+@keyframes press-press {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
+/* ===== Scrollbars — slim, neutral, never grabby ===== */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
+  background: var(--border-soft);
   border-radius: 3px;
+  transition: background 140ms var(--ease-out-soft);
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--sand-dim); }
 
+/* Selection color — used by notes textarea, search input */
+::selection {
+  background: var(--accent-medium);
+  color: var(--sand-cream);
+}

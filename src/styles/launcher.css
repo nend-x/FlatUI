@@ -1,10 +1,11 @@
 /* =========================================================================
    LAUNCHER — full-screen overlay, grid + search
-   Expand animation: cream cube grows from center → launcher fades in
+   Redemption: cube expand → iris wipe (radial circle from screen center).
+   Cascading stagger for grid items, layered mat depth, no glow.
    ========================================================================= */
 
 html, body {
-  /* No background — the expand overlay (cube) becomes the background */
+  /* No background — the expand overlay becomes the background */
   background: transparent;
 }
 
@@ -12,86 +13,51 @@ html.background-ready, html.background-ready body {
   background: transparent;
 }
 
-/* ===== Expand overlay — cube that grows from 0×0 to full screen =====
-   The cube becomes the launcher background after expansion.
-   Custom frosted glass — espresso-based with strong backdrop blur.
-
-   Implementation note (bugfix): the cube used to animate width/height,
-   which re-runs LAYOUT on every frame of a fullscreen backdrop-filter
-   layer — expensive and frame-budget-sensitive under GPU load (games).
-   It now animates clip-path on an always-fullscreen element: identical
-   visual waypoints (0 → 80px rounded cube → fullscreen, radius 16 → 0),
-   zero layout work, and the blurred area stays proportional to the visible
-   cube instead of the whole screen. */
+/* ===== Expand overlay — iris wipe replaces the cube.
+   Same layering concerns as the old cube: backdrop-filter is expensive
+   on a fullscreen element, so we animate clip-path: circle() — a paint-only
+   property, no layout work per frame. The blur region is the entire
+   element bounding box (same as before); the clip only changes what's
+   visible, not what's blurred. The visible "iris" stays proportional
+   to the clipped area, identical in spirit to the old cube-collapse
+   behavior but with a smoother geometric feel. */
 .expand-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  /* Custom frosted glass — espresso-based with strong backdrop blur */
-  background: rgba(58, 42, 26, 0.55);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  /* Collapsed state: zero-size rounded rect at screen center */
-  clip-path: inset(50% 50% round 16px);
+  /* Frosted glass — espresso-based, slightly more blur for depth */
+  background: rgba(42, 30, 20, 0.58);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  /* Collapsed: zero-radius circle at screen center */
+  clip-path: circle(0% at 50% 50%);
   opacity: 0;
   pointer-events: none;
   z-index: 1999;
 }
 
 .expand-overlay.expanding {
-  animation: cube-expand 1280ms var(--ease-out-expo) forwards;
+  /* Animation name kept as `cube-expand` so the JS state machine in
+     main.ts (which awaits animationend by name) still fires correctly.
+     The actual visual is now an iris-wipe (radial circle expanding
+     from screen center) — same paint-only clip-path approach as before. */
+  animation: cube-expand var(--dur-launcher-open) var(--ease-out-quint) forwards;
   will-change: clip-path, opacity;
 }
 
-/* After expansion, the overlay stays as the launcher background.
-   No fade-out — it becomes the persistent background. */
+/* After expansion: stays as launcher background */
 .expand-overlay.expanded {
-  clip-path: inset(0 0 round 0px);
+  clip-path: circle(150% at 50% 50%);
   opacity: 1;
   pointer-events: auto;
 }
 
-/* Close animation: cube collapses back to 0×0 */
+/* Close: reverse iris */
 .expand-overlay.collapsing {
-  animation: cube-collapse 800ms var(--ease-out-expo) forwards;
+  animation: cube-collapse var(--dur-launcher-close) var(--ease-out-quint) forwards;
   will-change: clip-path, opacity;
-}
-
-@keyframes cube-collapse {
-  0% {
-    clip-path: inset(0 0 round 0px);
-    opacity: 1;
-  }
-  60% {
-    clip-path: inset(calc(50% - 40px) calc(50% - 40px) round 16px);
-    opacity: 1;
-  }
-  100% {
-    clip-path: inset(50% 50% round 16px);
-    opacity: 0;
-  }
-}
-
-@keyframes cube-expand {
-  0% {
-    clip-path: inset(50% 50% round 16px);
-    opacity: 0;
-  }
-  15% {
-    clip-path: inset(calc(50% - 40px) calc(50% - 40px) round 16px);
-    opacity: 1;
-  }
-  100% {
-    clip-path: inset(0 0 round 0px);
-    opacity: 1;
-  }
-}
-
-@keyframes cube-fade-out {
-  0%   { opacity: 1; }
-  100% { opacity: 0; }
 }
 
 /* ===== Launcher root ===== */
@@ -101,7 +67,7 @@ html.background-ready, html.background-ready body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 16vh;
+  padding-top: 14vh;
   font-family: var(--font-ui);
   color: var(--sand);
   will-change: transform, opacity;
@@ -112,40 +78,43 @@ html.background-ready, html.background-ready body {
   display: none;
 }
 
-/* Open animation: elements fade in */
+/* Open animation: elements cascade in with staggered fade-up.
+   Timing was re-calibrated so the search bar appears as the iris
+   is ~80% open — feels like the search bar is "unveiled" by the iris
+   rather than fading in independently. */
 .launcher-root.opening .launcher-actions,
 .launcher-root.opening .launcher-search-wrap,
 .launcher-root.opening .launcher-grid,
 .launcher-root.opening .spotlight-results {
-  animation: launcher-element-in 400ms var(--ease-out-expo) backwards;
+  animation: fade-up var(--dur-medium) var(--ease-out-quint) backwards;
 }
 
-.launcher-root.opening .launcher-actions { animation-delay: 200ms; }
-.launcher-root.opening .launcher-search-wrap { animation-delay: 300ms; }
+.launcher-root.opening .launcher-actions { animation-delay: 180ms; }
+.launcher-root.opening .launcher-search-wrap { animation-delay: 280ms; }
 .launcher-root.opening .launcher-grid,
-.launcher-root.opening .spotlight-results { animation-delay: 400ms; }
+.launcher-root.opening .spotlight-results { animation-delay: 360ms; }
 
-@keyframes launcher-element-in {
-  0%   { opacity: 0; transform: translateY(12px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-/* Close animation: elements fade out (mirror of open) */
+/* Close animation: elements fade DOWN (mirror of open) — feels like
+   they're being pulled back into the surface.
+   Animation name kept as `launcher-element-out` so the JS state machine
+   (waitElementCascadeOut in main.ts, which awaits animationend by name)
+   still resolves correctly. */
 .launcher-root.closing .launcher-actions,
 .launcher-root.closing .launcher-search-wrap,
 .launcher-root.closing .launcher-grid,
 .launcher-root.closing .spotlight-results {
-  animation: launcher-element-out 400ms var(--ease-out-expo) forwards;
+  animation: launcher-element-out 220ms var(--ease-out-soft) forwards;
 }
 
 .launcher-root.closing .launcher-actions { animation-delay: 0ms; }
-.launcher-root.closing .launcher-search-wrap { animation-delay: 100ms; }
+.launcher-root.closing .launcher-search-wrap { animation-delay: 40ms; }
 .launcher-root.closing .launcher-grid,
-.launcher-root.closing .spotlight-results { animation-delay: 200ms; }
+.launcher-root.closing .spotlight-results { animation-delay: 80ms; }
 
+/* Explicit keyframe definition — name must match the one main.ts awaits */
 @keyframes launcher-element-out {
   0%   { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-12px); }
+  100% { opacity: 0; transform: translateY(-8px); }
 }
 
 /* ===== Reduced motion: deliberately NOT honored =====
@@ -161,17 +130,17 @@ html.background-ready, html.background-ready body {
 /* ===== Action buttons (left side) ===== */
 .launcher-actions {
   position: absolute;
-  left: 24px;
-  top: 24px;
+  left: 22px;
+  top: 22px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   z-index: 2100;
 }
 
 .action-btn {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   display: flex;
   align-items: center;
@@ -181,41 +150,45 @@ html.background-ready, html.background-ready body {
   border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--sand-dim);
-  transition: color 180ms var(--ease-out-soft),
-              background-color 180ms var(--ease-out-soft),
-              transform 220ms var(--ease-spring),
-              border-color 180ms var(--ease-out-soft);
+  /* Measured hover: small lift + tint, no scale bounce */
+  transition:
+    color var(--dur-quick) var(--ease-out-soft),
+    background-color var(--dur-quick) var(--ease-out-soft),
+    border-color var(--dur-quick) var(--ease-out-soft),
+    transform var(--dur-quick) var(--ease-out-soft);
 }
 
 .action-btn:hover {
   color: var(--sand-cream);
-  background: rgba(60, 44, 28, 0.85);
-  border-color: var(--accent-terracotta);
-  transform: scale(1.08);
+  background: var(--bg-espresso-glass);
+  border-color: var(--border-accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-icon-hover);
 }
 
 .action-btn:active {
-  transform: scale(1.0);
+  transform: translateY(0) scale(0.97);
+  transition-duration: 60ms;
 }
 
 .action-btn.active {
   color: var(--accent-caramel);
-  border-color: var(--accent-terracotta);
-  background: rgba(60, 44, 28, 0.92);
+  border-color: var(--border-accent);
+  background: var(--bg-espresso-glass-deep);
 }
 
 .action-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
 }
 
-/* Legacy winselect-btn kept for compatibility — alias */
+/* Legacy winselect-btn kept for compatibility — alias to action-btn */
 .winselect-btn {
   position: absolute;
-  left: 24px;
-  top: 24px;
-  width: 40px;
-  height: 40px;
+  left: 22px;
+  top: 22px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   display: flex;
   align-items: center;
@@ -225,69 +198,82 @@ html.background-ready, html.background-ready body {
   border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--sand-dim);
-  transition: color 180ms var(--ease-out-soft),
-              background-color 180ms var(--ease-out-soft),
-              transform 220ms var(--ease-spring),
-              border-color 180ms var(--ease-out-soft);
+  transition:
+    color var(--dur-quick) var(--ease-out-soft),
+    background-color var(--dur-quick) var(--ease-out-soft),
+    border-color var(--dur-quick) var(--ease-out-soft),
+    transform var(--dur-quick) var(--ease-out-soft);
 }
 
 .winselect-btn:hover {
   color: var(--sand-cream);
-  background: rgba(60, 44, 28, 0.85);
-  border-color: var(--accent-terracotta);
-  transform: scale(1.08);
+  background: var(--bg-espresso-glass);
+  border-color: var(--border-accent);
+  transform: translateY(-1px);
 }
 
-.winselect-btn:active { transform: scale(1.0); }
+.winselect-btn:active { transform: scale(0.97); transition-duration: 60ms; }
 
 .winselect-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
 }
 
 /* ===== Search ===== */
 .launcher-search-wrap {
   width: min(560px, 64vw);
   position: relative;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
 }
 
 .launcher-search {
   width: 100%;
-  height: 46px;
-  padding: 0 18px 0 48px;
+  height: 48px;
+  padding: 0 18px 0 50px;
   font-family: var(--font-display);
   font-size: 14px;
   color: var(--sand-cream);
   background: var(--bg-espresso-frosted);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   outline: none;
-  transition: border-color 200ms var(--ease-out-soft),
-              background-color 200ms var(--ease-out-soft);
+  letter-spacing: 0.01em;
+  /* Subtle inner shadow for "engraved" feel */
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.18);
+  transition:
+    border-color var(--dur-fast) var(--ease-out-soft),
+    background-color var(--dur-fast) var(--ease-out-soft),
+    box-shadow var(--dur-fast) var(--ease-out-soft);
 }
 
-.launcher-search::placeholder { color: var(--sand-dim); }
+.launcher-search::placeholder {
+  color: var(--sand-dim);
+  letter-spacing: 0.04em;
+}
 
 .launcher-search:focus {
-  border-color: rgba(184, 131, 90, 0.42);
-  background: rgba(60, 44, 28, 0.86);
+  border-color: var(--border-accent);
+  background: var(--bg-espresso-glass);
+  /* Refined ring — a soft amber tint, not a glow */
+  box-shadow:
+    inset 0 1px 0 rgba(0, 0, 0, 0.18),
+    0 0 0 3px rgba(176, 122, 78, 0.08);
 }
 
 .launcher-search-icon {
   position: absolute;
-  left: 16px;
+  left: 18px;
   top: 50%;
   transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   color: var(--sand-dim);
   pointer-events: none;
-  transition: color 180ms var(--ease-out-soft);
+  transition: color var(--dur-fast) var(--ease-out-soft);
 }
 
 .launcher-search-wrap:has(.launcher-search:focus) .launcher-search-icon {
-  color: var(--accent-caramel);
+  color: var(--accent-amber);
 }
 
 /* ===== Grid ===== */
@@ -312,37 +298,34 @@ html.background-ready, html.background-ready body {
   padding: 10px 6px;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: transform 200ms var(--ease-spring),
-              background-color 160ms var(--ease-out-soft);
-  animation: item-fade-in 260ms var(--ease-out-soft) backwards;
-}
-
-@keyframes item-fade-in {
-  0%   { opacity: 0; transform: translateY(6px); }
-  100% { opacity: 1; transform: translateY(0); }
+  /* Measured lift: translateZ for compositor-only transform, no spring */
+  transition:
+    transform var(--dur-fast) var(--ease-out-soft),
+    background-color var(--dur-quick) var(--ease-out-soft);
+  animation: cascade-in var(--dur-medium) var(--ease-out-quint) backwards;
 }
 
 .launcher-item:hover {
-  background: rgba(255, 255, 255, 0.04);
-  transform: translateY(-2px) scale(1.02);
+  background: rgba(255, 255, 255, 0.035);
+  transform: translateY(-2px);
 }
 
 .launcher-item:active {
-  transform: translateY(0) scale(1.0);
+  transform: translateY(0) scale(0.98);
   transition-duration: 60ms;
 }
 
-/* ===== Spinning icon animation (replaces fullscreen expand) =====
-   When user clicks an app to launch it, the icon spins until the app
-   has finished initializing (we get a "ready" signal from the backend). */
+/* ===== Launching state — refined pulse + lift, replaces the spinning icon.
+   The spin felt busy and noisy under heavy GPU load. The new feedback is a
+   subtle scale-pulse that says "I'm working" without moving the eye. */
 .launcher-item.launching .icon-box {
-  animation: icon-spin 1.2s linear infinite;
-  border-color: var(--accent-terracotta);
+  animation: launch-pulse 1.4s var(--ease-in-out-soft) infinite;
+  border-color: var(--border-accent);
 }
 
-@keyframes icon-spin {
-  0%   { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+@keyframes launch-pulse {
+  0%, 100% { transform: scale(1);    border-color: var(--border-accent); }
+  50%      { transform: scale(1.04); border-color: var(--accent-caramel); }
 }
 
 .launcher-item.launching .label {
@@ -352,7 +335,7 @@ html.background-ready, html.background-ready body {
 
 @keyframes label-fade {
   0%   { opacity: 1; }
-  100% { opacity: 0.6; }
+  100% { opacity: 0.55; }
 }
 
 .launcher-item .icon-box {
@@ -361,27 +344,41 @@ html.background-ready, html.background-ready body {
   border-radius: var(--launcher-icon-radius);
   background: var(--bg-espresso-frosted);
   border: 1px solid var(--border-subtle);
+  /* Inset top highlight for subtle 3D feel — like soft card stock */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: transform 200ms var(--ease-spring),
-              border-color 160ms var(--ease-out-soft),
-              background-color 160ms var(--ease-out-soft);
+  transition:
+    transform var(--dur-fast) var(--ease-out-soft),
+    border-color var(--dur-quick) var(--ease-out-soft),
+    background-color var(--dur-quick) var(--ease-out-soft),
+    box-shadow var(--dur-quick) var(--ease-out-soft);
 }
 
 .launcher-item:hover .icon-box {
-  transform: scale(1.06);
-  border-color: rgba(184, 131, 90, 0.30);
-  background: rgba(60, 44, 28, 0.85);
+  transform: scale(1.05);
+  border-color: var(--border-accent);
+  background: var(--bg-espresso-glass);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    var(--shadow-icon-hover);
 }
 
 .launcher-item img,
 .launcher-item svg {
   width: 36px;
   height: 36px;
-  filter: brightness(0.94) saturate(0.78) sepia(0.15) hue-rotate(-6deg);
+  /* Slightly more saturated than before — the icon was being washed out */
+  filter: brightness(0.96) saturate(0.85) sepia(0.10) hue-rotate(-4deg);
   pointer-events: none;
+  transition: filter var(--dur-fast) var(--ease-out-soft);
+}
+
+.launcher-item:hover img,
+.launcher-item:hover svg {
+  filter: brightness(1.02) saturate(0.95) sepia(0.06) hue-rotate(-2deg);
 }
 
 .launcher-item .label {
@@ -393,34 +390,40 @@ html.background-ready, html.background-ready body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: 0.01em;
-  transition: color 160ms var(--ease-out-soft);
-  /* Rounded background pill — improves readability over frosted glass */
+  letter-spacing: 0.015em;
+  transition: color var(--dur-quick) var(--ease-out-soft);
+  /* Rounded background pill — refined opacity, no inner blur layer
+     (the blur was causing perf hitches on grid reflow) */
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  background: rgba(58, 42, 26, 0.30);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  background: rgba(42, 30, 20, 0.32);
   max-width: calc(100% - 4px);
 }
 
 .launcher-item:hover .label { color: var(--sand-cream); }
 
-.launcher-item.selected { background: var(--accent-soft); }
-.launcher-item.selected .icon-box { border-color: rgba(184, 131, 90, 0.45); }
+.launcher-item.selected {
+  background: var(--accent-soft);
+}
+.launcher-item.selected .icon-box {
+  border-color: var(--border-accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 2px rgba(176, 122, 78, 0.10);
+}
 
 /* ===== Window switcher overlay ===== */
 .win-switcher-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(58, 42, 26, 0.72);
-  backdrop-filter: blur(28px) saturate(108%);
-  -webkit-backdrop-filter: blur(28px) saturate(108%);
+  background: rgba(28, 20, 14, 0.70);
+  backdrop-filter: blur(32px) saturate(120%);
+  -webkit-backdrop-filter: blur(32px) saturate(120%);
   z-index: 2500;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fade-in 160ms var(--ease-out-soft);
+  animation: fade-in var(--dur-quick) var(--ease-out-soft);
 }
 
 .win-switcher-overlay.hidden { display: none; }
@@ -447,21 +450,20 @@ html.background-ready, html.background-ready body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: transform 200ms var(--ease-spring),
-              border-color 160ms var(--ease-out-soft),
-              background-color 160ms var(--ease-out-soft);
-  animation: card-fade-in 240ms var(--ease-out-soft) backwards;
-}
-
-@keyframes card-fade-in {
-  0%   { opacity: 0; transform: translateY(10px) scale(0.96); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  /* Measured hover: lift + accent border, no rotation bounce */
+  transition:
+    transform var(--dur-fast) var(--ease-out-soft),
+    border-color var(--dur-quick) var(--ease-out-soft),
+    background-color var(--dur-quick) var(--ease-out-soft),
+    box-shadow var(--dur-quick) var(--ease-out-soft);
+  animation: cascade-in var(--dur-medium) var(--ease-out-quint) backwards;
 }
 
 .win-switcher-card:hover {
-  transform: translateY(-4px) scale(1.04);
-  border-color: var(--accent-terracotta);
-  background: rgba(60, 44, 28, 0.85);
+  transform: translateY(-3px);
+  border-color: var(--border-accent);
+  background: var(--bg-espresso-glass-deep);
+  box-shadow: var(--shadow-lifted);
 }
 
 .win-switcher-card-img {
@@ -473,7 +475,7 @@ html.background-ready, html.background-ready body {
 .win-switcher-card-img img {
   width: 100%;
   height: 100%;
-  filter: brightness(0.94) saturate(0.78) sepia(0.15) hue-rotate(-6deg);
+  filter: brightness(0.96) saturate(0.85) sepia(0.10) hue-rotate(-4deg);
 }
 
 .win-switcher-card-label {
@@ -484,27 +486,22 @@ html.background-ready, html.background-ready body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.015em;
 }
 
-@keyframes fade-in {
-  0%   { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-/* ===== Context menu (right-click in launcher) ===== */
+/* ===== Context menu ===== */
 .context-menu {
   position: fixed;
   min-width: 180px;
-  background: var(--bg-espresso-glass);
-  backdrop-filter: blur(20px) saturate(108%);
-  -webkit-backdrop-filter: blur(20px) saturate(108%);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-espresso-glass-deep);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-popup);
   padding: 4px;
   z-index: 3000;
-  animation: fade-in 120ms var(--ease-out-soft);
+  animation: fade-up var(--dur-instant) var(--ease-out-soft);
 }
 
 .context-menu-item {
@@ -516,18 +513,19 @@ html.background-ready, html.background-ready body {
   cursor: pointer;
   color: var(--sand);
   font-size: 11px;
-  letter-spacing: 0.02em;
-  transition: background-color 100ms var(--ease-out-soft),
-              color 100ms var(--ease-out-soft);
+  letter-spacing: 0.015em;
+  transition:
+    background-color var(--dur-instant) var(--ease-out-soft),
+    color var(--dur-instant) var(--ease-out-soft);
 }
 
 .context-menu-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--sand-cream);
 }
 
 .context-menu-item.danger:hover {
-  background: rgba(184, 100, 90, 0.12);
+  background: rgba(200, 90, 80, 0.14);
   color: #E8B5AD;
 }
 
@@ -548,9 +546,9 @@ html.background-ready, html.background-ready body {
   left: 100%;
   top: -4px;
   min-width: 160px;
-  background: var(--bg-espresso-glass);
-  backdrop-filter: blur(20px) saturate(108%);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-espresso-glass-deep);
+  backdrop-filter: blur(24px) saturate(120%);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-popup);
   padding: 4px;
@@ -564,21 +562,25 @@ html.background-ready, html.background-ready body {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3000;
-  animation: fade-in 160ms var(--ease-out-soft);
+  animation: fade-in var(--dur-quick) var(--ease-out-soft);
 }
 
 .modal-dialog {
   width: min(360px, 80vw);
   background: var(--bg-espresso-glass);
-  backdrop-filter: blur(24px) saturate(108%);
-  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(28px) saturate(120%);
+  -webkit-backdrop-filter: blur(28px) saturate(120%);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   padding: 18px;
-  box-shadow: var(--shadow-popup);
+  box-shadow: var(--shadow-lifted);
+  animation: pop-in var(--dur-medium) var(--ease-out-quint);
 }
 
 .modal-title {
@@ -586,7 +588,7 @@ html.background-ready, html.background-ready body {
   font-size: 13px;
   color: var(--sand-cream);
   margin-bottom: 14px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .modal-input {
@@ -596,14 +598,14 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-display);
   font-size: 12px;
   color: var(--sand-cream);
-  background: rgba(58, 42, 26, 0.6);
+  background: rgba(28, 20, 14, 0.6);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   outline: none;
-  transition: border-color 160ms var(--ease-out-soft);
+  transition: border-color var(--dur-quick) var(--ease-out-soft);
 }
 
-.modal-input:focus { border-color: var(--accent-terracotta); }
+.modal-input:focus { border-color: var(--border-accent); }
 .modal-input::placeholder { color: var(--sand-dim); }
 
 .modal-actions {
@@ -617,19 +619,22 @@ html.background-ready, html.background-ready body {
   padding: 6px 14px;
   font-family: var(--font-display);
   font-size: 11px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   background: transparent;
   color: var(--sand);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color 120ms var(--ease-out-soft),
-              color 120ms var(--ease-out-soft);
+  transition:
+    background-color var(--dur-instant) var(--ease-out-soft),
+    color var(--dur-instant) var(--ease-out-soft),
+    border-color var(--dur-instant) var(--ease-out-soft);
 }
 
 .modal-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--sand-cream);
+  border-color: var(--border-accent);
 }
 
 .modal-btn.primary {
@@ -639,35 +644,40 @@ html.background-ready, html.background-ready body {
   font-weight: 500;
 }
 
-.modal-btn.primary:hover { background: var(--accent-caramel); }
+.modal-btn.primary:hover {
+  background: var(--accent-caramel);
+  border-color: var(--accent-caramel);
+}
 
-/* ===== Widgets (clipboard, notes, sysmon) ===== */
+/* ===== Widgets (clipboard, notes, sysmon, audio) ===== */
 .widget {
   position: absolute;
-  background: rgba(58, 42, 26, 0.70);
-  backdrop-filter: blur(8px) saturate(120%);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-espresso-glass);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
+  /* Layered shadow for depth, no glow */
   box-shadow: var(--shadow-popup);
+  /* Top-edge hairline highlight, gives a subtle "lifted card" feel */
   z-index: 2050;
-  /* Make widgets draggable via their header */
 }
 
 .widget-header {
   font-family: var(--font-display);
   font-size: 10px;
   color: var(--sand-dim);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding: 8px 12px 4px;
-  cursor: move; /* Visual hint that header is draggable */
+  padding: 10px 14px 4px;
+  cursor: move;
   user-select: none;
+  font-weight: 500;
 }
 
 /* Clipboard widget */
 .clipboard-widget {
-  right: 24px;
+  right: 22px;
   top: 120px;
   width: 240px;
   max-height: 320px;
@@ -682,10 +692,10 @@ html.background-ready, html.background-ready body {
 }
 
 .clipboard-list::-webkit-scrollbar { width: 3px; }
-.clipboard-list::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+.clipboard-list::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 2px; }
 
 .clipboard-item {
-  padding: 6px 8px;
+  padding: 6px 10px;
   font-size: 11px;
   color: var(--sand);
   border-radius: var(--radius-sm);
@@ -693,18 +703,22 @@ html.background-ready, html.background-ready body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: background-color 100ms var(--ease-out-soft);
+  /* Sliding-in feel for new clipboard additions */
+  animation: slide-in-x var(--dur-quick) var(--ease-out-soft);
+  transition:
+    background-color var(--dur-instant) var(--ease-out-soft),
+    color var(--dur-instant) var(--ease-out-soft);
   margin-bottom: 2px;
 }
 
 .clipboard-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--sand-cream);
 }
 
 /* Notes widget */
 .notes-widget {
-  left: 24px;
+  left: 22px;
   top: 120px;
   width: 240px;
   height: 280px;
@@ -721,31 +735,35 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-ui);
   font-size: 12px;
   color: var(--sand-cream);
-  padding: 4px 12px 12px;
+  padding: 4px 14px 12px;
   resize: none;
   line-height: 1.6;
-  /* Lined paper effect */
-  background-image: linear-gradient(transparent 95%, rgba(194, 178, 128, 0.15) 95%);
+  letter-spacing: 0.01em;
+  /* Lined paper effect — refined line color, tighter grid */
+  background-image: linear-gradient(transparent 95%, rgba(184, 167, 124, 0.10) 95%);
   background-size: 100% 20px;
   background-attachment: local;
 }
 
-.notes-textarea::placeholder { color: var(--sand-dim); }
+.notes-textarea::placeholder {
+  color: var(--sand-dim);
+  font-style: italic;
+}
 .notes-textarea::-webkit-scrollbar { width: 3px; }
-.notes-textarea::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+.notes-textarea::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 2px; }
 
 /* Sysmon widget */
 .sysmon-widget {
-  right: 24px;
-  top: 24px;
+  right: 22px;
+  top: 22px;
   width: 200px;
-  padding: 0 12px 8px;
+  padding: 0 14px 10px;
 }
 
 .sysmon-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   padding-top: 4px;
 }
 
@@ -753,9 +771,9 @@ html.background-ready, html.background-ready body {
 .audio-widget {
   left: 50%;
   transform: translateX(-50%);
-  bottom: 24px;
+  bottom: 22px;
   width: 320px;
-  padding: 0 12px 10px;
+  padding: 0 14px 12px;
 }
 
 .audio-body {
@@ -777,6 +795,8 @@ html.background-ready, html.background-ready body {
   color: var(--sand-dim);
   width: 48px;
   flex-shrink: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .audio-val {
@@ -793,7 +813,7 @@ html.background-ready, html.background-ready body {
   height: 4px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(194, 178, 128, 0.15);
+  background: rgba(184, 167, 124, 0.12);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -802,16 +822,22 @@ html.background-ready, html.background-ready body {
 .audio-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: var(--accent-terracotta);
+  background: var(--accent-amber);
+  border: 2px solid var(--bg-espresso-deep);
   cursor: pointer;
-  transition: transform 120ms var(--ease-spring);
+  transition: transform var(--dur-quick) var(--ease-spring-soft);
+  box-shadow: var(--shadow-icon-hover);
 }
 
 .audio-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.3);
+  transform: scale(1.2);
+}
+
+.audio-slider::-webkit-slider-thumb:active {
+  transform: scale(1.1);
 }
 
 .sysmon-row {
@@ -821,24 +847,26 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-display);
   font-size: 10px;
   color: var(--sand-dim);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .sysmon-row span:first-child { width: 28px; }
-.sysmon-row span:last-child { width: 36px; text-align: right; }
+.sysmon-row span:last-child { width: 36px; text-align: right; color: var(--sand); }
 
 .sysmon-bar {
   flex: 1;
   height: 4px;
-  background: rgba(194, 178, 128, 0.10);
+  background: rgba(184, 167, 124, 0.08);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .sysmon-fill {
   height: 100%;
-  background: var(--accent-terracotta);
+  background: linear-gradient(90deg, var(--accent-terracotta), var(--accent-amber));
   border-radius: 2px;
-  transition: width 400ms var(--ease-out-soft);
+  transition: width var(--dur-slow) var(--ease-out-soft);
 }
 
 /* ===== Spotlight results ===== */
@@ -861,19 +889,23 @@ html.background-ready, html.background-ready body {
   border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--sand);
-  transition: background-color 140ms var(--ease-out-soft),
-              transform 160ms var(--ease-spring);
+  /* Sliding cascade for results */
+  animation: slide-in-x var(--dur-quick) var(--ease-out-soft) backwards;
+  transition:
+    background-color var(--dur-instant) var(--ease-out-soft),
+    transform var(--dur-quick) var(--ease-out-soft);
 }
 
 .spotlight-item:hover,
 .spotlight-item.selected {
-  background: rgba(255, 255, 255, 0.06);
-  transform: translateX(4px);
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateX(3px);
 }
 
 .spotlight-item.selected {
   background: var(--accent-soft);
   border-left: 2px solid var(--accent-terracotta);
+  padding-left: 12px;
 }
 
 .spotlight-item-icon {
@@ -888,14 +920,14 @@ html.background-ready, html.background-ready body {
 .spotlight-item-icon img {
   width: 100%;
   height: 100%;
-  filter: brightness(0.94) saturate(0.78) sepia(0.15) hue-rotate(-6deg);
+  filter: brightness(0.96) saturate(0.85) sepia(0.10) hue-rotate(-4deg);
 }
 
 .spotlight-item-label {
   font-family: var(--font-ui);
   font-size: 12px;
   color: var(--sand-cream);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.015em;
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -903,16 +935,14 @@ html.background-ready, html.background-ready body {
   /* Background pill for readability over frosted glass */
   padding: 3px 8px;
   border-radius: var(--radius-sm);
-  background: rgba(58, 42, 26, 0.30);
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  background: rgba(42, 30, 20, 0.32);
 }
 
 .spotlight-item-path {
   font-family: var(--font-display);
   font-size: 9px;
   color: var(--sand-dim);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   max-width: 200px;
   white-space: nowrap;
   overflow: hidden;
@@ -931,7 +961,8 @@ html.background-ready, html.background-ready body {
   left: 50%;
   transform: translateX(-50%);
   z-index: 2800;
-  animation: fade-in 200ms var(--ease-spring);
+  /* Drops in from above with subtle parallax */
+  animation: fade-down var(--dur-medium) var(--ease-out-quint);
 }
 
 .run-dialog.hidden {
@@ -941,11 +972,12 @@ html.background-ready, html.background-ready body {
 .run-dialog-content {
   width: min(420px, 80vw);
   background: var(--bg-espresso-glass);
-  backdrop-filter: blur(24px) saturate(108%);
-  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(28px) saturate(120%);
+  -webkit-backdrop-filter: blur(28px) saturate(120%);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
   padding: 18px;
-  box-shadow: var(--shadow-popup);
+  box-shadow: var(--shadow-lifted);
 }
 
 .run-input-wrap {
@@ -962,14 +994,18 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-display);
   font-size: 13px;
   color: var(--sand-cream);
-  background: rgba(58, 42, 26, 0.6);
+  background: rgba(28, 20, 14, 0.6);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   outline: none;
-  transition: border-color 160ms var(--ease-out-soft);
+  letter-spacing: 0.02em;
+  transition: border-color var(--dur-quick) var(--ease-out-soft);
 }
 
-.run-input:focus { border-color: var(--accent-terracotta); }
+.run-input:focus {
+  border-color: var(--border-accent);
+  box-shadow: 0 0 0 3px rgba(176, 122, 78, 0.08);
+}
 .run-input::placeholder { color: var(--sand-dim); }
 
 .run-actions {
@@ -982,19 +1018,22 @@ html.background-ready, html.background-ready body {
   padding: 6px 14px;
   font-family: var(--font-display);
   font-size: 11px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   background: transparent;
   color: var(--sand);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color 120ms var(--ease-out-soft),
-              color 120ms var(--ease-out-soft);
+  transition:
+    background-color var(--dur-instant) var(--ease-out-soft),
+    color var(--dur-instant) var(--ease-out-soft),
+    border-color var(--dur-instant) var(--ease-out-soft);
 }
 
 .run-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--sand-cream);
+  border-color: var(--border-accent);
 }
 
 .run-btn.primary {
@@ -1004,17 +1043,22 @@ html.background-ready, html.background-ready body {
   font-weight: 500;
 }
 
-.run-btn.primary:hover { background: var(--accent-caramel); }
+.run-btn.primary:hover {
+  background: var(--accent-caramel);
+  border-color: var(--accent-caramel);
+}
 
 /* ===== Blacklist overlay ===== */
 .blacklist-content {
   width: min(640px, 80vw);
   max-height: 80vh;
   background: var(--bg-espresso-glass);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-xl);
   padding: 24px;
   overflow-y: auto;
+  box-shadow: var(--shadow-lifted);
+  animation: pop-in var(--dur-medium) var(--ease-out-quint);
 }
 
 .blacklist-title {
@@ -1022,7 +1066,9 @@ html.background-ready, html.background-ready body {
   font-size: 14px;
   color: var(--sand-cream);
   margin-bottom: 16px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
 }
 
 .blacklist-grid {
@@ -1036,21 +1082,24 @@ html.background-ready, html.background-ready body {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  background: rgba(60, 44, 28, 0.6);
+  background: rgba(42, 30, 20, 0.55);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background-color 140ms var(--ease-out-soft),
-              border-color 140ms var(--ease-out-soft);
+  /* Staggered slide-in for blacklist rows */
+  animation: slide-in-x var(--dur-quick) var(--ease-out-soft) backwards;
+  transition:
+    background-color var(--dur-quick) var(--ease-out-soft),
+    border-color var(--dur-quick) var(--ease-out-soft);
 }
 
 .blacklist-row:hover {
-  background: rgba(60, 44, 28, 0.85);
-  border-color: var(--border-strong);
+  background: var(--bg-espresso-glass);
+  border-color: var(--border-soft);
 }
 
 .blacklist-row.pinned {
-  border-color: var(--accent-terracotta);
+  border-color: var(--border-accent);
   background: var(--accent-soft);
   order: -1; /* pinned rows go to top */
 }
@@ -1059,13 +1108,14 @@ html.background-ready, html.background-ready body {
   width: 16px;
   height: 16px;
   border: 1px solid var(--border-strong);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background-color 140ms var(--ease-out-soft),
-              border-color 140ms var(--ease-out-soft);
+  transition:
+    background-color var(--dur-quick) var(--ease-out-soft),
+    border-color var(--dur-quick) var(--ease-out-soft);
 }
 
 .blacklist-row.pinned .blacklist-checkbox {
@@ -1091,14 +1141,14 @@ html.background-ready, html.background-ready body {
 .blacklist-icon img {
   width: 100%;
   height: 100%;
-  filter: brightness(0.94) saturate(0.78) sepia(0.15) hue-rotate(-6deg);
+  filter: brightness(0.96) saturate(0.85) sepia(0.10) hue-rotate(-4deg);
 }
 
 .blacklist-label {
   font-family: var(--font-ui);
   font-size: 11px;
   color: var(--sand);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.015em;
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -1114,21 +1164,22 @@ html.background-ready, html.background-ready body {
   font-size: 10px;
   color: var(--sand-dim);
   margin-top: 14px;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
+  font-style: italic;
 }
 
 /* ===== Settings overlay ===== */
 .settings-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(26, 23, 20, 0.80);
-  backdrop-filter: blur(20px) saturate(120%);
-  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  background: rgba(20, 14, 10, 0.78);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
   z-index: 4500;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fade-in 200ms var(--ease-out-soft);
+  animation: fade-in var(--dur-fast) var(--ease-out-soft);
 }
 
 .settings-overlay.hidden { display: none; }
@@ -1137,18 +1188,13 @@ html.background-ready, html.background-ready body {
   width: min(420px, 80vw);
   max-height: 80vh;
   overflow-y: auto;
-  background: rgba(58, 42, 26, 0.70);
-  backdrop-filter: blur(12px) saturate(120%);
-  -webkit-backdrop-filter: blur(12px) saturate(120%);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-espresso-glass);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-popup);
-  animation: settings-pop 300ms var(--ease-spring);
-}
-
-@keyframes settings-pop {
-  0% { transform: scale(0.95); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  box-shadow: var(--shadow-lifted);
+  animation: pop-in var(--dur-medium) var(--ease-spring-soft);
 }
 
 .settings-header {
@@ -1162,18 +1208,23 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-display);
   font-size: 14px;
   color: var(--sand-cream);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
 }
 
 .settings-close {
   background: none;
   border: none;
   color: var(--sand-dim);
-  font-size: 16px;
+  font-size: 18px;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
-  transition: color 140ms, background-color 140ms;
+  line-height: 1;
+  transition:
+    color var(--dur-quick) var(--ease-out-soft),
+    background-color var(--dur-quick) var(--ease-out-soft);
 }
 
 .settings-close:hover {
@@ -1198,7 +1249,8 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-ui);
   font-size: 11px;
   color: var(--sand-dim);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .settings-input {
@@ -1207,13 +1259,17 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-display);
   font-size: 12px;
   color: var(--sand-cream);
-  background: rgba(58, 42, 26, 0.6);
+  background: rgba(28, 20, 14, 0.6);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   outline: none;
+  transition: border-color var(--dur-quick) var(--ease-out-soft);
 }
 
-.settings-input:focus { border-color: var(--accent-terracotta); }
+.settings-input:focus {
+  border-color: var(--border-accent);
+  box-shadow: 0 0 0 3px rgba(176, 122, 78, 0.08);
+}
 .settings-number { width: 60px; }
 
 .theme-options {
@@ -1226,17 +1282,22 @@ html.background-ready, html.background-ready body {
   padding: 6px 8px;
   font-family: var(--font-ui);
   font-size: 10px;
-  background: rgba(58, 42, 26, 0.4);
+  background: rgba(42, 30, 20, 0.4);
   color: var(--sand-dim);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 140ms var(--ease-out-soft);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition:
+    color var(--dur-quick) var(--ease-out-soft),
+    border-color var(--dur-quick) var(--ease-out-soft),
+    background-color var(--dur-quick) var(--ease-out-soft);
 }
 
 .theme-option:hover {
   color: var(--sand);
-  border-color: var(--border-strong);
+  border-color: var(--border-soft);
 }
 
 .theme-option.active {
@@ -1263,9 +1324,9 @@ html.background-ready, html.background-ready body {
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(194, 178, 128, 0.15);
+  background: rgba(184, 167, 124, 0.12);
   border-radius: 10px;
-  transition: 200ms var(--ease-spring);
+  transition: background-color var(--dur-fast) var(--ease-out-soft);
 }
 
 .toggle-slider::before {
@@ -1277,7 +1338,9 @@ html.background-ready, html.background-ready body {
   bottom: 3px;
   background: var(--sand-dim);
   border-radius: 50%;
-  transition: 200ms var(--ease-spring);
+  transition:
+    transform var(--dur-fast) var(--ease-spring-soft),
+    background-color var(--dur-fast) var(--ease-out-soft);
 }
 
 .settings-toggle input:checked + .toggle-slider {
@@ -1299,11 +1362,23 @@ html.background-ready, html.background-ready body {
   border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   align-self: flex-start;
-  transition: background-color 160ms var(--ease-out-soft);
+  transition:
+    background-color var(--dur-quick) var(--ease-out-soft),
+    transform var(--dur-quick) var(--ease-out-soft);
 }
 
-.settings-save:hover { background: var(--accent-caramel); }
+.settings-save:hover {
+  background: var(--accent-caramel);
+  transform: translateY(-1px);
+}
+
+.settings-save:active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: 60ms;
+}
 
 /* ===== Screenshot overlay ===== */
 .screenshot-overlay {
@@ -1311,7 +1386,7 @@ html.background-ready, html.background-ready body {
   inset: 0;
   z-index: 6000;
   cursor: crosshair;
-  animation: fade-in 100ms;
+  animation: fade-in var(--dur-instant);
 }
 
 .screenshot-overlay.hidden { display: none; }
@@ -1332,12 +1407,17 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-display);
   font-size: 12px;
   color: var(--sand-cream);
-  background: rgba(58, 42, 26, 0.80);
+  background: var(--bg-espresso-glass-deep);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   padding: 6px 16px;
   border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-popup);
+  letter-spacing: 0.04em;
   z-index: 6001;
   pointer-events: none;
-  animation: fade-in 200ms;
+  animation: fade-down var(--dur-fast) var(--ease-out-soft);
 }
 
 /* ===== Language indicator on taskbar ===== */
@@ -1345,18 +1425,19 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-display);
   font-size: 10px;
   color: var(--sand-dim);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: lowercase;
   padding: 2px 6px;
   pointer-events: none;
   user-select: none;
   min-width: 24px;
   text-align: center;
+  transition: color var(--dur-quick) var(--ease-out-soft);
 }
 
 .lang-indicator.caps {
   text-transform: uppercase;
-  color: var(--accent-caramel);
+  color: var(--accent-amber);
 }
 
 /* ===== Screenshot button on taskbar ===== */
@@ -1370,18 +1451,19 @@ html.background-ready, html.background-ready body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 140ms var(--ease-out-soft);
+  transition:
+    background-color var(--dur-quick) var(--ease-out-soft);
 }
 
 .taskbar-screenshot:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .taskbar-screenshot svg {
   width: 16px;
   height: 16px;
   color: var(--sand-dim);
-  transition: color 140ms var(--ease-out-soft);
+  transition: color var(--dur-quick) var(--ease-out-soft);
 }
 
 .taskbar-screenshot:hover svg {
@@ -1393,7 +1475,7 @@ html.background-ready, html.background-ready body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px 4px;
+  padding: 10px 14px 4px;
 }
 
 .widget-header-row .widget-header {
@@ -1409,62 +1491,49 @@ html.background-ready, html.background-ready body {
   padding: 0 4px;
   line-height: 1;
   border-radius: var(--radius-sm);
-  transition: color 140ms var(--ease-out-soft), background-color 140ms var(--ease-out-soft);
+  transition:
+    color var(--dur-quick) var(--ease-out-soft),
+    background-color var(--dur-quick) var(--ease-out-soft);
 }
 
 .clipboard-clear:hover {
   color: #E8958D;
-  background: rgba(220, 100, 90, 0.10);
+  background: rgba(200, 90, 80, 0.10);
 }
 
 /* ===== Setup screen ===== */
 .setup-screen {
   position: fixed;
   inset: 0;
-  background: rgba(75, 54, 33, 0.95);
+  background: rgba(61, 44, 30, 0.94);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
   z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: setup-fade-in 400ms var(--ease-out-expo);
+  animation: fade-in var(--dur-medium) var(--ease-out-quint);
 }
 
 .setup-screen.hidden { display: none; }
 
 .setup-screen.exiting {
-  animation: setup-fade-out 600ms var(--ease-out-expo) forwards;
-}
-
-@keyframes setup-fade-in {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-@keyframes setup-fade-out {
-  0% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.95); }
+  animation: fade-out var(--dur-slow) var(--ease-out-quint) forwards;
 }
 
 .setup-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
-  animation: setup-scale-in 600ms var(--ease-spring);
-}
-
-@keyframes setup-scale-in {
-  0% { transform: scale(0.9); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  gap: 22px;
+  animation: pop-in var(--dur-slow) var(--ease-spring-soft);
 }
 
 .setup-logo {
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 22px;
   color: var(--sand-cream);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   font-weight: 500;
 }
@@ -1474,7 +1543,7 @@ html.background-ready, html.background-ready body {
   font-size: 13px;
   color: var(--sand);
   letter-spacing: 0.04em;
-  transition: opacity 300ms var(--ease-out-soft);
+  transition: opacity var(--dur-medium) var(--ease-out-soft);
 }
 
 .setup-status.fading {
@@ -1483,18 +1552,19 @@ html.background-ready, html.background-ready body {
 
 .setup-bar {
   width: 200px;
-  height: 3px;
-  background: rgba(194, 178, 128, 0.15);
-  border-radius: 2px;
+  height: 2px;
+  background: rgba(184, 167, 124, 0.10);
+  border-radius: 1px;
   overflow: hidden;
 }
 
 .setup-bar-fill {
   height: 100%;
   width: 0%;
-  background: var(--accent-terracotta);
-  border-radius: 2px;
-  transition: width 600ms var(--ease-out-expo);
+  background: var(--accent-amber);
+  border-radius: 1px;
+  transition: width var(--dur-slow) var(--ease-out-quint);
+  box-shadow: 0 0 4px rgba(217, 168, 120, 0.4);
 }
 
 /* ===== Version badge (bottom-left, diagnostic) =====
@@ -1506,9 +1576,9 @@ html.background-ready, html.background-ready body {
   bottom: 14px;
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.10em;
   color: var(--sand-dim);
-  opacity: 0.55;
+  opacity: 0.5;
   user-select: none;
   pointer-events: none;
 }

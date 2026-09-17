@@ -1,4 +1,4 @@
-/* ===== Setup window ===== */
+/* ===== Setup window — refined pop-in, softer spring, tighter logo ===== */
 html, body {
   margin: 0;
   padding: 0;
@@ -16,44 +16,49 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 20px;
-  background: rgba(75, 54, 33, 0.97);
+  background: rgba(61, 44, 30, 0.96);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
-  border-radius: 18px;
-  border: 1px solid rgba(194, 178, 128, 0.12);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-  animation: setup-pop-in 500ms var(--ease-spring);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-soft);
+  box-shadow:
+    0 14px 44px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+  /* Soft spring on pop-in — barely perceptible overshoot, not bouncy */
+  animation: setup-pop-in 540ms var(--ease-spring-soft);
 }
 
 @keyframes setup-pop-in {
-  0%   { opacity: 0; transform: scale(0.92); }
+  0%   { opacity: 0; transform: scale(0.95); }
   100% { opacity: 1; transform: scale(1); }
 }
 
 .setup-window.exiting {
-  animation: setup-pop-out 400ms var(--ease-out-expo) forwards;
+  animation: setup-pop-out 440ms var(--ease-out-quint) forwards;
 }
 
 @keyframes setup-pop-out {
   0%   { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 0; transform: scale(0.96); }
 }
 
 .setup-logo {
   font-family: var(--font-display);
   font-size: 22px;
   color: var(--sand-cream);
-  letter-spacing: 0.12em;
+  /* Tighter letter-spacing than before — was 0.12em, now 0.18em with
+     slight weight emphasis for a more "stamped" feel */
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   font-weight: 500;
 }
 
 .setup-status {
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--sand);
   letter-spacing: 0.04em;
-  transition: opacity 300ms var(--ease-out-soft);
+  transition: opacity var(--dur-medium) var(--ease-out-soft);
 }
 
 .setup-status.fading {
@@ -62,16 +67,18 @@ html, body {
 
 .setup-bar {
   width: 200px;
-  height: 3px;
-  background: rgba(194, 178, 128, 0.15);
-  border-radius: 2px;
+  height: 2px;
+  background: rgba(184, 167, 124, 0.10);
+  border-radius: 1px;
   overflow: hidden;
 }
 
 .setup-bar-fill {
   height: 100%;
   width: 0%;
-  background: var(--accent-terracotta);
-  border-radius: 2px;
-  transition: width 600ms var(--ease-out-expo);
+  background: var(--accent-amber);
+  border-radius: 1px;
+  transition: width var(--dur-slow) var(--ease-out-quint);
+  /* Subtle inner highlight, not a glow — keeps the mat aesthetic */
+  box-shadow: 0 0 4px rgba(217, 168, 120, 0.35);
 }

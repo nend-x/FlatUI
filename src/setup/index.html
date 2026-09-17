@@ -9,7 +9,7 @@
     body {
       margin: 0;
       padding: 0;
-      background: rgba(75, 54, 33, 0.97);
+      background: rgba(61, 44, 30, 0.96);
       backdrop-filter: blur(40px);
       -webkit-backdrop-filter: blur(40px);
       display: flex;
@@ -23,20 +23,25 @@
       flex-direction: column;
       align-items: center;
       gap: 16px;
-      /* Solid card panel so the text always has a readable background,
-         even when the window itself is transparent and the desktop behind
-         it is light/busy. */
-      background: rgba(36, 26, 17, 0.94);
-      border: 1px solid rgba(194, 178, 128, 0.22);
-      border-radius: 14px;
+      /* Solid card panel — refined opacity, layered shadow for depth */
+      background: rgba(28, 20, 14, 0.94);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
       padding: 26px 44px 30px;
-      box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
+      box-shadow:
+        0 14px 44px rgba(0, 0, 0, 0.5),
+        0 1px 2px rgba(0, 0, 0, 0.3);
+      animation: setup-pop-in 540ms var(--ease-spring-soft);
+    }
+    @keyframes setup-pop-in {
+      0%   { opacity: 0; transform: scale(0.95); }
+      100% { opacity: 1; transform: scale(1); }
     }
     .setup-logo {
       font-family: var(--font-display);
       font-size: 22px;
       color: var(--sand-cream);
-      letter-spacing: 0.12em;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
       font-weight: 500;
     }
@@ -45,29 +50,30 @@
       font-size: 13px;
       color: var(--sand);
       letter-spacing: 0.04em;
-      transition: opacity 300ms var(--ease-out-soft);
+      transition: opacity var(--dur-medium) var(--ease-out-soft);
     }
     .setup-status.fading { opacity: 0; }
     .setup-bar {
       width: 200px;
-      height: 3px;
-      background: rgba(194, 178, 128, 0.15);
-      border-radius: 2px;
+      height: 2px;
+      background: rgba(184, 167, 124, 0.10);
+      border-radius: 1px;
       overflow: hidden;
     }
     .setup-bar-fill {
       height: 100%;
       width: 0%;
-      background: var(--accent-terracotta);
-      border-radius: 2px;
-      transition: width 600ms var(--ease-out-expo);
+      background: var(--accent-amber);
+      border-radius: 1px;
+      transition: width var(--dur-slow) var(--ease-out-quint);
+      box-shadow: 0 0 4px rgba(217, 168, 120, 0.35);
     }
     body.exiting {
-      animation: fade-out 600ms var(--ease-out-expo) forwards;
+      animation: fade-out 440ms var(--ease-out-quint) forwards;
     }
     @keyframes fade-out {
       0% { opacity: 1; transform: scale(1); }
-      100% { opacity: 0; transform: scale(0.95); }
+      100% { opacity: 0; transform: scale(0.96); }
     }
   </style>
 </head>
