@@ -275,15 +275,47 @@ fn get_desktop_items(state: tauri::State<'_, Arc<Mutex<AppState>>>) -> Vec<app_s
     state.lock().desktop_items.clone()
 }
 
+/// Origin rect of a taskbar button / switcher thumbnail, in CSS px relative
+/// to the taskbar webview. The frontend sends `getBoundingClientRect()`.
+#[derive(serde::Deserialize)]
+struct OriginRectCss {
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+}
+
+/// Convert the CSS-px origin into physical screen coordinates using the
+/// taskbar window's scale factor + outer position (taskbar is frameless, so
+/// the client origin == the window origin).
+#[cfg(windows)]
+fn css_origin_to_physical(
+    app: &tauri::AppHandle,
+    o: &OriginRectCss,
+) -> Option<win32::animate::OriginRect> {
+    let taskbar = app.get_webview_window("taskbar")?;
+    let scale = taskbar.scale_factor().ok()?;
+    let pos = taskbar.outer_position().ok()?;
+    Some(win32::animate::OriginRect {
+        x: pos.x + (o.x * scale).round() as i32,
+        y: pos.y + (o.y * scale).round() as i32,
+        w: (o.w * scale).round() as i32,
+        h: (o.h * scale).round() as i32,
+    })
+}
+
 #[tauri::command]
-fn activate_app(app_id: String, app: tauri::AppHandle) {
+fn activate_app(app_id: String, origin: Option<OriginRectCss>, app: tauri::AppHandle) {
     log::info!("activate_app: {app_id}");
     #[cfg(windows)]
     {
-        if let Err(e) = win32::apps::activate_or_launch(&app_id) {
+        let origin_phys = origin.as_ref().and_then(|o| css_origin_to_physical(&app, o));
+        if let Err(e) = win32::apps::activate_or_launch(&app_id, origin_phys) {
             log::error!("activate_app failed: {e}");
         }
     }
+    #[cfg(not(windows))]
+    let _ = origin;
     let _ = app.emit("taskbar://icon-activated", app_id);
 }
 
@@ -479,13 +511,19 @@ fn get_app_windows(
 }
 
 #[tauri::command]
-fn activate_window(hwnd: usize) {
+fn activate_window(hwnd: usize, origin: Option<OriginRectCss>, app: tauri::AppHandle) {
     log::info!("activate_window: hwnd={}", hwnd);
     #[cfg(windows)]
     {
-        if let Err(e) = win32::peek::activate_window_by_hwnd(hwnd as isize) {
+        let origin_phys = origin.as_ref().and_then(|o| css_origin_to_physical(&app, o));
+        if let Err(e) = win32::peek::activate_window_by_hwnd(hwnd as isize, origin_phys) {
             log::error!("activate_window failed: {e}");
         }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = origin;
+        let _ = app;
     }
 }
 

@@ -6,6 +6,7 @@ pub mod apps;
 pub mod shell;
 pub mod icon;
 pub mod peek;
+pub mod animate;
 pub mod fullscreen;
 pub mod subclass;
 pub mod winevent;

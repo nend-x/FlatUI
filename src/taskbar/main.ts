@@ -36,6 +36,14 @@ const langIndicator = document.getElementById("lang-indicator")!;
 
 let switcherHideTimer: number | null = null;
 
+// ===== Pop-out animation origin =====
+// Send the clicked element's rect (CSS px, relative to this webview) so the
+// backend can grow the restored window out of exactly that spot.
+function rectOrigin(el: HTMLElement) {
+  const r = el.getBoundingClientRect();
+  return { x: r.x, y: r.y, w: r.width, h: r.height };
+}
+
 // ===== Screenshot button =====
 screenshotBtn.addEventListener("click", async () => {
   try {
@@ -179,7 +187,7 @@ function renderIcons() {
     el.appendChild(tip);
 
     el.addEventListener("click", () => {
-      invoke("activate_app", { appId: app.id });
+      invoke("activate_app", { appId: app.id, origin: rectOrigin(el) });
       el.style.animation = "icon-pop 280ms var(--ease-spring)";
       setTimeout(() => (el.style.animation = ""), 280);
     });
@@ -240,7 +248,7 @@ async function showSwitcher(app: TaskbarApp, anchor: HTMLElement) {
     thumb.appendChild(label);
 
     thumb.addEventListener("click", () => {
-      invoke("activate_window", { hwnd: p.hwnd });
+      invoke("activate_window", { hwnd: p.hwnd, origin: rectOrigin(thumb) });
       hideSwitcher();
     });
 

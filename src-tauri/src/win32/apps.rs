@@ -268,7 +268,7 @@ fn resolve_process_full_path(pid: u32) -> Option<String> {
     }
 }
 
-pub fn activate_or_launch(app_id: &str) -> core::Result<()> {
+pub fn activate_or_launch(app_id: &str, origin: Option<super::animate::OriginRect>) -> core::Result<()> {
     if let Some(name) = app_id.strip_prefix("pin:") {
         if let Some(base) = std::env::var_os("APPDATA") {
             let p = std::path::PathBuf::from(&base)
@@ -297,6 +297,14 @@ pub fn activate_or_launch(app_id: &str) -> core::Result<()> {
             };
             let _ = AllowSetForegroundWindow(ASFW_ANY_VALUE);
             if IsIconic(hwnd).as_bool() {
+                // Minimized — grow the window back out of its taskbar button
+                // (pop-out animation); fall back to a plain restore when the
+                // animation is unavailable.
+                if let Some(ori) = origin {
+                    if super::animate::restore_animated(hwnd_val, ori) {
+                        return Ok(());
+                    }
+                }
                 let _ = ShowWindowAsync(hwnd, SW_RESTORE);
             }
             let _ = SetForegroundWindow(hwnd);

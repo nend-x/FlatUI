@@ -122,7 +122,10 @@ fn resolve_process_full_path(pid: u32) -> Option<String> {
     }
 }
 
-pub fn activate_window_by_hwnd(hwnd_val: isize) -> windows::core::Result<()> {
+pub fn activate_window_by_hwnd(
+    hwnd_val: isize,
+    origin: Option<crate::win32::animate::OriginRect>,
+) -> windows::core::Result<()> {
     let hwnd = HWND(hwnd_val as *mut std::ffi::c_void);
     unsafe {
         use windows::Win32::UI::WindowsAndMessaging::{
@@ -131,6 +134,13 @@ pub fn activate_window_by_hwnd(hwnd_val: isize) -> windows::core::Result<()> {
         };
         let _ = AllowSetForegroundWindow(0xFFFFFFFF);
         if IsIconic(hwnd).as_bool() {
+            // Minimized — pop the window out of its taskbar button when an
+            // origin rect was supplied; otherwise plain restore.
+            if let Some(ori) = origin {
+                if crate::win32::animate::restore_animated(hwnd_val, ori) {
+                    return Ok(());
+                }
+            }
             let _ = ShowWindowAsync(hwnd, SW_RESTORE);
         }
         let _ = SetForegroundWindow(hwnd);
