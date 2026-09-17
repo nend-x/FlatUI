@@ -107,7 +107,7 @@ pub fn run() {
                     // Note: do NOT call extend_frameless on taskbar — it leaves a
                     // visible caption strip on Win11. The transparent window + WS_POPUP
                     // style alone is enough.
-                    let _ = win32::window::register_appbar(&taskbar, 40);
+                    let _ = win32::window::register_appbar(&taskbar, 38);
                 }
             }
 
@@ -1723,7 +1723,7 @@ fn position_taskbar(window: &tauri::WebviewWindow) {
         let mon_size = monitor.size();
         let mon_pos = monitor.position();
         let scale = monitor.scale_factor();
-        let logical_h = 40.0;
+        let logical_h = 38.0;
         let physical_h = (logical_h * scale).round() as i32;
         let _ = window.set_size(tauri::PhysicalSize {
             width: mon_size.width,

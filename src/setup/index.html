@@ -9,7 +9,7 @@
     body {
       margin: 0;
       padding: 0;
-      background: rgba(75, 54, 33, 0.97);
+      background: rgba(14, 16, 20, 0.96);
       backdrop-filter: blur(40px);
       -webkit-backdrop-filter: blur(40px);
       display: flex;
@@ -22,58 +22,56 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
-      /* Solid card panel so the text always has a readable background,
-         even when the window itself is transparent and the desktop behind
-         it is light/busy. */
-      background: rgba(36, 26, 17, 0.94);
-      border: 1px solid rgba(194, 178, 128, 0.22);
-      border-radius: 14px;
-      padding: 26px 44px 30px;
-      box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
+      gap: 14px;
+      background: var(--bg-mist-deep);
+      border: 1px solid var(--hairline-strong);
+      border-radius: var(--radius-xl);
+      padding: 28px 48px 32px;
+      box-shadow: var(--shadow-overlay);
+      animation: hush-pop-in 220ms var(--ease-out-quart);
     }
     .setup-logo {
-      font-family: var(--font-display);
-      font-size: 22px;
-      color: var(--sand-cream);
-      letter-spacing: 0.12em;
+      font-family: var(--font-ui);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--snow);
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      font-weight: 500;
     }
     .setup-status {
       font-family: var(--font-ui);
-      font-size: 13px;
-      color: var(--sand);
-      letter-spacing: 0.04em;
-      transition: opacity 300ms var(--ease-out-soft);
+      font-size: 12px;
+      color: var(--smoke);
+      letter-spacing: 0.02em;
+      transition: opacity 280ms var(--ease-out-quart);
     }
     .setup-status.fading { opacity: 0; }
     .setup-bar {
       width: 200px;
-      height: 3px;
-      background: rgba(194, 178, 128, 0.15);
-      border-radius: 2px;
+      height: 2px;
+      background: var(--hairline-strong);
+      border-radius: 1px;
       overflow: hidden;
     }
     .setup-bar-fill {
       height: 100%;
       width: 0%;
-      background: var(--accent-terracotta);
-      border-radius: 2px;
-      transition: width 600ms var(--ease-out-expo);
+      background: var(--accent);
+      border-radius: 1px;
+      transition: width 560ms var(--ease-out-quart);
     }
     body.exiting {
-      animation: fade-out 600ms var(--ease-out-expo) forwards;
+      animation: hush-setup-exit 560ms var(--ease-out-quart) forwards;
     }
-    @keyframes fade-out {
-      0% { opacity: 1; transform: scale(1); }
-      100% { opacity: 0; transform: scale(0.95); }
+    @keyframes hush-setup-exit {
+      0%   { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0.97); }
     }
   </style>
 </head>
 <body>
   <div class="setup-content">
-    <div class="setup-logo">FlatUI</div>
+    <div class="setup-logo">Hush</div>
     <div class="setup-status" id="setup-status">Welcome</div>
     <div class="setup-bar"><div class="setup-bar-fill" id="setup-bar-fill"></div></div>
   </div>

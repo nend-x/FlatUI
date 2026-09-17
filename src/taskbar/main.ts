@@ -279,9 +279,9 @@ function updateClock() {
   const hh = now.getHours().toString().padStart(2, "0");
   const mm = now.getMinutes().toString().padStart(2, "0");
   clockTime.textContent = `${hh}:${mm}`;
-  const dayShort = now.toLocaleDateString("ru-RU", { weekday: "short" });
+  const dayShort = now.toLocaleDateString("en-US", { weekday: "short" });
   const dayNum = now.getDate().toString().padStart(2, "0");
-  const monthShort = now.toLocaleDateString("ru-RU", { month: "short" });
+  const monthShort = now.toLocaleDateString("en-US", { month: "short" });
   clockDate.textContent = `${dayShort} ${dayNum} ${monthShort}`;
 }
 
