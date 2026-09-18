@@ -34,7 +34,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use once_cell::sync::OnceCell;
-use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
+use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, WPARAM};
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY, VIRTUAL_KEY, VK_LWIN,
     VK_RWIN,
@@ -61,7 +62,16 @@ pub fn install(toggle: ToggleFn) {
     std::thread::Builder::new()
         .name("win-key-hook".into())
         .spawn(|| unsafe {
-            let hook = match SetWindowsHookExW(WH_KEYBOARD_LL, Some(ll_keyboard_proc), None, 0) {
+            // Per MSDN, WH_KEYBOARD_LL's hMod can be NULL because the hook is
+            // not injected into another process — but using the EXE's HMODULE
+            // (via GetModuleHandleW(NULL)) is the more robust form that
+            // matches what `prevent-alt-win-menu` does and survives more
+            // edge cases (e.g. some AV software that validates hMod).
+            let hmod = match GetModuleHandleW(None) {
+                Ok(h) => Some(HINSTANCE::from(h)),
+                Err(_) => None,
+            };
+            let hook = match SetWindowsHookExW(WH_KEYBOARD_LL, Some(ll_keyboard_proc), hmod, 0) {
                 Ok(h) => h,
                 Err(e) => {
                     log::error!("SetWindowsHookExW(WH_KEYBOARD_LL) failed: {e}");
