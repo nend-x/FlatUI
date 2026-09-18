@@ -125,23 +125,42 @@ pub fn run() {
             // — which is exactly the "Win tap" event the launcher should
             // toggle on. Replaces the old `flatwin.exe` AutoHotkey v2 helper
             // + HTTP :2290 /toggle bridge (both removed).
+            //
+            // IMPORTANT: the crate fires `on_released` for BOTH Win and Alt
+            // releases. We only want to toggle the launcher on a Win tap —
+            // tapping Alt alone (which can happen if the user was using
+            // Alt+Tab to bring focus back to the launcher, or just brushed
+            // the key) used to close the launcher unexpectedly, AND if a
+            // Win release followed shortly after an Alt release the two
+            // toggles would cancel out and the launcher would flicker /
+            // appear to ignore the close tap. So we check the trigger kind
+            // on the press event and only toggle for Win.
             #[cfg(windows)]
             {
+                use prevent_alt_win_menu::event_handler::{HoldEvent, KeyboardAndMouse, MenuTrigger, MenuTriggerEvent};
                 let app_handle = app.handle().clone();
                 let config = prevent_alt_win_menu::event_handler::Config::default()
-                    .set_on_released(move |_hold: prevent_alt_win_menu::event_handler::HoldEvent| {
-                        let app = app_handle.clone();
-                        // Run on a worker thread so the hook never blocks
-                        // input processing — same pattern the old HTTP
-                        // server used.
-                        std::thread::spawn(move || {
-                            log::info!("Win key tap (prevent-alt-win-menu) — toggling launcher");
-                            toggle_launcher_impl(&app);
-                        });
+                    .set_on_released(move |hold: HoldEvent| {
+                        // Only toggle on a Win-key tap — never on Alt. Alt is
+                        // still suppressed below (we still return Some(..))
+                        // so releasing Alt alone doesn't activate the
+                        // focused window's menu bar.
+                        if hold.press.menu_trigger() == Some(MenuTrigger::Win) {
+                            let app = app_handle.clone();
+                            // Run on a worker thread so the hook never
+                            // blocks input processing — same pattern the
+                            // old HTTP server used.
+                            std::thread::spawn(move || {
+                                log::info!("Win key tap (prevent-alt-win-menu) — toggling launcher");
+                                toggle_launcher_impl(&app);
+                            });
+                        }
                         // Return a dummy key-up so Windows treats the input
                         // as a hotkey sequence instead of a standalone Win
                         // release — that is what suppresses the Start menu.
-                        Some(prevent_alt_win_menu::event_handler::KeyboardAndMouse::VK__none_)
+                        // (Same dummy for the Alt case — that's what
+                        // suppresses the focused window's menu bar.)
+                        Some(KeyboardAndMouse::VK__none_)
                     });
                 if let Err(e) = prevent_alt_win_menu::start(config) {
                     log::error!("Failed to install Win key hook (prevent-alt-win-menu): {e}");
