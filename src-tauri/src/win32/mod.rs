@@ -9,12 +9,19 @@ pub mod peek;
 pub mod fullscreen;
 pub mod subclass;
 pub mod winevent;
+pub mod hotkey;
 
-// Note: Win-key tap handling no longer lives in this module. It used to be
-// implemented two ways (a native LL keyboard hook in `hotkey.rs` and an
-// external `flatwin.exe` AutoHotkey v2 helper that POSTed to a local HTTP
-// server), but both have been replaced by the `prevent-alt-win-menu` crate,
-// which is wired up in lib.rs. That crate installs its own low-level keyboard
-// hook in-process and invokes our `on_released` callback when the Win key is
-// released alone (a "tap") — we both suppress the Start menu and toggle the
-// launcher from that callback.
+// Win-key tap-vs-combo handling lives in `hotkey.rs`. It installs a
+// low-level keyboard hook (WH_KEYBOARD_LL) that SWALLOWS Win-down (so the
+// OS shell can't start its "Win chord" detection → Start menu can't open),
+// fires the launcher toggle on a Win tap, and re-injects Win-down if any
+// other key is pressed mid-tap so combos (Win+D, Win+E, …) still work.
+//
+// `prevent-alt-win-menu` (installed in lib.rs) handles ONLY the Alt case
+// (suppressing the focused window's menu bar on Alt release). Its
+// `on_released` callback returns `None` for Win — this hook handles Win.
+//
+// Hook order matters: we install prevent-alt-win-menu FIRST (so it sits at
+// the END of the LIFO hook chain) and this hook LAST (so it sits at the
+// START of the chain — called first, can swallow Win events before
+// prevent-alt-win-menu ever sees them).
