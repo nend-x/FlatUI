@@ -2,16 +2,19 @@
 //
 // Windows:
 //   - taskbar: bottom, topmost, 44px, frameless, transparent, no-activate, registered as AppBar
-//   - launcher: fullscreen overlay, hidden by default, opened by the embedded
-//     flatwin.exe AHK helper (Win key -> POST :2290/toggle); opening it also
-//     minimizes every visible window (show-desktop effect, win32::window::minimize_all_windows)
+//   - launcher: fullscreen overlay, hidden by default, opened when the user
+//     taps the Win key alone — the `prevent-alt-win-menu` crate installs a
+//     low-level keyboard hook in-process that both suppresses the native
+//     Start menu and fires our `on_released` callback so we can toggle the
+//     launcher (the old `flatwin.exe` AutoHotkey v2 helper + HTTP :2290
+//     /toggle bridge has been removed); opening the launcher also minimizes
+//     every visible window (show-desktop effect, win32::window::minimize_all_windows)
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app_state;
 pub mod crash_handler;
 mod embedded;
-mod http_server;
 mod persist;
 mod setup;
 #[cfg(windows)]
@@ -94,7 +97,7 @@ pub fn run() {
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 let _ = handle.emit("setup://step", "Hiding taskbar...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
-                let _ = handle.emit("setup://step", "Registering Win key handler...");
+                let _ = handle.emit("setup://step", "Installing Win key handler...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 let _ = handle.emit("setup://done", ());
             });
@@ -115,10 +118,37 @@ pub fn run() {
                 let _ = launcher.hide();
             }
 
-            // Start HTTP server for the Win-key toggle: the embedded
-            // flatwin.exe AHK helper (launched by setup.rs) POSTs to
-            // /toggle on every Win key press.
-            http_server::start_http_server(app.handle().clone());
+            // Install the in-process Win-key hook. The `prevent-alt-win-menu`
+            // crate installs a low-level keyboard hook (SetWindowsHookExW)
+            // that suppresses the Start menu when the Win key is released
+            // alone, and invokes our `on_released` callback on that release
+            // — which is exactly the "Win tap" event the launcher should
+            // toggle on. Replaces the old `flatwin.exe` AutoHotkey v2 helper
+            // + HTTP :2290 /toggle bridge (both removed).
+            #[cfg(windows)]
+            {
+                let app_handle = app.handle().clone();
+                let config = prevent_alt_win_menu::event_handler::Config::default()
+                    .set_on_released(move |_hold: prevent_alt_win_menu::event_handler::HoldEvent| {
+                        let app = app_handle.clone();
+                        // Run on a worker thread so the hook never blocks
+                        // input processing — same pattern the old HTTP
+                        // server used.
+                        std::thread::spawn(move || {
+                            log::info!("Win key tap (prevent-alt-win-menu) — toggling launcher");
+                            toggle_launcher_impl(&app);
+                        });
+                        // Return a dummy key-up so Windows treats the input
+                        // as a hotkey sequence instead of a standalone Win
+                        // release — that is what suppresses the Start menu.
+                        Some(prevent_alt_win_menu::event_handler::KeyboardAndMouse::VK__none_)
+                    });
+                if let Err(e) = prevent_alt_win_menu::start(config) {
+                    log::error!("Failed to install Win key hook (prevent-alt-win-menu): {e}");
+                } else {
+                    log::info!("Win key hook installed (prevent-alt-win-menu: tap -> launcher, combos -> native)");
+                }
+            }
 
             // Initial icon scan
             #[cfg(windows)]

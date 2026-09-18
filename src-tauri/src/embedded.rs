@@ -1,12 +1,14 @@
 // Embedded helper executables.
 //
-// Both helpers are compiled INTO the main binary via include_bytes! and
-// extracted on demand to %LOCALAPPDATA%\FlatUI\bin:
+// Helpers are compiled INTO the main binary via include_bytes! and extracted
+// on demand to %LOCALAPPDATA%\FlatUI\bin:
 //
 //   - HideTaskbar.exe — small MSVC tool that hides the native Windows taskbar.
-//   - flatwin.exe     — AutoHotkey v2 helper: intercepts the Win key and POSTs
-//                       to http://127.0.0.1:2290/toggle (handled by the HTTP
-//                       server in http_server.rs) to toggle the launcher.
+//
+// The Win-key handling used to live in a sibling `flatwin.exe` AutoHotkey v2
+// helper, but that has been replaced by the `prevent-alt-win-menu` crate,
+// which installs its own low-level keyboard hook in-process. No external
+// Win-key helper is needed anymore.
 //
 // This keeps the installed app self-contained: the helper no longer needs to
 // sit next to the main executable (tauri.conf.json no longer bundles it as a
@@ -21,9 +23,6 @@ use std::path::PathBuf;
 
 /// Small MSVC C++ tool that hides the native Windows taskbar.
 pub static HIDE_TASKBAR_EXE: &[u8] = include_bytes!("../resources/HideTaskbar.exe");
-
-/// AutoHotkey v2 helper: Win key -> POST http://127.0.0.1:2290/toggle.
-pub static FLATWIN_EXE: &[u8] = include_bytes!("../resources/flatwin.exe");
 
 /// Directory the helpers are extracted to: %LOCALAPPDATA%\FlatUI\bin
 pub fn bin_dir() -> PathBuf {
@@ -56,13 +55,10 @@ fn extract(name: &str, bytes: &[u8]) -> Option<PathBuf> {
     }
 }
 
-/// Ensure both helpers are on disk. Returns the successfully extracted paths.
+/// Ensure all helpers are on disk. Returns the successfully extracted paths.
 pub fn ensure_helpers() -> Vec<PathBuf> {
-    [
-        extract("HideTaskbar.exe", HIDE_TASKBAR_EXE),
-        extract("flatwin.exe", FLATWIN_EXE),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+    [extract("HideTaskbar.exe", HIDE_TASKBAR_EXE)]
+        .into_iter()
+        .flatten()
+        .collect()
 }
