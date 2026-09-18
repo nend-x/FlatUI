@@ -2,16 +2,19 @@
 //
 // Windows:
 //   - taskbar: bottom, topmost, 44px, frameless, transparent, no-activate, registered as AppBar
-//   - launcher: fullscreen overlay, hidden by default, opened by the embedded
-//     flatwin.exe AHK helper (Win key -> POST :2290/toggle); opening it also
-//     minimizes every visible window (show-desktop effect, win32::window::minimize_all_windows)
+//   - launcher: fullscreen overlay, hidden by default, opened when the user
+//     taps the Win key alone — the `prevent-alt-win-menu` crate installs a
+//     low-level keyboard hook in-process that both suppresses the native
+//     Start menu and fires our `on_released` callback so we can toggle the
+//     launcher (the old `flatwin.exe` AutoHotkey v2 helper + HTTP :2290
+//     /toggle bridge has been removed); opening the launcher also minimizes
+//     every visible window (show-desktop effect, win32::window::minimize_all_windows)
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app_state;
 pub mod crash_handler;
 mod embedded;
-mod http_server;
 mod persist;
 mod setup;
 #[cfg(windows)]
@@ -94,7 +97,7 @@ pub fn run() {
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 let _ = handle.emit("setup://step", "Hiding taskbar...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
-                let _ = handle.emit("setup://step", "Registering Win key handler...");
+                let _ = handle.emit("setup://step", "Installing Win key handler...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 let _ = handle.emit("setup://done", ());
             });
@@ -115,10 +118,78 @@ pub fn run() {
                 let _ = launcher.hide();
             }
 
-            // Start HTTP server for the Win-key toggle: the embedded
-            // flatwin.exe AHK helper (launched by setup.rs) POSTs to
-            // /toggle on every Win key press.
-            http_server::start_http_server(app.handle().clone());
+            // Install the Win-key + Alt-key hooks. Two LL keyboard hooks
+            // cooperate:
+            //
+            //   1. `prevent-alt-win-menu` (installed FIRST → called LAST in
+            //      the LIFO chain) handles ONLY the Alt case: it suppresses
+            //      the focused window's menu bar on a standalone Alt release.
+            //      Its `on_released` callback returns `None` for Win — we
+            //      handle Win in our own hook below.
+            //
+            //   2. `win32::hotkey::install` (installed LAST → called FIRST in
+            //      the chain) SWALLOWS Win-down so the OS shell literally
+            //      can't start its "Win chord" detection (which is what
+            //      opens the Start menu). On a Win tap (Win down + Win up
+            //      with no other key in between) it fires our toggle and
+            //      swallows Win-up too. On a combo (Win+D, Win+E, …) it
+            //      re-injects the Win-down so the shortcut still resolves
+            //      natively.
+            //
+            // The previous integration relied on `prevent-alt-win-menu` for
+            // BOTH Win and Alt. That crate's suppression strategy is to
+            // inject a dummy key-up AFTER Win-up — which is racy under focus
+            // changes (when the launcher webview has focus, the OS shell
+            // processed Win-up before the synthetic dummy-up landed, so the
+            // Start menu opened AND the close tap appeared to do nothing).
+            // Swallowing Win-down is the only race-free fix.
+            //
+            // Replaces the old `flatwin.exe` AutoHotkey v2 helper + HTTP
+            // :2290 /toggle bridge (both removed).
+            #[cfg(windows)]
+            {
+                // (1) Install prevent-alt-win-menu FIRST so it sits at the
+                // END of the LIFO hook chain (called after our own hook).
+                use prevent_alt_win_menu::event_handler::{
+                    Config, HoldEvent, KeyboardAndMouse, MenuTrigger, MenuTriggerEvent,
+                };
+                let alt_only_config = Config::default().set_on_released(move |hold: HoldEvent| {
+                    // Only suppress for Alt releases — never for Win. Our
+                    // own `win32::hotkey` hook swallows Win events before
+                    // prevent-alt-win-menu ever sees them, but defensively
+                    // bail out of Win here too in case hook ordering ever
+                    // changes.
+                    if hold.press.menu_trigger() == Some(MenuTrigger::Win) {
+                        return None;
+                    }
+                    // Alt release: send the dummy key-up so the focused
+                    // window's menu bar doesn't activate.
+                    Some(KeyboardAndMouse::VK__none_)
+                });
+                match prevent_alt_win_menu::start(alt_only_config) {
+                    Ok(_) => log::info!(
+                        "Alt-key menu suppression installed (prevent-alt-win-menu, Alt-only)"
+                    ),
+                    Err(e) => log::error!(
+                        "Failed to install Alt-key hook (prevent-alt-win-menu): {e}"
+                    ),
+                }
+
+                // (2) Install our own Win-key hook LAST so it sits at the
+                // START of the LIFO hook chain (called first — can swallow
+                // Win events before prevent-alt-win-menu sees them).
+                let app_handle = app.handle().clone();
+                win32::hotkey::install(Box::new(move || {
+                    let app = app_handle.clone();
+                    // Run on a worker thread so the hook never blocks
+                    // input processing — same pattern the old HTTP server
+                    // used.
+                    std::thread::spawn(move || {
+                        log::info!("Win key tap (hotkey.rs) — toggling launcher");
+                        toggle_launcher_impl(&app);
+                    });
+                }));
+            }
 
             // Initial icon scan
             #[cfg(windows)]

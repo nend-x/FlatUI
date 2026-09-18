@@ -29,9 +29,10 @@ you a **Spotlight-style launcher** that appears over a *clean, freshly-minimized
 desktop* every time you press the **Win** key. No clutter behind it — just your
 desktop, your wallpaper, and a beautiful search bar.
 
-Everything ships as **one portable `.exe`** — the Win-key helper and the
-taskbar-hider are compiled directly into the binary and extracted on first run.
-Drop it anywhere, run it, done.
+Everything ships as **one portable `.exe`** — the taskbar-hider is compiled
+directly into the binary and extracted on first run, and the Win-key hook
+runs in-process via the `prevent-alt-win-menu` crate. Drop it anywhere, run
+it, done.
 
 <br>
 
@@ -46,7 +47,7 @@ Drop it anywhere, run it, done.
 | 🏃 **Run dialog** | Win-key launcher doubles as a run box for quick commands. |
 | 🖥️ **Desktop items** | Browse and launch your real desktop files & folders from inside the launcher. |
 | 🚫 **Window blacklist** | Stubborn windows that shouldn't appear in previews can be blacklisted. |
-| 📦 **Single-file install** | `flatwin.exe` (AutoHotkey v2 Win-key hook) and `HideTaskbar.exe` are **embedded** in the binary via `include_bytes!` and self-extract to `%LOCALAPPDATA%\FlatUI\bin`. |
+| 📦 **Single-file install** | `HideTaskbar.exe` is **embedded** in the binary via `include_bytes!` and self-extracts to `%LOCALAPPDATA%\FlatUI\bin`. The Win-key hook lives in-process via the `prevent-alt-win-menu` crate — no helper exe required. |
 | 💥 **Crash handler** | If FlatUI ever crashes (Rust panic *or* native Win32 exception like an access violation), a separate crash-reporter window pops up with the error type, exception code, stack trace, and version — so you actually know what happened instead of the app silently disappearing. |
 
 <br>
@@ -65,28 +66,27 @@ Drop it anywhere, run it, done.
 flowchart LR
     WIN(["⌨️ Win key press"])
     subgraph HELPERS["Helper processes — embedded in flatui.exe"]
-        FW["flatwin.exe\nAutoHotkey v2"]
         HT["HideTaskbar.exe"]
     end
     subgraph APP["FlatUI — Rust + Tauri 2"]
-        SRV["HTTP server\n127.0.0.1:2290"]
+        PAM["prevent-alt-win-menu\nlow-level keyboard hook"]
         TOGGLE["toggle_launcher"]
         MIN["minimize all windows\n(show-desktop effect)"]
         L["Launcher overlay"]
         T["AppBar taskbar"]
     end
-    FW -- "POST /toggle" --> SRV
-    WIN -.->|intercepted by| FW
-    SRV --> TOGGLE
+    WIN -.->|intercepted by| PAM
+    PAM -- "on_released callback\n(Win tap, no other key)" --> TOGGLE
     TOGGLE --> MIN --> L
     HT -.->|hides native taskbar| T
 ```
 
-1. **Win key** → the embedded `flatwin.exe` (AutoHotkey v2) fires and POSTs to
-   `http://127.0.0.1:2290/toggle`.
-2. FlatUI's built-in HTTP server receives it and **toggles the launcher** —
-   and minimizes every visible window first, so the overlay opens over a
-   spotless desktop.
+1. **Win key** → the `prevent-alt-win-menu` crate's low-level keyboard hook
+   detects a Win-key *tap* (Win down then Win up with no other key in
+   between) and suppresses the native Start menu, then invokes our
+   `on_released` callback.
+2. That callback **toggles the launcher** — and minimizes every visible
+   window first, so the overlay opens over a spotless desktop.
 3. `HideTaskbar.exe` keeps the native Windows taskbar out of sight while
    FlatUI's own AppBar taskbar takes its place.
 4. Quit FlatUI and your normal desktop workflow is untouched.
@@ -106,7 +106,7 @@ Data lives in `%LOCALAPPDATA%\FlatUI` (config, blacklist, extracted helpers).
 4. Hit **Win**. Enjoy the calm. ✨
 
 To fully revert, exit FlatUI and restore the native taskbar
-(`taskkill /f /im flatui.exe /im flatwin.exe /im HideTaskbar.exe`, then
+(`taskkill /f /im flatui.exe /im HideTaskbar.exe`, then
 ` explorer.exe` if needed).
 
 <br>
@@ -166,12 +166,11 @@ flatui/
 │   └── public/              #   favicon
 ├── src-tauri/
 │   ├── src/
-│   │   ├── lib.rs           #   app entry, ~50 Tauri commands
+│   │   ├── lib.rs           #   app entry, ~50 Tauri commands + prevent-alt-win-menu hook
 │   │   ├── main.rs          #   binary entry — routes --crash-report to crash_handler
 │   │   ├── crash_handler.rs #   panic hook + Win32 unhandled-exception filter → MessageBox
-│   │   ├── embedded.rs      #   include_bytes! helper embedding
+│   │   ├── embedded.rs      #   include_bytes! helper embedding (HideTaskbar.exe only)
 │   │   ├── setup.rs         #   helper extraction + child-process launch
-│   │   ├── http_server.rs   #   127.0.0.1:2290/toggle (AHK → Rust bridge)
 │   │   └── win32/           #   appbar, window mgmt, peek, icons, screenshot
 │   ├── resources/           #   helper exes compiled INTO the binary
 │   └── .cargo/config.toml   #   cross-compile wiring

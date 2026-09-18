@@ -1,17 +1,16 @@
 // Setup — launches the embedded helper executables as child processes.
 //
-// Both helpers are EMBEDDED in the main binary (embedded.rs) and extracted
-// to %LOCALAPPDATA%\FlatUI\bin — no external files required. Fallback: a
-// copy sitting next to the main exe (or in resources/) is used if extraction
+// Helpers are EMBEDDED in the main binary (embedded.rs) and extracted to
+// %LOCALAPPDATA%\FlatUI\bin — no external files required. Fallback: a copy
+// sitting next to the main exe (or in resources/) is used if extraction
 // ever fails (e.g. dev layouts, unwritable dirs).
 //
 //   - HideTaskbar.exe — hides the native Windows taskbar.
-//   - flatwin.exe     — AutoHotkey v2 helper: intercepts the Win key and
-//                       POSTs to http://127.0.0.1:2290/toggle, which the HTTP
-//                       server (http_server.rs) turns into a launcher toggle.
-//                       It ALSO gives the "minimize all windows" desktop
-//                       effect when the launcher opens (handled app-side in
-//                       toggle_launcher_impl).
+//
+// Win-key handling no longer lives here: it is provided in-process by the
+// `prevent-alt-win-menu` crate, which is wired up in lib.rs. That replaces
+// the old `flatwin.exe` AutoHotkey v2 helper (which used to POST to a local
+// HTTP server — also removed).
 //
 // lib.rs used to call run_setup() twice (once before the Tauri builder and
 // once inside the setup thread), double-spawning the helper. SETUP_ONCE now
@@ -43,32 +42,6 @@ fn find_helper(name: &str, extracted: Option<PathBuf>) -> Option<PathBuf> {
         .find(|p| p.exists())
 }
 
-/// Kill any flatwin.exe left over from a previous session so exactly ONE
-/// instance exists before we spawn the freshly extracted copy. Two running
-/// instances would send two POSTs per Win press and toggle the launcher
-/// twice (net no-op).
-#[cfg(windows)]
-fn kill_stale_flatwin() {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    match Command::new("taskkill")
-        .args(["/f", "/im", "flatwin.exe"])
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-    {
-        Ok(out) => {
-            log::info!("stale flatwin.exe cleanup: {}", String::from_utf8_lossy(&out.stdout).trim());
-        }
-        Err(e) => log::warn!("stale flatwin.exe cleanup failed: {e}"),
-    }
-    // taskkill returns immediately; give the old process a moment to die so
-    // the file lock on the exe is released before we extract over it.
-    std::thread::sleep(std::time::Duration::from_millis(300));
-}
-
-#[cfg(not(windows))]
-fn kill_stale_flatwin() {}
-
 fn spawn_helper(name: &str, path: &std::path::Path) -> bool {
     match Command::new(path).spawn() {
         Ok(child) => {
@@ -92,9 +65,6 @@ pub fn run_setup() -> Vec<(String, bool)> {
 
     let mut steps = Vec::new();
 
-    // Exactly one flatwin instance must run — clean up leftovers first.
-    kill_stale_flatwin();
-
     let extracted = embedded::ensure_helpers();
     let find = |name: &str| {
         let hit = extracted.iter().find(|p| p.file_name().map(|f| f == name).unwrap_or(false));
@@ -109,15 +79,6 @@ pub fn run_setup() -> Vec<(String, bool)> {
             false
         });
     steps.push(("Hiding taskbar...".to_string(), step_ok));
-
-    // Step 2: flatwin.exe (AHK Win-key handler -> HTTP /toggle)
-    let step_ok = find("flatwin.exe")
-        .map(|path| spawn_helper("flatwin.exe", &path))
-        .unwrap_or_else(|| {
-            log::warn!("flatwin.exe not found (extraction failed and no fallback present)");
-            false
-        });
-    steps.push(("Registering Win key handler...".to_string(), step_ok));
 
     steps
 }
