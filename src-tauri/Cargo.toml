@@ -1,6 +1,6 @@
 [package]
 name = "flatui"
-version = "0.1.3"
+version = "0.1.5"
 description = "FlatUI — Anthropic-inspired Windows shell replacement"
 authors = ["flatui"]
 edition = "2021"
@@ -74,3 +74,10 @@ strip = true
 
 [profile.dev]
 opt-level = 1
+
+# FlatUI patch — override webview2-com-sys with our local raw-dylib variant.
+# See vendor/webview2-com-sys/src/lib.rs for the linking strategy. The patch
+# must point at the same version that tao/wry pull in transitively, so cargo
+# substitutes our local copy for the registry one at build time.
+[patch.crates-io]
+webview2-com-sys = { path = "vendor/webview2-com-sys" }
