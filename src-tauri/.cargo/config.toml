@@ -1,14 +1,12 @@
 # Cross-compilation wiring (see README — "Cross-compiling from Linux").
 #
-# Links the msvc target with LLVM's lld-link, which pairs with the Windows
-# SDK/CRT headers+libs that the standalone `xwin` binary splats into
-# ~/.cache/cargo-xwin/xwin/splat. The env vars (INCLUDE/LIB/CC/CXX/AR) are
-# set by the cross-compile script /home/z/my-project/scripts/cross_compile_flatui.sh
-# before invoking `cargo build` directly. Do NOT add `runner = "cargo-xwin"`
-# here — in this sandbox the cargo-xwin runner hangs on the SDK splat step
-# for the entire 10-min bash-tool timeout and gets killed, which prevents
-# the cache from ever reaching its DONE marker, so every retry re-splats
-# from scratch. Plain `cargo build` with the env vars set works correctly
-# and finishes the build in ~4 min on a warm splat cache.
+# Links the msvc target with LLVM's lld-link, which cargo-xwin pairs with
+# the Windows SDK/CRT headers+libs it downloads via xwin. No extra flags
+# are needed once lld-link + llvm-rc are on PATH.
 [target.x86_64-pc-windows-msvc]
 linker = "lld-link"
+
+# Convenience on Linux CI: routes `cargo run --target x86_64-pc-windows-msvc`
+# through cargo-xwin. If cargo run complains on your machine, just remove
+# this line — plain `cargo build` works either way.
+runner = "cargo-xwin"
