@@ -25,9 +25,16 @@ pub mod Microsoft {
                     // import table directly into the object file, so lld-link
                     // needs no import library on disk. The same name is used on
                     // msvc and gnu targets.
+                    //
+                    // IMPORTANT: do NOT include the `.dll` extension in `name`
+                    // here — `raw-dylib` auto-appends `.dll` on Windows targets,
+                    // so writing `WebView2Loader.dll` would emit an import for
+                    // `WebView2Loader.dll.dll` (which the loader cannot resolve).
+                    // The correct literal is `WebView2Loader` → emitted as
+                    // `WebView2Loader.dll`.
                     macro_rules! link_webview2 {
                         ($library:literal $abi:literal fn $($function:tt)*) => (
-                            #[link(name = "WebView2Loader.dll", kind = "raw-dylib")]
+                            #[link(name = "WebView2Loader", kind = "raw-dylib")]
                             extern $abi {
                                 pub fn $($function)*;
                             }
