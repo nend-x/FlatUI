@@ -66,35 +66,6 @@ pub fn run() {
         reset_config();
     }
 
-    // ===== UAC elevation (seamless) =====
-    //
-    // The win-key block (low-level keyboard hook) can't intercept keystrokes
-    // destined for elevated apps unless FlatUI itself runs elevated (UIPI).
-    // We request elevation BEFORE the Tauri builder runs so that:
-    //
-    //   - If the user ACCEPTS: this (non-elevated) process exits immediately
-    //     without creating ANY windows. The elevated relaunch starts fresh
-    //     and creates the setup window — the user sees only ONE setup
-    //     window, no visible restart.
-    //   - If the user DECLINES: this process continues with basic rights.
-    //     The setup thread below will emit the "UAC not accepted" status.
-    //   - If ALREADY ELEVATED: continue normally.
-    //
-    // Doing this before the builder means no double setup window, no
-    // double-spawned helpers, no race between the hooks and exit(0).
-    let elevation_accepted = match elevation::request_elevation() {
-        elevation::ElevationOutcome::Accepted => {
-            // The elevated relaunch is in flight. Exit NOW — before any
-            // window is created, before any helper is spawned, before the
-            // Tauri event loop starts. The user sees nothing from this
-            // process; the elevated process will show the setup window.
-            log::info!("Exiting non-elevated instance — elevated relaunch is in flight");
-            std::process::exit(0);
-        }
-        elevation::ElevationOutcome::AlreadyElevated => true,
-        elevation::ElevationOutcome::Declined => false,
-    };
-
     // Run setup (launch child processes) — guarded by SETUP_ONCE, runs once.
     // Helpers are embedded in the binary (see embedded.rs) and extracted to
     // %LOCALAPPDATA%\FlatUI\bin — no external exe files required.
@@ -126,21 +97,46 @@ pub fn run() {
                 // Step 1: Welcome (already shown), wait 1s
                 std::thread::sleep(std::time::Duration::from_secs(1));
 
-                // Step 2: Report elevation outcome. The actual elevation
-                // request already happened BEFORE the Tauri builder (see
-                // run() above). By the time this thread runs, we are either
-                // in the elevated process (elevation_accepted=true) or in
-                // the non-elevated process that declined UAC. Either way,
-                // no second UAC prompt — seamless.
-                if elevation_accepted {
-                    let _ = handle.emit("setup://step", "UAC accepted - continuing");
-                } else {
-                    let _ = handle.emit(
-                        "setup://step",
-                        "UAC isn't accepted, continuing with basic rights...",
-                    );
+                // Step 2: Request UAC elevation. The win-key block (low-level
+                // keyboard hook) can't intercept keystrokes destined for
+                // elevated apps unless FlatUI itself runs elevated (UIPI).
+                // We ask the user to elevate here — the setup window is
+                // visible and the Tauri event loop is running, so the UAC
+                // prompt displays correctly.
+                //
+                // If the user ACCEPTS: a new elevated FlatUI process is
+                // launched. This (non-elevated) process shows "UAC accepted"
+                // for 1s, then exits. The elevated process starts fresh with
+                // its own setup window, taskbar, and hooks.
+                //
+                // If the user DECLINES: this process continues with basic
+                // rights. The win-key block still works against non-elevated
+                // windows.
+                //
+                // If ALREADY ELEVATED (e.g. this IS the elevated relaunch, or
+                // the user launched the exe as admin): no prompt, continue.
+                let _ = handle.emit("setup://step", "Requesting elevation...");
+                match elevation::request_elevation() {
+                    elevation::ElevationOutcome::AlreadyElevated => {
+                        let _ = handle.emit("setup://step", "UAC accepted - continuing");
+                        std::thread::sleep(std::time::Duration::from_secs(1));
+                    }
+                    elevation::ElevationOutcome::Accepted => {
+                        let _ = handle.emit("setup://step", "UAC accepted - continuing");
+                        std::thread::sleep(std::time::Duration::from_secs(1));
+                        log::info!(
+                            "Exiting non-elevated instance — elevated relaunch is in flight"
+                        );
+                        std::process::exit(0);
+                    }
+                    elevation::ElevationOutcome::Declined => {
+                        let _ = handle.emit(
+                            "setup://step",
+                            "UAC isn't accepted, continuing with basic rights...",
+                        );
+                        std::thread::sleep(std::time::Duration::from_secs(1));
+                    }
                 }
-                std::thread::sleep(std::time::Duration::from_secs(1));
 
                 // Step 3: Hide the native taskbar (HideTaskbar.exe child).
                 let _ = handle.emit("setup://step", "Hiding taskbar...");
