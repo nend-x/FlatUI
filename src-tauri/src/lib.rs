@@ -15,10 +15,8 @@
 mod app_state;
 pub mod crash_handler;
 mod elevation;
-mod embedded;
 mod hide_taskbar;
 mod persist;
-mod setup;
 #[cfg(windows)]
 mod start_menu_killer;
 #[cfg(windows)]
@@ -372,11 +370,10 @@ pub fn run() {
         .expect("error while running FlatUI");
 }
 
-// ===== Setup command (setup window calls this; SETUP_ONCE makes it a safe no-op
-// after the backend already ran it before the builder) =====
+// ===== Setup command (no-op — HideTaskbar runs in-process now) =====
 #[tauri::command]
 fn run_setup() -> Vec<(String, bool)> {
-    setup::run_setup()
+    Vec::new()
 }
 
 // ===== Command handlers =====
