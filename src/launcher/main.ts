@@ -79,6 +79,7 @@ const toggleSysmonWidget = document.getElementById("toggle-sysmon-widget") as HT
 const toggleAudioWidget = document.getElementById("toggle-audio-widget") as HTMLInputElement;
 const toggleAppsWidget = document.getElementById("toggle-apps-widget") as HTMLInputElement;
 const toggleIconRecolor = document.getElementById("toggle-icon-recolor") as HTMLInputElement;
+const themeSelect = document.getElementById("theme-select") as HTMLSelectElement;
 
 // ===== Clipboard widget =====
 let clipboardItems: string[] = [];
@@ -446,6 +447,100 @@ async function loadIconRecolor() {
 toggleIconRecolor.addEventListener("change", () => {
   applyIconRecolor(toggleIconRecolor.checked);
   invoke("save_icon_recolor", { enabled: toggleIconRecolor.checked });
+});
+
+// ===== Theme switcher =====
+// Loads the active theme from the backend, applies its colors as CSS
+// variables on :root, and saves when the user picks a different theme.
+// The CSS variable names match the serde-renamed ThemeColors field names
+// (e.g. bg-espresso → --bg-espresso, sand-cream → --sand-cream).
+
+interface ThemeColors {
+  "bg-espresso": string;
+  "bg-espresso-deep": string;
+  "bg-espresso-raised": string;
+  "bg-espresso-frosted": string;
+  "bg-espresso-glass": string;
+  sand: string;
+  "sand-bright": string;
+  "sand-dim": string;
+  "sand-cream": string;
+  "accent-terracotta": string;
+  "accent-caramel": string;
+  "accent-soft": string;
+  "border-subtle": string;
+  "border-strong": string;
+  "status-running": string;
+  "status-pinned": string;
+}
+
+interface Theme {
+  name: string;
+  active: boolean;
+  colors: ThemeColors;
+}
+
+// Per-theme icon recolor hue/sat values. These override the defaults in
+// theme.css when a theme is applied, so icon recoloring matches the theme's
+// accent color.
+const THEME_ICON_RECOLOR: Record<string, { hue: string; sat: string; brightness: string }> = {
+  "sand-cream": { hue: "-10deg", sat: "1.5", brightness: "0.95" },
+  "earthly-green": { hue: "60deg", sat: "1.3", brightness: "0.90" },
+  "silver-lining": { hue: "0deg", sat: "0.3", brightness: "0.85" },
+};
+
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  // Apply each color as a CSS variable on :root
+  const colors = theme.colors;
+  root.style.setProperty("--bg-espresso", colors["bg-espresso"]);
+  root.style.setProperty("--bg-espresso-deep", colors["bg-espresso-deep"]);
+  root.style.setProperty("--bg-espresso-raised", colors["bg-espresso-raised"]);
+  root.style.setProperty("--bg-espresso-frosted", colors["bg-espresso-frosted"]);
+  root.style.setProperty("--bg-espresso-glass", colors["bg-espresso-glass"]);
+  root.style.setProperty("--sand", colors.sand);
+  root.style.setProperty("--sand-bright", colors["sand-bright"]);
+  root.style.setProperty("--sand-dim", colors["sand-dim"]);
+  root.style.setProperty("--sand-cream", colors["sand-cream"]);
+  root.style.setProperty("--accent-terracotta", colors["accent-terracotta"]);
+  root.style.setProperty("--accent-caramel", colors["accent-caramel"]);
+  root.style.setProperty("--accent-soft", colors["accent-soft"]);
+  root.style.setProperty("--border-subtle", colors["border-subtle"]);
+  root.style.setProperty("--border-strong", colors["border-strong"]);
+  root.style.setProperty("--status-running", colors["status-running"]);
+  root.style.setProperty("--status-pinned", colors["status-pinned"]);
+
+  // Apply per-theme icon recolor values
+  const recolor = THEME_ICON_RECOLOR[theme.name];
+  if (recolor) {
+    root.style.setProperty("--icon-recolor-hue", recolor.hue);
+    root.style.setProperty("--icon-recolor-sat", recolor.sat);
+    root.style.setProperty("--icon-recolor-brightness", recolor.brightness);
+  }
+
+  // Emit to the taskbar so it can apply the same theme
+  emit("theme://changed", theme);
+}
+
+async function loadActiveTheme() {
+  try {
+    const theme = await invoke<Theme | null>("get_active_theme");
+    if (theme) {
+      themeSelect.value = theme.name;
+      applyTheme(theme);
+    }
+  } catch (err) {
+    console.error("get_active_theme failed:", err);
+  }
+}
+
+themeSelect.addEventListener("change", () => {
+  const themeName = themeSelect.value;
+  invoke("set_active_theme", { name: themeName });
+  // Re-load the full theme to get its colors, then apply
+  invoke<Theme | null>("get_active_theme").then((theme) => {
+    if (theme) applyTheme(theme);
+  });
 });
 
 // ===== Launcher open/close animation state machine =====
@@ -1720,6 +1815,7 @@ async function init() {
   await loadWidgetPositions();
   await loadWidgetVisibilitySettings();
   await loadIconRecolor();
+  await loadActiveTheme();
 
   // (The running-build version badge used to live in the bottom-left
   // corner of the launcher. It has been removed from the surface — the

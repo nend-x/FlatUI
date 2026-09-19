@@ -309,6 +309,19 @@ async function setupListeners() {
       }
     })
   );
+
+  // Theme change — applies the theme's colors as CSS variables on :root
+  unlistenFns.push(
+    await listen<{ name: string; colors: Record<string, string> }>("theme://changed", (e) => {
+      const root = document.documentElement;
+      const colors = e.payload.colors;
+      // Map the theme colors to CSS variables (keys match the serde-renamed
+      // ThemeColors field names with -- prefix)
+      for (const [key, value] of Object.entries(colors)) {
+        root.style.setProperty("--" + key, value);
+      }
+    })
+  );
 }
 
 clockWrap.addEventListener("click", () => invoke("toggle_calendar_flyout"));
@@ -335,6 +348,17 @@ async function init() {
     const taskbarRoot = document.querySelector(".taskbar-root");
     if (taskbarRoot && iconRecolorEnabled) {
       taskbarRoot.classList.add("icon-recolor");
+    }
+  } catch {}
+
+  // Load active theme on startup (in case the launcher isn't open yet)
+  try {
+    const theme = await invoke<{ name: string; colors: Record<string, string> } | null>("get_active_theme");
+    if (theme) {
+      const root = document.documentElement;
+      for (const [key, value] of Object.entries(theme.colors)) {
+        root.style.setProperty("--" + key, value);
+      }
     }
   } catch {}
 

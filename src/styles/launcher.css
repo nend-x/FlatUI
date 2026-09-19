@@ -1462,6 +1462,32 @@ html.background-ready, html.background-ready body {
 .settings-input:focus { border-color: var(--accent-terracotta); }
 .settings-number { width: 60px; }
 
+/* Theme select dropdown */
+.settings-select {
+  height: 30px;
+  padding: 0 8px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--sand-cream);
+  background-color: rgba(58, 42, 26, 0.6);
+  background-image: var(--grain-lines-image);
+  background-size: var(--grain-lines-size);
+  background-position: var(--grain-lines-position);
+  background-repeat: var(--grain-lines-repeat);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 160ms var(--ease-out-soft);
+}
+
+.settings-select:hover { border-color: var(--accent-terracotta); }
+.settings-select:focus { border-color: var(--accent-terracotta); }
+.settings-select option {
+  background: #3A2A1A;
+  color: var(--sand-cream);
+}
+
 .theme-options {
   display: flex;
   gap: 6px;
