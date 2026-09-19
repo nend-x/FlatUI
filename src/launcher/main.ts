@@ -68,10 +68,16 @@ const audioMasterVal = document.getElementById("audio-master-val")!;
 const settingsBtn = document.getElementById("settings-btn")!;
 const settingsOverlay = document.getElementById("settings-overlay")!;
 const settingsClose = document.getElementById("settings-close")!;
-const settingsSave = document.getElementById("settings-save")!;
 const screenshotOverlay = document.getElementById("screenshot-overlay")!;
 const screenshotCanvas = document.getElementById("screenshot-canvas") as HTMLCanvasElement;
 const clipboardClearBtn = document.getElementById("clipboard-clear")!;
+
+// Widget toggle checkboxes
+const toggleClipboardWidget = document.getElementById("toggle-clipboard-widget") as HTMLInputElement;
+const toggleNotesWidget = document.getElementById("toggle-notes-widget") as HTMLInputElement;
+const toggleSysmonWidget = document.getElementById("toggle-sysmon-widget") as HTMLInputElement;
+const toggleAudioWidget = document.getElementById("toggle-audio-widget") as HTMLInputElement;
+const toggleAppsWidget = document.getElementById("toggle-apps-widget") as HTMLInputElement;
 
 // ===== Clipboard widget =====
 let clipboardItems: string[] = [];
@@ -320,6 +326,95 @@ async function loadWidgetPositions() {
     }
   } catch {}
 }
+
+// ===== Widget visibility settings =====
+const WIDGET_IDS = [
+  "clipboard-widget",
+  "notes-widget",
+  "sysmon-widget",
+  "audio-widget",
+  "apps-widget",
+] as const;
+
+async function loadWidgetVisibilitySettings() {
+  try {
+    const visibility = await invoke<Record<string, boolean>>("load_widget_visibility");
+    // Apply loaded visibility to each widget
+    for (const id of WIDGET_IDS) {
+      const visible = visibility[id] ?? true; // default to visible
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.display = visible ? "" : "none";
+      }
+      // Update the toggle checkbox
+      const toggle = document.getElementById(`toggle-${id}`) as HTMLInputElement | null;
+      if (toggle) {
+        toggle.checked = visible;
+      }
+    }
+  } catch {
+    // If load fails, all widgets are visible by default
+  }
+}
+
+async function saveWidgetVisibility() {
+  const visibility: Record<string, boolean> = {};
+  for (const id of WIDGET_IDS) {
+    const toggle = document.getElementById(`toggle-${id}`) as HTMLInputElement | null;
+    if (toggle) {
+      visibility[id] = toggle.checked;
+    }
+  }
+  try {
+    await invoke("save_widget_visibility", { visibility });
+  } catch (err) {
+    console.error("save_widget_visibility failed:", err);
+  }
+}
+
+function applyWidgetVisibility(id: string, visible: boolean) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.display = visible ? "" : "none";
+  }
+}
+
+// Settings button — open/close the settings overlay
+settingsBtn.addEventListener("click", () => {
+  settingsOverlay.classList.remove("hidden");
+});
+
+settingsClose.addEventListener("click", () => {
+  settingsOverlay.classList.add("hidden");
+});
+
+settingsOverlay.addEventListener("click", (e) => {
+  if (e.target === settingsOverlay) {
+    settingsOverlay.classList.add("hidden");
+  }
+});
+
+// Widget toggle handlers — apply immediately and save to config
+toggleClipboardWidget.addEventListener("change", () => {
+  applyWidgetVisibility("clipboard-widget", toggleClipboardWidget.checked);
+  void saveWidgetVisibility();
+});
+toggleNotesWidget.addEventListener("change", () => {
+  applyWidgetVisibility("notes-widget", toggleNotesWidget.checked);
+  void saveWidgetVisibility();
+});
+toggleSysmonWidget.addEventListener("change", () => {
+  applyWidgetVisibility("sysmon-widget", toggleSysmonWidget.checked);
+  void saveWidgetVisibility();
+});
+toggleAudioWidget.addEventListener("change", () => {
+  applyWidgetVisibility("audio-widget", toggleAudioWidget.checked);
+  void saveWidgetVisibility();
+});
+toggleAppsWidget.addEventListener("change", () => {
+  applyWidgetVisibility("apps-widget", toggleAppsWidget.checked);
+  void saveWidgetVisibility();
+});
 
 // ===== Launcher open/close animation state machine =====
 //
@@ -706,19 +801,12 @@ async function applyFilter() {
     return;
   }
 
-  // Non-empty: filter desktop items locally + query backend for installed programs
-  const localFiltered = allItems.filter((it) => it.name.toLowerCase().includes(q));
-
-  // Show grid immediately with local results (so user sees something)
-  filteredItems = localFiltered;
+  // Non-empty: desktop is EXCLUDED from search — only installed programs
+  // and system shortcuts are searched (via search_programs). The desktop
+  // grid is hidden while typing.
+  filteredItems = [];
   selectedIdx = 0;
-  if (localFiltered.length > 0) {
-    grid.classList.remove("hidden");
-    spotlightResultsEl.classList.add("hidden");
-    renderGrid();
-  } else {
-    grid.classList.add("hidden");
-  }
+  grid.classList.add("hidden");
 
   // Debounced search_programs call
   if (spotlightSearchTimer) window.clearTimeout(spotlightSearchTimer);
@@ -1598,6 +1686,7 @@ async function init() {
   setInterval(updateSysmon, 2000);
   initWidgetDragging();
   await loadWidgetPositions();
+  await loadWidgetVisibilitySettings();
 
   // (The running-build version badge used to live in the bottom-left
   // corner of the launcher. It has been removed from the surface — the

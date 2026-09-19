@@ -86,6 +86,22 @@ pub fn save_widget_positions(positions: &std::collections::HashMap<String, (f64,
     }
 }
 
+// ===== Widget visibility =====
+pub fn load_widget_visibility() -> std::collections::HashMap<String, bool> {
+    let path = data_dir().join("widget_visibility.json");
+    match fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).unwrap_or_default(),
+        Err(_) => std::collections::HashMap::new(),
+    }
+}
+
+pub fn save_widget_visibility(visibility: &std::collections::HashMap<String, bool>) {
+    let path = data_dir().join("widget_visibility.json");
+    if let Ok(s) = serde_json::to_string_pretty(visibility) {
+        let _ = fs::write(&path, s);
+    }
+}
+
 // ===== Settings =====
 #[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
 pub struct Settings {

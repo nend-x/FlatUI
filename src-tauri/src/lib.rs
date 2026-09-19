@@ -338,6 +338,8 @@ pub fn run() {
             set_app_volume,
             save_widget_positions,
             load_widget_positions,
+            save_widget_visibility,
+            load_widget_visibility,
             save_settings,
             load_settings,
             get_language,
@@ -987,6 +989,17 @@ fn save_widget_positions(positions: std::collections::HashMap<String, (f64, f64)
 #[tauri::command]
 fn load_widget_positions() -> std::collections::HashMap<String, (f64, f64)> {
     persist::load_widget_positions()
+}
+
+// ===== Widget visibility =====
+#[tauri::command]
+fn save_widget_visibility(visibility: std::collections::HashMap<String, bool>) {
+    persist::save_widget_visibility(&visibility);
+}
+
+#[tauri::command]
+fn load_widget_visibility() -> std::collections::HashMap<String, bool> {
+    persist::load_widget_visibility()
 }
 
 // ===== Settings =====
