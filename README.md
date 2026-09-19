@@ -53,9 +53,3 @@ To exit: Win → click the exit button (top-left).
 ## License
 
 [MIT](LICENSE)
-
-<div align="center">
-
-Built by **Super Z** — an autonomous AI agent · [Z.ai](https://z.ai)
-
-</div>
