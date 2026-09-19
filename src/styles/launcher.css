@@ -110,7 +110,7 @@ html.background-ready, html.background-ready body {
   align-items: center;
   padding-top: 16vh;
   font-family: var(--font-ui);
-  color: var(--sand);
+  color: var(--text-secondary);
   will-change: transform, opacity;
   z-index: 2000;
 }
@@ -191,7 +191,7 @@ html.background-ready, html.background-ready body {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   cursor: pointer;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   transition: color 180ms var(--ease-out-soft),
               background-color 180ms var(--ease-out-soft),
               transform 220ms var(--ease-spring),
@@ -199,7 +199,7 @@ html.background-ready, html.background-ready body {
 }
 
 .action-btn:hover {
-  color: var(--sand-cream);
+  color: var(--text-primary);
   background: rgba(var(--bg-espresso-raised-rgb), 0.85);
   border-color: var(--accent-terracotta);
   transform: scale(1.08);
@@ -244,7 +244,7 @@ html.background-ready, html.background-ready body {
   padding: 0 18px 0 48px;
   font-family: var(--font-display);
   font-size: 14px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   /* Transparent grainy line-grid — matches the icon frames and the rest
      of the app's aesthetic. Low alpha so the launcher bg shows through. */
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.45);
@@ -264,7 +264,7 @@ html.background-ready, html.background-ready body {
               box-shadow 280ms var(--ease-out-soft);
 }
 
-.launcher-search::placeholder { color: var(--sand-dim); }
+.launcher-search::placeholder { color: var(--text-muted); }
 
 .launcher-search:focus {
   border-color: rgba(var(--accent-terracotta-rgb), 0.45);
@@ -283,7 +283,7 @@ html.background-ready, html.background-ready body {
   transform: translateY(-50%);
   width: 18px;
   height: 18px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   pointer-events: none;
   transition: color 180ms var(--ease-out-soft);
 }
@@ -350,7 +350,7 @@ html.background-ready, html.background-ready body {
 }
 
 .launcher-item.launching .label {
-  color: var(--sand-cream);
+  color: var(--text-primary);
   animation: label-fade 200ms var(--ease-out-soft) forwards;
 }
 
@@ -511,7 +511,7 @@ html.background-ready, html.background-ready body {
 .launcher-item .label {
   font-family: var(--font-ui);
   font-size: 10px;
-  color: var(--sand);
+  color: var(--text-secondary);
   text-align: center;
   max-width: 100%;
   white-space: nowrap;
@@ -530,7 +530,7 @@ html.background-ready, html.background-ready body {
   max-width: calc(100% - 4px);
 }
 
-.launcher-item:hover .label { color: var(--sand-cream); }
+.launcher-item:hover .label { color: var(--text-primary); }
 
 .launcher-item.selected { background: var(--accent-soft); }
 .launcher-item.selected .icon-box { border-color: rgba(var(--accent-terracotta-rgb), 0.45); }
@@ -607,7 +607,7 @@ html.background-ready, html.background-ready body {
 .win-switcher-card-label {
   font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -644,7 +644,7 @@ html.background-ready, html.background-ready body {
   padding: 7px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  color: var(--sand);
+  color: var(--text-secondary);
   font-size: 11px;
   letter-spacing: 0.02em;
   transition: background-color 100ms var(--ease-out-soft),
@@ -653,7 +653,7 @@ html.background-ready, html.background-ready body {
 
 .context-menu-item:hover {
   background: rgba(255, 255, 255, 0.06);
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 .context-menu-item.danger:hover {
@@ -669,7 +669,7 @@ html.background-ready, html.background-ready body {
 
 .context-menu-submenu-arrow {
   margin-left: auto;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   font-size: 9px;
 }
 
@@ -720,7 +720,7 @@ html.background-ready, html.background-ready body {
 .modal-title {
   font-family: var(--font-display);
   font-size: 13px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   margin-bottom: 14px;
   letter-spacing: 0.03em;
 }
@@ -731,7 +731,7 @@ html.background-ready, html.background-ready body {
   padding: 0 12px;
   font-family: var(--font-display);
   font-size: 12px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   background: rgba(var(--bg-espresso-deep-rgb), 0.60);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -740,7 +740,7 @@ html.background-ready, html.background-ready body {
 }
 
 .modal-input:focus { border-color: var(--accent-terracotta); }
-.modal-input::placeholder { color: var(--sand-dim); }
+.modal-input::placeholder { color: var(--text-muted); }
 
 .modal-actions {
   display: flex;
@@ -755,7 +755,7 @@ html.background-ready, html.background-ready body {
   font-size: 11px;
   letter-spacing: 0.03em;
   background: transparent;
-  color: var(--sand);
+  color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -765,7 +765,7 @@ html.background-ready, html.background-ready body {
 
 .modal-btn:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 .modal-btn.primary {
@@ -795,7 +795,7 @@ html.background-ready, html.background-ready body {
 .widget-header {
   font-family: var(--font-display);
   font-size: 10px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 8px 12px 4px;
@@ -825,7 +825,7 @@ html.background-ready, html.background-ready body {
 .clipboard-item {
   padding: 6px 8px;
   font-size: 11px;
-  color: var(--sand);
+  color: var(--text-secondary);
   border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
@@ -837,7 +837,7 @@ html.background-ready, html.background-ready body {
 
 .clipboard-item:hover {
   background: rgba(255, 255, 255, 0.06);
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 /* Notes widget */
@@ -858,7 +858,7 @@ html.background-ready, html.background-ready body {
   background: transparent;
   font-family: var(--font-ui);
   font-size: 12px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   padding: 4px 12px 12px;
   resize: none;
   line-height: 1.6;
@@ -868,7 +868,7 @@ html.background-ready, html.background-ready body {
   background-attachment: local;
 }
 
-.notes-textarea::placeholder { color: var(--sand-dim); }
+.notes-textarea::placeholder { color: var(--text-muted); }
 .notes-textarea::-webkit-scrollbar { width: 3px; }
 .notes-textarea::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 
@@ -912,7 +912,7 @@ html.background-ready, html.background-ready body {
 .audio-label {
   font-family: var(--font-display);
   font-size: 10px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   width: 48px;
   flex-shrink: 0;
 }
@@ -920,7 +920,7 @@ html.background-ready, html.background-ready body {
 .audio-val {
   font-family: var(--font-display);
   font-size: 10px;
-  color: var(--sand);
+  color: var(--text-secondary);
   width: 32px;
   text-align: right;
   flex-shrink: 0;
@@ -989,7 +989,7 @@ html.background-ready, html.background-ready body {
 .apps-empty {
   font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   letter-spacing: 0.02em;
   line-height: 1;
   padding: 6px 0;
@@ -1017,12 +1017,34 @@ html.background-ready, html.background-ready body {
   height: 20px;
   object-fit: contain;
   pointer-events: none;
+  transition: filter 280ms var(--ease-out-soft), opacity 280ms var(--ease-out-soft);
+}
+
+/* Icon recoloring for apps widget tiles (same 3-layer as launcher items) */
+.launcher-root.icon-recolor .apps-tile img {
+  opacity: 0.5;
+  filter:
+    grayscale(1)
+    sepia(1)
+    hue-rotate(var(--icon-recolor-hue))
+    saturate(var(--icon-recolor-sat))
+    brightness(var(--icon-recolor-brightness));
+}
+
+.launcher-root.icon-recolor .apps-tile:hover img {
+  opacity: 0.7;
+  filter:
+    grayscale(1)
+    sepia(1)
+    hue-rotate(var(--icon-recolor-hue))
+    saturate(calc(var(--icon-recolor-sat) * 1.2))
+    brightness(1.05);
 }
 
 .apps-tile .apps-tile-fallback {
   font-family: var(--font-display);
   font-size: 11px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   line-height: 1;
   pointer-events: none;
   user-select: none;
@@ -1042,7 +1064,7 @@ html.background-ready, html.background-ready body {
   margin-left: auto;
   font-family: var(--font-display);
   font-size: 10px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   letter-spacing: 0.06em;
   padding: 2px 4px;
   border-radius: var(--radius-sm);
@@ -1056,7 +1078,7 @@ html.background-ready, html.background-ready body {
   gap: 6px;
   font-family: var(--font-display);
   font-size: 10px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
 }
 
 .sysmon-row span:first-child { width: 28px; }
@@ -1096,7 +1118,7 @@ html.background-ready, html.background-ready body {
   padding: 10px 14px;
   border-radius: var(--radius-md);
   cursor: pointer;
-  color: var(--sand);
+  color: var(--text-secondary);
   transition: background-color 140ms var(--ease-out-soft),
               transform 160ms var(--ease-spring);
 }
@@ -1130,7 +1152,7 @@ html.background-ready, html.background-ready body {
 .spotlight-item-label {
   font-family: var(--font-ui);
   font-size: 12px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   letter-spacing: 0.02em;
   flex: 1;
   white-space: nowrap;
@@ -1149,7 +1171,7 @@ html.background-ready, html.background-ready body {
 .spotlight-item-path {
   font-family: var(--font-display);
   font-size: 9px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   letter-spacing: 0.02em;
   max-width: 200px;
   white-space: nowrap;
@@ -1202,7 +1224,7 @@ html.background-ready, html.background-ready body {
   padding: 0 14px;
   font-family: var(--font-display);
   font-size: 13px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   background: rgba(var(--bg-espresso-deep-rgb), 0.60);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -1211,7 +1233,7 @@ html.background-ready, html.background-ready body {
 }
 
 .run-input:focus { border-color: var(--accent-terracotta); }
-.run-input::placeholder { color: var(--sand-dim); }
+.run-input::placeholder { color: var(--text-muted); }
 
 .run-actions {
   display: flex;
@@ -1225,7 +1247,7 @@ html.background-ready, html.background-ready body {
   font-size: 11px;
   letter-spacing: 0.03em;
   background: transparent;
-  color: var(--sand);
+  color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -1235,7 +1257,7 @@ html.background-ready, html.background-ready body {
 
 .run-btn:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 .run-btn.primary {
@@ -1261,7 +1283,7 @@ html.background-ready, html.background-ready body {
 .blacklist-title {
   font-family: var(--font-display);
   font-size: 14px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   margin-bottom: 16px;
   letter-spacing: 0.04em;
 }
@@ -1338,7 +1360,7 @@ html.background-ready, html.background-ready body {
 .blacklist-label {
   font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--sand);
+  color: var(--text-secondary);
   letter-spacing: 0.01em;
   flex: 1;
   white-space: nowrap;
@@ -1347,13 +1369,13 @@ html.background-ready, html.background-ready body {
 }
 
 .blacklist-row.pinned .blacklist-label {
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 .blacklist-hint {
   font-family: var(--font-ui);
   font-size: 10px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   margin-top: 14px;
   letter-spacing: 0.03em;
 }
@@ -1407,14 +1429,14 @@ html.background-ready, html.background-ready body {
 .settings-title {
   font-family: var(--font-display);
   font-size: 14px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   letter-spacing: 0.04em;
 }
 
 .settings-close {
   background: none;
   border: none;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   font-size: 16px;
   cursor: pointer;
   padding: 4px 8px;
@@ -1423,7 +1445,7 @@ html.background-ready, html.background-ready body {
 }
 
 .settings-close:hover {
-  color: var(--sand-cream);
+  color: var(--text-primary);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -1443,7 +1465,7 @@ html.background-ready, html.background-ready body {
 .settings-label {
   font-family: var(--font-ui);
   font-size: 11px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   letter-spacing: 0.02em;
 }
 
@@ -1452,7 +1474,7 @@ html.background-ready, html.background-ready body {
   padding: 0 12px;
   font-family: var(--font-display);
   font-size: 12px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   background: rgba(var(--bg-espresso-deep-rgb), 0.60);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -1468,7 +1490,7 @@ html.background-ready, html.background-ready body {
   padding: 0 8px;
   font-family: var(--font-display);
   font-size: 11px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.60);
   background-image: var(--grain-lines-image);
   background-size: var(--grain-lines-size);
@@ -1485,7 +1507,7 @@ html.background-ready, html.background-ready body {
 .settings-select:focus { border-color: var(--accent-terracotta); }
 .settings-select option {
   background: var(--bg-espresso-deep);
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 .theme-options {
@@ -1499,7 +1521,7 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-ui);
   font-size: 10px;
   background: rgba(var(--bg-espresso-deep-rgb), 0.40);
-  color: var(--sand-dim);
+  color: var(--text-muted);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -1507,7 +1529,7 @@ html.background-ready, html.background-ready body {
 }
 
 .theme-option:hover {
-  color: var(--sand);
+  color: var(--text-secondary);
   border-color: var(--border-strong);
 }
 
@@ -1522,7 +1544,7 @@ html.background-ready, html.background-ready body {
 .settings-section-title {
   font-family: var(--font-display);
   font-size: 10px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 4px 0 2px;
@@ -1539,7 +1561,7 @@ html.background-ready, html.background-ready body {
 
 .settings-row .settings-label {
   font-size: 12px;
-  color: var(--sand);
+  color: var(--text-secondary);
 }
 
 /* Toggle switch (used in settings rows) */
@@ -1672,7 +1694,7 @@ html.background-ready, html.background-ready body {
   transform: translateX(-50%);
   font-family: var(--font-display);
   font-size: 12px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   background: rgba(var(--bg-espresso-deep-rgb), 0.80);
   padding: 6px 16px;
   border-radius: var(--radius-md);
@@ -1685,7 +1707,7 @@ html.background-ready, html.background-ready body {
 .lang-indicator {
   font-family: var(--font-display);
   font-size: 10px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   letter-spacing: 0.06em;
   text-transform: lowercase;
   padding: 2px 6px;
@@ -1721,12 +1743,12 @@ html.background-ready, html.background-ready body {
 .taskbar-screenshot svg {
   width: 16px;
   height: 16px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   transition: color 140ms var(--ease-out-soft);
 }
 
 .taskbar-screenshot:hover svg {
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 /* ===== Clipboard clear button ===== */
@@ -1744,7 +1766,7 @@ html.background-ready, html.background-ready body {
 .clipboard-clear {
   background: none;
   border: none;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   font-size: 16px;
   cursor: pointer;
   padding: 0 4px;
@@ -1806,7 +1828,7 @@ html.background-ready, html.background-ready body {
 .setup-logo {
   font-family: var(--font-display);
   font-size: 24px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 500;
@@ -1815,7 +1837,7 @@ html.background-ready, html.background-ready body {
 .setup-status {
   font-family: var(--font-ui);
   font-size: 13px;
-  color: var(--sand);
+  color: var(--text-secondary);
   letter-spacing: 0.04em;
   transition: opacity 300ms var(--ease-out-soft);
 }

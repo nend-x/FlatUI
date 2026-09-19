@@ -63,13 +63,13 @@
 .volume-icon {
   width: 16px;
   height: 16px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   flex-shrink: 0;
   transition: color 140ms var(--ease-out-soft);
 }
 
 .volume-control:hover .volume-icon {
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 .volume-slider-wrap {
@@ -213,7 +213,7 @@
   align-items: flex-end;
   justify-content: center;
   font-family: var(--font-display);
-  color: var(--sand);
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 4px 10px;
   border-radius: var(--radius-md);
@@ -233,7 +233,7 @@
 
 .taskbar-clock .date {
   font-size: 9px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   letter-spacing: 0.02em;
   line-height: 1.1;
 }
@@ -244,7 +244,7 @@
   left: 50%;
   transform: translateX(-50%) translateY(2px);
   background: var(--bg-espresso-deep);
-  color: var(--sand-cream);
+  color: var(--text-primary);
   padding: 3px 9px;
   border-radius: var(--radius-sm);
   font-size: 10px;
@@ -287,7 +287,7 @@
   font-family: var(--font-ui);
   font-size: 11px;
   letter-spacing: 0.02em;
-  color: var(--sand);
+  color: var(--text-secondary);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background-color 100ms var(--ease-out-soft),
@@ -296,7 +296,7 @@
 
 .tb-context-menu-item:hover {
   background: rgba(255, 255, 255, 0.10);
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 .tb-context-menu-item.danger:hover {
@@ -371,7 +371,7 @@
 
 .win-switcher-label {
   font-size: 10px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -400,11 +400,11 @@
 .taskbar-screenshot svg {
   width: 16px;
   height: 16px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   transition: color 140ms var(--ease-out-soft);
 }
 
 .taskbar-screenshot:hover svg {
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 

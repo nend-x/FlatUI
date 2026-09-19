@@ -14,6 +14,15 @@ interface TaskbarApp {
   is_foreground: boolean;
 }
 
+// Per-theme icon recolor hue/sat values. Must match the launcher's
+// THEME_ICON_RECOLOR map. Used when applying a theme so the taskbar's
+// icon recolor filter matches the launcher's.
+const THEME_ICON_RECOLOR: Record<string, { hue: string; sat: string; brightness: string }> = {
+  "sand-cream": { hue: "-16deg", sat: "0.8", brightness: "0.95" },
+  "earthly-green": { hue: "108deg", sat: "0.85", brightness: "0.95" },
+  "silver-lining": { hue: "168deg", sat: "0.4", brightness: "0.90" },
+};
+
 interface WindowPreview {
   hwnd: number;
   title: string;
@@ -333,6 +342,13 @@ async function setupListeners() {
           root.style.setProperty("--grain-noise-svg", noiseSvg);
         }
       }
+      // Set per-theme icon recolor values (must match launcher's THEME_ICON_RECOLOR)
+      const recolor = THEME_ICON_RECOLOR[e.payload.name];
+      if (recolor) {
+        root.style.setProperty("--icon-recolor-hue", recolor.hue);
+        root.style.setProperty("--icon-recolor-sat", recolor.sat);
+        root.style.setProperty("--icon-recolor-brightness", recolor.brightness);
+      }
     })
   );
 }
@@ -384,6 +400,13 @@ async function init() {
           const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
           root.style.setProperty("--grain-noise-svg", noiseSvg);
         }
+      }
+      // Set per-theme icon recolor values
+      const recolor = THEME_ICON_RECOLOR[theme.name];
+      if (recolor) {
+        root.style.setProperty("--icon-recolor-hue", recolor.hue);
+        root.style.setProperty("--icon-recolor-sat", recolor.sat);
+        root.style.setProperty("--icon-recolor-brightness", recolor.brightness);
       }
     }
   } catch {}

@@ -233,6 +233,22 @@ pub struct ThemeColors {
     pub status_running: String,
     #[serde(rename = "status-pinned")]
     pub status_pinned: String,
+    // Text colors (calibrated per-theme for readability)
+    #[serde(rename = "text-primary")]
+    pub text_primary: String,
+    #[serde(rename = "text-secondary")]
+    pub text_secondary: String,
+    #[serde(rename = "text-muted")]
+    pub text_muted: String,
+    // Shadows (calibrated per-theme — light themes use softer shadows)
+    #[serde(rename = "shadow-window")]
+    pub shadow_window: String,
+    #[serde(rename = "shadow-popup")]
+    pub shadow_popup: String,
+    #[serde(rename = "shadow-icon-hover")]
+    pub shadow_icon_hover: String,
+    #[serde(rename = "shadow-card")]
+    pub shadow_card: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -279,6 +295,15 @@ pub fn default_themes() -> ThemesConfig {
                     border_strong: "rgba(194,178,128,0.18)".to_string(),
                     status_running: "#D4A574".to_string(),
                     status_pinned: "#8A7B5C".to_string(),
+                    // Text — sand-cream theme: light text on dark espresso bg
+                    text_primary: "#EDE4D3".to_string(),
+                    text_secondary: "#C2B280".to_string(),
+                    text_muted: "#8A7B5C".to_string(),
+                    // Shadows — warm dark shadows for the espresso theme
+                    shadow_window: "0 1px 4px rgba(0, 0, 0, 0.18)".to_string(),
+                    shadow_popup: "0 2px 12px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22)".to_string(),
+                    shadow_icon_hover: "0 1px 3px rgba(0, 0, 0, 0.14)".to_string(),
+                    shadow_card: "0 14px 44px rgba(0, 0, 0, 0.5)".to_string(),
                 },
             },
             Theme {
@@ -310,6 +335,15 @@ pub fn default_themes() -> ThemesConfig {
                     border_strong: "rgba(209,234,221,0.18)".to_string(),
                     status_running: "#78D3A5".to_string(),
                     status_pinned: "#5A8A72".to_string(),
+                    // Text — earthly-green theme: light green text on dark green bg
+                    text_primary: "#D1EADD".to_string(),
+                    text_secondary: "#84BCA0".to_string(),
+                    text_muted: "#5A8A72".to_string(),
+                    // Shadows — green-tinted dark shadows
+                    shadow_window: "0 1px 4px rgba(0, 0, 0, 0.18)".to_string(),
+                    shadow_popup: "0 2px 12px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22)".to_string(),
+                    shadow_icon_hover: "0 1px 3px rgba(0, 0, 0, 0.14)".to_string(),
+                    shadow_card: "0 14px 44px rgba(0, 0, 0, 0.5)".to_string(),
                 },
             },
             Theme {
@@ -341,6 +375,18 @@ pub fn default_themes() -> ThemesConfig {
                     border_strong: "rgba(216,221,226,0.18)".to_string(),
                     status_running: "#92A5B9".to_string(),
                     status_pinned: "#69727B".to_string(),
+                    // Text — silver-lining theme: bright cool-gray text on dark
+                    // gray bg. Brighter than sand-cream to ensure readability.
+                    text_primary: "#F0F4F8".to_string(),
+                    text_secondary: "#B8C4D0".to_string(),
+                    text_muted: "#8A96A4".to_string(),
+                    // Shadows — SOFTER shadows for the light/cool theme.
+                    // Heavy black shadows ruin the silver-lining aesthetic,
+                    // so we use lower opacity and blur.
+                    shadow_window: "0 1px 3px rgba(0, 0, 0, 0.10)".to_string(),
+                    shadow_popup: "0 2px 8px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12)".to_string(),
+                    shadow_icon_hover: "0 1px 2px rgba(0, 0, 0, 0.10)".to_string(),
+                    shadow_card: "0 10px 30px rgba(0, 0, 0, 0.30)".to_string(),
                 },
             },
         ],

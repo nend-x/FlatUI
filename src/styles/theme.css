@@ -69,10 +69,22 @@
   --status-running: #D4A574;
   --status-pinned: #8A7B5C;
 
-  /* Subtle, mat shadows (no aggressive glow) */
+  /* ===== Text colors (calibrated per-theme for readability) =====
+     These are the primary text colors used throughout the app. They're
+     separate from --sand/--sand-cream/--sand-dim (which are also used
+     for non-text purposes like borders and backgrounds) so we can tune
+     text contrast independently per theme. */
+  --text-primary: var(--sand-cream);
+  --text-secondary: var(--sand);
+  --text-muted: var(--sand-dim);
+
+  /* ===== Shadows (calibrated per-theme) =====
+     Dark themes use stronger black shadows; light themes (silver-lining)
+     use softer, lower-opacity shadows so they don't ruin the aesthetic. */
   --shadow-window: 0 1px 4px rgba(0, 0, 0, 0.18);
   --shadow-popup: 0 2px 12px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22);
   --shadow-icon-hover: 0 1px 3px rgba(0, 0, 0, 0.14);
+  --shadow-card: 0 14px 44px rgba(0, 0, 0, 0.5);
 
   /* ===== Typography ===== */
   --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Mono", monospace;
