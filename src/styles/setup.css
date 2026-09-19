@@ -16,9 +16,11 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 20px;
-  background: rgba(75, 54, 33, 0.97);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
+  background-color: rgba(75, 54, 33, 0.97);
+  background-image: var(--grain-image);
+  background-size: var(--grain-size);
+  background-position: var(--grain-position);
+  background-repeat: var(--grain-repeat);
   border-radius: 18px;
   border: 1px solid rgba(194, 178, 128, 0.12);
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);

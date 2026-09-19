@@ -8,9 +8,11 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: rgba(36, 26, 17, 0.97);
-      backdrop-filter: blur(40px);
-      -webkit-backdrop-filter: blur(40px);
+      background-color: rgba(36, 26, 17, 0.97);
+      background-image: var(--grain-image);
+      background-size: var(--grain-size);
+      background-position: var(--grain-position);
+      background-repeat: var(--grain-repeat);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -24,7 +26,11 @@
       flex-direction: column;
       align-items: center;
       gap: 20px;
-      background: rgba(36, 26, 17, 0.94);
+      background-color: rgba(36, 26, 17, 0.94);
+      background-image: var(--grain-image);
+      background-size: var(--grain-size);
+      background-position: var(--grain-position);
+      background-repeat: var(--grain-repeat);
       border: 1px solid rgba(194, 178, 128, 0.22);
       border-radius: 14px;
       padding: 32px 40px 28px;

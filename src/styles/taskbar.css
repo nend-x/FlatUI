@@ -9,10 +9,12 @@
   align-items: center;
   justify-content: center;
   height: var(--taskbar-height);
-  /* Custom frosted glass — espresso-based with strong backdrop blur */
-  background: rgba(58, 42, 26, 0.55);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  /* Grain + dot-grid (replaces backdrop-filter blur) */
+  background-color: rgba(58, 42, 26, 0.55);
+  background-image: var(--grain-image);
+  background-size: var(--grain-size);
+  background-position: var(--grain-position);
+  background-repeat: var(--grain-repeat);
   border-top: 1px solid var(--border-subtle);
   box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.20);
   font-family: var(--font-ui);
@@ -237,9 +239,11 @@
 .tb-context-menu {
   position: fixed;
   min-width: 140px;
-  background: rgba(58, 42, 26, 0.65);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  background-color: rgba(58, 42, 26, 0.65);
+  background-image: var(--grain-image);
+  background-size: var(--grain-size);
+  background-position: var(--grain-position);
+  background-repeat: var(--grain-repeat);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-popup);
@@ -282,9 +286,11 @@
   display: flex;
   gap: 6px;
   padding: 8px;
-  background: var(--bg-espresso-frosted);
-  backdrop-filter: blur(20px) saturate(108%);
-  -webkit-backdrop-filter: blur(20px) saturate(108%);
+  background-color: var(--bg-espresso-frosted);
+  background-image: var(--grain-image);
+  background-size: var(--grain-size);
+  background-position: var(--grain-position);
+  background-repeat: var(--grain-repeat);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popup);
