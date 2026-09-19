@@ -1201,12 +1201,9 @@ async function populateAppsWidget() {
     return;
   }
 
-  // Show up to 6 tiles — enough to be useful, not so many that the widget
-  // grows past its compact footprint. The "+N" count badge handles overflow.
-  const MAX_TILES = 6;
-  const shown = windows.slice(0, MAX_TILES);
-
-  for (const w of shown) {
+  // Show ALL running windows — no limit, no +N badge. The widget
+  // auto-sizes to fit (flex-wrap handles overflow to multiple rows).
+  for (const w of windows) {
     const tile = document.createElement("div");
     tile.className = "apps-tile";
     tile.title = w.title;
@@ -1231,27 +1228,10 @@ async function populateAppsWidget() {
 
     appsBody.appendChild(tile);
   }
-
-  if (windows.length > MAX_TILES) {
-    const count = document.createElement("span");
-    count.className = "apps-count";
-    count.textContent = `+${windows.length - MAX_TILES}`;
-    appsBody.appendChild(count);
-  }
 }
 
-appsWidget.addEventListener("click", (e) => {
-  // Clicks on a tile are handled by the tile's own listener (stopPropagation).
-  // Clicks anywhere else on the widget chrome open the full switcher.
-  if ((e.target as HTMLElement).closest(".apps-tile")) return;
-  showWindowSwitcher();
-});
-
-appsBody.addEventListener("click", (e) => {
-  // Body click also opens the switcher unless it landed on a tile.
-  if ((e.target as HTMLElement).closest(".apps-tile")) return;
-  showWindowSwitcher();
-});
+// Apps widget — no switcher overlay. Clicks on tiles focus the window.
+// Clicks on empty space do nothing.
 
 minimizeAllBtn.addEventListener("click", () => {
   // The Rust handler will hide the launcher itself.

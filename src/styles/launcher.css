@@ -968,7 +968,7 @@ html.background-ready, html.background-ready body {
   top: 216px;
   width: max-content;
   min-width: 140px;
-  max-width: 360px;
+  max-width: 600px;
   padding: 0 12px 8px;
   display: flex;
   flex-direction: column;
