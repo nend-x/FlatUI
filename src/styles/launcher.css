@@ -220,6 +220,14 @@ html.background-ready, html.background-ready body {
   height: 18px;
 }
 
+/* Exit button — visually distinct (red-ish on hover) so the user knows
+   it's the "quit and restore" button. */
+.exit-btn:hover {
+  color: #e8857a;
+  border-color: #c45a4a;
+  background: rgba(100, 40, 30, 0.85);
+}
+
 /* (The legacy `.winselect-btn` rule has been removed — the winselect
    action is now the top-left Apps widget, see `.apps-widget` below.) */
 
@@ -811,13 +819,18 @@ html.background-ready, html.background-ready body {
    focus that window; click the widget chrome (header / empty space) to
    open the full window-switcher overlay. Inherits the .widget base rules
    (draggable header, frosted panel, shadow).
-   Positioned BELOW the 3 action buttons (minimize-all, run, blacklist)
-   which sit at top:24. 3 buttons × 40px + 2 × 8px gap = 136px, so the
-   widget starts at top:24+136+8 = 168. */
+   Positioned BELOW the 4 action buttons (exit, minimize-all, run, blacklist)
+   which sit at top:24. 4 buttons × 40px + 3 × 8px gap = 184px, so the
+   widget starts at top:24+184+8 = 216.
+   The widget auto-sizes to fit the number of running apps — width is
+   max-content so it shrinks to fit the tiles (with a min-width for the
+   "No open windows" message and a max-width so it doesn't overflow). */
 .apps-widget {
   left: 24px;
-  top: 168px;
-  width: 240px;
+  top: 216px;
+  width: max-content;
+  min-width: 140px;
+  max-width: 360px;
   padding: 0 12px 8px;
   display: flex;
   flex-direction: column;
@@ -826,6 +839,7 @@ html.background-ready, html.background-ready body {
 
 .apps-body {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   min-height: 28px;

@@ -26,6 +26,9 @@
 #![cfg_attr(not(windows), allow(dead_code))]
 
 #[cfg(windows)]
+use std::sync::atomic::{AtomicBool, Ordering};
+
+#[cfg(windows)]
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
 };
@@ -33,6 +36,10 @@ use windows::Win32::System::Diagnostics::ToolHelp::{
 use windows::Win32::System::Threading::{
     OpenProcess, TerminateProcess, PROCESS_QUERY_INFORMATION, PROCESS_TERMINATE,
 };
+
+/// Whether the monitor should keep running. Set to false by stop().
+#[cfg(windows)]
+static RUNNING: AtomicBool = AtomicBool::new(false);
 
 /// The processes to kill on sight. These are the UWP shell surfaces that
 /// the Win key can trigger.
@@ -43,22 +50,36 @@ const KILL_TARGETS: &[&str] = &[
 ];
 
 /// Start the kill-on-birth monitor on a background thread. Runs forever
-/// (until the process exits). Safe to call once at app startup.
+/// (until stop() is called or the process exits). Safe to call once at
+/// app startup.
 #[cfg(windows)]
 pub fn start() {
+    RUNNING.store(true, Ordering::SeqCst);
     std::thread::Builder::new()
         .name("start-menu-killer".into())
         .spawn(monitor_loop)
         .ok();
 }
 
+/// Stop the kill-on-birth monitor. The background thread will exit on its
+/// next poll cycle (within 100ms).
+#[cfg(windows)]
+pub fn stop() {
+    RUNNING.store(false, Ordering::SeqCst);
+    log::info!("Start menu killer monitor stopped");
+}
+
 #[cfg(windows)]
 fn monitor_loop() {
     log::info!("Start menu killer monitor started (targets: {:?})", KILL_TARGETS);
     loop {
+        if !RUNNING.load(Ordering::SeqCst) {
+            break;
+        }
         kill_targets();
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
+    log::info!("Start menu killer monitor exiting");
 }
 
 #[cfg(windows)]
@@ -112,3 +133,6 @@ fn kill_targets() {
 
 #[cfg(not(windows))]
 pub fn start() {}
+
+#[cfg(not(windows))]
+pub fn stop() {}

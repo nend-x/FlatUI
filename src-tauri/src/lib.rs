@@ -16,6 +16,7 @@ mod app_state;
 pub mod crash_handler;
 mod elevation;
 mod embedded;
+mod hide_taskbar;
 mod persist;
 mod setup;
 #[cfg(windows)]
@@ -61,6 +62,46 @@ pub fn run() {
 
     log::info!("FlatUI starting up…");
 
+    // The app requires administrative privileges to function (the Win-key
+    // hook needs to intercept input for elevated apps, and the start-menu
+    // killer needs to terminate StartMenuExperienceHost.exe which runs as
+    // a medium-IL process that a non-elevated process can't kill). If not
+    // elevated, show a message and exit — the user must run as admin.
+    #[cfg(windows)]
+    if !elevation::is_elevated() {
+        log::error!("FlatUI requires administrative privileges. Exiting.");
+        // Show a MessageBox so the user knows why nothing happened.
+        #[cfg(windows)]
+        {
+            use std::ffi::OsStr;
+            use std::os::windows::ffi::OsStrExt;
+            use windows::core::PCWSTR;
+            use windows::Win32::UI::WindowsAndMessaging::{
+                MessageBoxW, MB_ICONERROR, MB_OK,
+            };
+            let title: Vec<u16> = OsStr::new("FlatUI")
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect();
+            let msg: Vec<u16> = OsStr::new(
+                "FlatUI requires administrative privileges to run.\n\n\
+                 Please right-click the executable and select \"Run as administrator\".",
+            )
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+            unsafe {
+                let _ = MessageBoxW(
+                    None,
+                    PCWSTR(msg.as_ptr()),
+                    PCWSTR(title.as_ptr()),
+                    MB_OK | MB_ICONERROR,
+                );
+            }
+        }
+        std::process::exit(1);
+    }
+
     // Check for -rs flag (reset/clean start)
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "-rs") {
@@ -68,10 +109,10 @@ pub fn run() {
         reset_config();
     }
 
-    // Run setup (launch child processes) — guarded by SETUP_ONCE, runs once.
-    // Helpers are embedded in the binary (see embedded.rs) and extracted to
-    // %LOCALAPPDATA%\FlatUI\bin — no external exe files required.
-    setup::run_setup();
+    // Start the in-process HideTaskbar monitor (replaces the old
+    // HideTaskbar.exe child process — no more standalone exe needed).
+    #[cfg(windows)]
+    hide_taskbar::start();
 
     let state = Arc::new(Mutex::new(AppState::new()));
 
@@ -82,68 +123,36 @@ pub fn run() {
         log::info!("Loaded {} blacklisted window entries from disk", s.blacklisted.len());
     }
 
-    // If already elevated, skip the consent window entirely and go straight
-    // to the setup window. The consent window only appears for non-elevated
-    // instances that need to ask the user for permission to relaunch elevated.
-    let already_elevated = elevation::is_elevated();
+    // The app is always elevated at this point (we checked above and exited
+    // if not). No consent window needed — the user already ran as admin.
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(state.clone())
         .setup(move |app| {
-            // If already elevated, hide the consent window and show the
-            // setup window directly. The consent flow is skipped.
-            if already_elevated {
-                if let Some(consent) = app.get_webview_window("consent") {
-                    let _ = consent.hide();
-                }
-                if let Some(setup) = app.get_webview_window("setup") {
-                    let _ = setup.show();
-                }
+            // Hide the consent window (no longer used — app is always admin)
+            // and show the setup window directly.
+            if let Some(consent) = app.get_webview_window("consent") {
+                let _ = consent.hide();
+            }
+            if let Some(setup) = app.get_webview_window("setup") {
+                let _ = setup.show();
             }
 
             // Run setup in background — emits to setup window
             let handle = app.handle().clone();
             std::thread::spawn(move || {
-                // Wait for setup window to load (it may not be visible yet
-                // if the consent window is showing — that's fine, the events
-                // queue up and fire when the setup window's frontend loads).
+                // Wait for setup window to load
                 std::thread::sleep(std::time::Duration::from_millis(500));
-
-                // Helpers were already launched before the builder ran —
-                // run_setup() is guarded by SETUP_ONCE, so never call it again
-                // here (it used to double-spawn both helper processes).
 
                 // Step 1: Welcome (already shown), wait 1s
                 std::thread::sleep(std::time::Duration::from_secs(1));
 
-                // Step 2: Report elevation outcome. The actual elevation
-                // request was handled by the consent window flow (see
-                // consent_proceed / consent_decline commands below). By the
-                // time this thread runs, we are either:
-                //   - already elevated (consent window was skipped)
-                //   - non-elevated, user declined consent (continuing with
-                //     basic rights)
-                //   - non-elevated, user accepted consent but declined UAC
-                //     (continuing with basic rights)
-                //   - non-elevated, user accepted consent AND accepted UAC —
-                //     but in that case this process already exited via
-                //     consent_proceed, so this code never runs.
-                if already_elevated {
-                    let _ = handle.emit("setup://step", "UAC accepted - continuing");
-                } else {
-                    let _ = handle.emit(
-                        "setup://step",
-                        "UAC isn't accepted, continuing with basic rights...",
-                    );
-                }
-                std::thread::sleep(std::time::Duration::from_secs(1));
-
-                // Step 3: Hide the native taskbar (HideTaskbar.exe child).
+                // Step 2: Hiding the native taskbar (in-process, no child exe)
                 let _ = handle.emit("setup://step", "Hiding taskbar...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
 
-                // Step 4: Install the Win-key + Alt-key hooks.
+                // Step 3: Installing Win key handler
                 let _ = handle.emit("setup://step", "Installing Win key handler...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 let _ = handle.emit("setup://done", ());
@@ -364,6 +373,7 @@ pub fn run() {
             close_setup_window,
             consent_proceed,
             consent_decline,
+            exit_flatui,
             get_active_theme,
             get_all_themes,
             set_active_theme,
@@ -1368,6 +1378,49 @@ fn consent_decline(app: tauri::AppHandle) {
     if let Some(setup) = app.get_webview_window("setup") {
         let _ = setup.show();
     }
+}
+
+// ===== Exit FlatUI — revert everything and quit =====
+//
+// Called when the user clicks the exit button (top-left of the launcher).
+// Reverts all shell modifications:
+//   1. Stop the start-menu killer (so StartMenuExperienceHost.exe can run)
+//   2. Show the native taskbar (stop hiding it)
+//   3. Restart explorer.exe (restores the native shell: taskbar, Start menu,
+//      desktop icons, tray)
+//   4. Exit the FlatUI process
+#[tauri::command]
+fn exit_flatui() {
+    log::info!("exit_flatui: reverting everything and exiting");
+
+    // 1. Stop the start-menu killer
+    #[cfg(windows)]
+    start_menu_killer::stop();
+
+    // 2. Show the native taskbar (stop the hide_taskbar monitor and
+    //    immediately set alpha to 255)
+    #[cfg(windows)]
+    hide_taskbar::stop();
+
+    // 3. Restart explorer.exe — this restores the native shell (taskbar,
+    //    Start menu, desktop). We kill explorer first, then relaunch it.
+    //    The relaunch uses ShellExecuteW with "open" on explorer.exe.
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        // Kill explorer — it will auto-restart, but we also relaunch it
+        // explicitly to be sure.
+        let _ = Command::new("taskkill")
+            .args(["/f", "/im", "explorer.exe"])
+            .spawn();
+        // Give it a moment to die
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        // Relaunch explorer
+        let _ = Command::new("explorer.exe").spawn();
+    }
+
+    // 4. Exit the FlatUI process
+    std::process::exit(0);
 }
 
 // ===== System commands =====

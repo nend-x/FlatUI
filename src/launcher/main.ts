@@ -47,6 +47,7 @@ const appsBody = document.getElementById("apps-body")!;
 const minimizeAllBtn = document.getElementById("minimize-all-btn")!;
 const runBtn = document.getElementById("run-btn")!;
 const blacklistBtn = document.getElementById("blacklist-btn")!;
+const exitBtn = document.getElementById("exit-btn")!;
 const winSwitcherOverlay = document.getElementById("win-switcher-overlay")!;
 const winSwitcherGrid = document.getElementById("win-switcher-grid")!;
 const blacklistOverlay = document.getElementById("blacklist-overlay")!;
@@ -1028,6 +1029,14 @@ minimizeAllBtn.addEventListener("click", () => {
   invoke("minimize_all_windows");
   minimizeAllBtn.classList.add("active");
   setTimeout(() => minimizeAllBtn.classList.remove("active"), 300);
+});
+
+// Exit button — reverts everything (kills start-menu killer, shows taskbar,
+// restarts explorer) and exits the app. The Rust command handles all the
+// cleanup; we just invoke it.
+exitBtn.addEventListener("click", () => {
+  exitBtn.classList.add("active");
+  invoke("exit_flatui");
 });
 
 runBtn.addEventListener("click", () => showRunDialog());

@@ -7,11 +7,10 @@ const setupBarFill = document.getElementById("setup-bar-fill")!;
 let stepCount = 0;
 
 // Total expected step emits (matches the Rust setup thread in lib.rs):
-//   1. "UAC accepted - continuing" / "UAC isn't accepted, continuing with basic rights..."
-//   2. "Hiding taskbar..."
-//   3. "Installing Win key handler..."
+//   1. "Hiding taskbar..."
+//   2. "Installing Win key handler..."
 // The final setup://done event bumps the bar to 100% explicitly.
-const EXPECTED_STEPS = 3;
+const EXPECTED_STEPS = 2;
 
 listen<string>("setup://step", (event) => {
   setupStatus.classList.add("fading");
