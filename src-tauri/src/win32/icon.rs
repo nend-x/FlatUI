@@ -1,8 +1,11 @@
 #![cfg(windows)]
 // Icon extraction utilities — convert HICON to PNG base64 data URL.
 
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use windows::core::*;
 use windows::Win32::UI::Shell::{SHGetFileInfoW, SHFILEINFOW, SHGFI_ICON, SHGFI_LARGEICON};
 use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, HICON, GetIconInfo, ICONINFO};
@@ -14,8 +17,81 @@ use windows::Win32::Graphics::Gdi::{
 use image::ImageEncoder;
 use base64::Engine;
 
+/// Per-process icon cache: maps an absolute file path to (captured_at, data_url).
+///
+/// `extract_icon_for_path` is called per visible window on every taskbar
+/// refresh (every ~2 s + on every foreground change), and per desktop item
+/// on every launcher open. Each call invokes `SHGetFileInfoW` — a shell
+/// COM call that goes through `explorer.exe`. When the shell is in a bad
+/// post-Modern-Standby state, that call can take seconds per invocation,
+/// which directly stalls anyone holding (or waiting for) the AppState lock.
+///
+/// The cache is keyed by absolute path (the icon for a given exe path
+/// doesn't change during a session). The TTL is conservative (5 min) so
+/// that any in-session icon change (e.g. an app self-updating) eventually
+/// refreshes. The cache is also bounded — once it grows past 256 entries,
+/// the oldest 64 are evicted.
+static ICON_CACHE: Mutex<Option<IconCache>> = Mutex::new(None);
+
+const ICON_TTL: Duration = Duration::from_secs(300);
+const ICON_CACHE_MAX: usize = 256;
+const ICON_CACHE_EVICT: usize = 64;
+
+struct IconCache {
+    map: HashMap<String, (Instant, Option<String>)>,
+}
+
+impl IconCache {
+    fn new() -> Self {
+        Self { map: HashMap::new() }
+    }
+
+    fn get(&self, path: &str) -> Option<(Instant, Option<String>)> {
+        self.map.get(path).cloned()
+    }
+
+    fn insert(&mut self, path: String, value: Option<String>) {
+        if self.map.len() >= ICON_CACHE_MAX {
+            // Evict the oldest ICON_CACHE_EVICT entries by capture timestamp.
+            let mut entries: Vec<(String, Instant)> =
+                self.map.iter().map(|(k, (ts, _))| (k.clone(), *ts)).collect();
+            entries.sort_by_key(|(_, ts)| *ts);
+            for (k, _) in entries.into_iter().take(ICON_CACHE_EVICT) {
+                self.map.remove(&k);
+            }
+        }
+        self.map.insert(path, (Instant::now(), value));
+    }
+}
+
 /// Extract icon for a file path. Returns PNG data URL (base64) if found.
+///
+/// Looks up the per-process cache first; on miss, calls the underlying
+/// shell API and stores the result (including `None`s — a failed lookup
+/// is also cached to avoid repeatedly hitting the shell for a broken
+/// shortcut).
 pub fn extract_icon_for_path(path: &str) -> Option<String> {
+    // Cache lookup
+    {
+        let mut guard = ICON_CACHE.lock().ok()?;
+        let cache = guard.get_or_insert_with(IconCache::new);
+        if let Some((ts, cached)) = cache.get(path) {
+            if ts.elapsed() < ICON_TTL {
+                return cached;
+            }
+        }
+    }
+    // Cache miss (or stale) — do the real work
+    let result = extract_icon_for_path_uncached(path);
+    // Store in cache
+    if let Ok(mut guard) = ICON_CACHE.lock() {
+        let cache = guard.get_or_insert_with(IconCache::new);
+        cache.insert(path.to_string(), result.clone());
+    }
+    result
+}
+
+fn extract_icon_for_path_uncached(path: &str) -> Option<String> {
     let wide: Vec<u16> = OsStr::new(path)
         .encode_wide()
         .chain(std::iter::once(0))

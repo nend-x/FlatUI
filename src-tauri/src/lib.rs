@@ -855,8 +855,6 @@ fn get_system_stats() -> SystemStats {
 fn get_cpu_usage() -> f32 {
     use windows::Win32::Foundation::FILETIME;
 
-    // Quick CPU usage: take two samples 100ms apart
-    // GetSystemTimes is in Win32_System_ProcessInformation or we use it via link!
     extern "system" {
         fn GetSystemTimes(
             idle_time: *mut FILETIME,
@@ -865,35 +863,72 @@ fn get_cpu_usage() -> f32 {
         ) -> i32;
     }
 
-    let mut idle1 = FILETIME::default();
-    let mut kernel1 = FILETIME::default();
-    let mut user1 = FILETIME::default();
-    unsafe { let _ = GetSystemTimes(&mut idle1, &mut kernel1, &mut user1); }
+    // CPU usage is computed from TWO samples of GetSystemTimes taken some
+    // time apart. The previous implementation slept 100 ms between samples
+    // every call — that blocks a Tauri worker thread for 100 ms every time
+    // the launcher's sysmon widget polls (every 2 s), and during a post-idle
+    // IPC burst many such calls queue up, saturating the worker pool and
+    // amplifying the "Not Responding" hang.
+    //
+    // Instead, take a single sample here. We compare it against the
+    // PREVIOUS sample (stored in a static). If enough time has passed since
+    // the last sample (>= 200 ms), we compute usage from the deltas and
+    // store the new sample as the new baseline. If not enough time has
+    // passed (caller polling too fast), we return 0% rather than sleep.
+    // First call returns 0% (no baseline yet) — the next call has a real
+    // delta. This costs one extra sample on the second call but after that
+    // steady-state is reached.
+    static CPU_LAST: parking_lot::Mutex<Option<(std::time::Instant, u64, u64, u64)>> =
+        parking_lot::const_mutex(None);
 
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    let mut idle = FILETIME::default();
+    let mut kernel = FILETIME::default();
+    let mut user = FILETIME::default();
+    unsafe { let _ = GetSystemTimes(&mut idle, &mut kernel, &mut user); }
+    let idle_v = filetime_to_u64(&idle);
+    let kernel_v = filetime_to_u64(&kernel);
+    let user_v = filetime_to_u64(&user);
+    let now = std::time::Instant::now();
 
-    let mut idle2 = FILETIME::default();
-    let mut kernel2 = FILETIME::default();
-    let mut user2 = FILETIME::default();
-    unsafe { let _ = GetSystemTimes(&mut idle2, &mut kernel2, &mut user2); }
-
-    let idle = filetime_diff(&idle2, &idle1);
-    let kernel = filetime_diff(&kernel2, &kernel1);
-    let user = filetime_diff(&user2, &user1);
-
-    let total = kernel + user;
-    if total > 0 {
-        (1.0 - (idle as f32 / total as f32)) * 100.0
-    } else {
-        0.0
+    let mut last = CPU_LAST.lock();
+    if let Some((prev_ts, prev_idle, prev_kernel, prev_user)) = *last {
+        let elapsed = now.duration_since(prev_ts);
+        // Require at least 200 ms between samples for a meaningful delta.
+        // The launcher polls every 2 s, so this is always satisfied in
+        // practice after the first call; but it guards against pathological
+        // tight-loops if the widget were ever to be invoked faster.
+        if elapsed.as_secs_f64() >= 0.2 {
+            let d_idle = idle_v.saturating_sub(prev_idle);
+            let d_kernel = kernel_v.saturating_sub(prev_kernel);
+            let d_user = user_v.saturating_sub(prev_user);
+            *last = Some((now, idle_v, kernel_v, user_v));
+            let total = d_kernel + d_user;
+            if total > 0 {
+                return (1.0 - (d_idle as f32 / total as f32)) * 100.0;
+            }
+            return 0.0;
+        }
+        // Not enough time elapsed — return the previous baseline's delta
+        // against the current sample (a smaller, noisier delta but better
+        // than sleeping).
+        let d_idle = idle_v.saturating_sub(prev_idle);
+        let d_kernel = kernel_v.saturating_sub(prev_kernel);
+        let d_user = user_v.saturating_sub(prev_user);
+        let total = d_kernel + d_user;
+        if total > 0 {
+            return (1.0 - (d_idle as f32 / total as f32)) * 100.0;
+        }
+        return 0.0;
     }
+
+    // First ever call — store the sample, return 0% (no baseline yet).
+    *last = Some((now, idle_v, kernel_v, user_v));
+    0.0
 }
 
 #[cfg(windows)]
-fn filetime_diff(a: &windows::Win32::Foundation::FILETIME, b: &windows::Win32::Foundation::FILETIME) -> u64 {
-    let av = ((a.dwHighDateTime as u64) << 32) | (a.dwLowDateTime as u64);
-    let bv = ((b.dwHighDateTime as u64) << 32) | (b.dwLowDateTime as u64);
-    av.saturating_sub(bv)
+fn filetime_to_u64(ft: &windows::Win32::Foundation::FILETIME) -> u64 {
+    ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64)
 }
 
 // ===== Volume control (Windows Core Audio API) =====
@@ -1924,40 +1959,55 @@ fn refresh_taskbar_apps(handle: &tauri::AppHandle) {
     // Reconcile persistent blacklist entries with currently open windows.
     // Match by exe_path (permanent). Remove entries whose exe_path is empty
     // or matches no current window AND has no valid exe_path (phantom cleanup).
-    {
+    //
+    // IMPORTANT: do the Win32 enumeration (get_all_windows_with_exe) BEFORE
+    // taking the AppState lock. That call can take hundreds of ms when the
+    // shell is busy or in a bad post-Modern-Standby state — it does
+    // EnumWindows + OpenProcess + QueryFullProcessImageNameW + SHGetFileInfoW
+    // per visible window, all of which can stall if explorer.exe is hung.
+    // Holding the AppState lock during that work blocks every Tauri command
+    // handler that touches AppState (which is most of them), which in turn
+    // backs up the IPC layer and can trip Windows' 5s "Not Responding"
+    // threshold for the FlatUI windows. Snapshots in, lock only to write.
+    let all_windows = win32::peek::get_all_windows_with_exe(&[]);
+    let blacklisted_snapshot: Vec<app_state::BlacklistEntry> = {
         let state = handle.state::<Arc<Mutex<AppState>>>();
-        let mut s = state.lock();
-        let all_windows = win32::peek::get_all_windows_with_exe(&[]);
+        let s = state.lock();
+        s.blacklisted.clone()
+    };
 
-        let mut new_hwnds: Vec<usize> = Vec::new();
-        let mut valid_entries: Vec<app_state::BlacklistEntry> = Vec::new();
-
-        for mut entry in s.blacklisted.drain(..) {
-            // Skip entries with empty exe_path (phantom data from old format)
-            if entry.exe_path.is_empty() {
-                continue;
-            }
-
-            // Try to find a current window matching this exe_path
-            if let Some(w) = all_windows.iter().find(|w| w.exe_path == entry.exe_path) {
-                entry.hwnd = w.hwnd;
-                // Update title if we have one
-                if entry.title.is_none() || entry.title.as_deref() != Some(&w.title) {
-                    entry.title = Some(w.title.clone());
-                }
-                new_hwnds.push(w.hwnd);
-            } else {
-                // Window not currently open — keep entry (will match when app reopens)
-                entry.hwnd = 0;
-            }
-            valid_entries.push(entry);
+    let mut new_hwnds: Vec<usize> = Vec::new();
+    let mut valid_entries: Vec<app_state::BlacklistEntry> = Vec::new();
+    for mut entry in blacklisted_snapshot.into_iter() {
+        // Skip entries with empty exe_path (phantom data from old format)
+        if entry.exe_path.is_empty() {
+            continue;
         }
 
-        s.blacklisted = valid_entries;
-        s.blacklisted_hwnds = new_hwnds;
+        // Try to find a current window matching this exe_path
+        if let Some(w) = all_windows.iter().find(|w| w.exe_path == entry.exe_path) {
+            entry.hwnd = w.hwnd;
+            // Update title if we have one
+            if entry.title.is_none() || entry.title.as_deref() != Some(&w.title) {
+                entry.title = Some(w.title.clone());
+            }
+            new_hwnds.push(w.hwnd);
+        } else {
+            // Window not currently open — keep entry (will match when app reopens)
+            entry.hwnd = 0;
+        }
+        valid_entries.push(entry);
     }
 
-    let blacklist_hwnds = handle.state::<Arc<Mutex<AppState>>>().lock().blacklisted_hwnds.clone();
+    // Briefly take the lock to write back the reconciled state.
+    let blacklist_hwnds = {
+        let state = handle.state::<Arc<Mutex<AppState>>>();
+        let mut s = state.lock();
+        s.blacklisted = valid_entries;
+        s.blacklisted_hwnds = new_hwnds.clone();
+        new_hwnds
+    };
+
     match win32::apps::scan_taskbar(&blacklist_hwnds) {
         Ok(apps) => {
             let state = handle.state::<Arc<Mutex<AppState>>>();

@@ -186,20 +186,21 @@ pub fn register_appbar(window: &WebviewWindow, height: i32) -> windows::core::Re
 pub fn unregister_appbar(window: &WebviewWindow) {
     let hwnd = hwnd_of(window);
     unsafe {
+        // ABM_REMOVE (constant value 1) tells the shell to deregister this
+        // HWND as an appbar and release the reserved screen edge.
+        //
+        // Previously this called ABM_NEW first (which registers a NEW
+        // appbar) before ABM_REMOVE — a leftover from a copy-paste from
+        // register_appbar. The bogus ABM_NEW call was either a no-op
+        // (already registered) or a silent re-registration with a fresh
+        // AppBarMsg, which is never what we want on teardown.
+        const ABM_REMOVE_CONST: u32 = 1;
         let mut abd = APPBARDATA {
             cbSize: std::mem::size_of::<APPBARDATA>() as u32,
             hWnd: hwnd,
             ..Default::default()
         };
-        let _ = SHAppBarMessage(ABM_NEW, &mut abd); // ABM_REMOVE
-        // Note: ABM_REMOVE constant isn't always exported by name; use 1
-        const ABM_REMOVE_CONST: u32 = 1;
-        let mut abd2 = APPBARDATA {
-            cbSize: std::mem::size_of::<APPBARDATA>() as u32,
-            hWnd: hwnd,
-            ..Default::default()
-        };
-        let _ = SHAppBarMessage(ABM_REMOVE_CONST, &mut abd2);
+        let _ = SHAppBarMessage(ABM_REMOVE_CONST, &mut abd);
     }
 }
 

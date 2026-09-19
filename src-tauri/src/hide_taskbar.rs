@@ -29,7 +29,7 @@ use windows::core::BOOL;
 use windows::Win32::Foundation::{HWND, LPARAM};
 #[cfg(windows)]
 use windows::Win32::Graphics::Gdi::{
-    RedrawWindow, RDW_ALLCHILDREN, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE,
+    RedrawWindow, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE,
 };
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -151,12 +151,26 @@ fn set_window_alpha(hwnd: HWND, alpha: u8) {
         }
         // Set alpha
         let _ = SetLayeredWindowAttributes(hwnd, windows::Win32::Foundation::COLORREF(0), alpha, LWA_ALPHA);
-        // Force a redraw
+        // Force a redraw of the taskbar window itself.
+        //
+        // Previously this passed RDW_ALLCHILDREN, which sends WM_PAINT /
+        // WM_ERASEBKGND synchronously to every child window of Shell_TrayWnd
+        // (Start button, tray, clock, etc.). Those child windows live on
+        // explorer.exe's thread. When explorer is in a bad post-Modern-Standby
+        // state (the same condition that hangs SHGetFileInfoW), this call
+        // blocks the hide_taskbar background thread indefinitely — which in
+        // turn backs up the SetLayeredWindowAttributes cadence and lets the
+        // taskbar re-appear visibly during a freeze.
+        //
+        // RDW_INVALIDATE | RDW_FRAME without RDW_ALLCHILDREN invalidates
+        // only the taskbar window's own frame, which is enough for the
+        // layered-alpha change to take effect visually (the DWM re-composites
+        // based on the layered attributes regardless of child paint state).
         let _ = RedrawWindow(
             Some(hwnd),
             None,
             None,
-            RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN,
+            RDW_ERASE | RDW_INVALIDATE | RDW_FRAME,
         );
     }
 }

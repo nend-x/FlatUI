@@ -97,6 +97,14 @@ async function loadClipboardWidget() {
 
 // Poll clipboard every 500ms via Rust backend (catches global Ctrl+C)
 async function pollClipboard() {
+  // Skip while the launcher window is hidden — same reason as updateSysmon:
+  // a bare 500 ms setInterval keeps firing while the user is doing other
+  // things, and on Modern-Standby wake the queued timers burst-fire and
+  // flood the IPC layer. When the launcher is shown again the next tick
+  // (≤ 500 ms) captures the current clipboard contents, so the latest item
+  // is never lost — only rapid multi-copies while the launcher is hidden
+  // are not all captured (an acceptable tradeoff vs. the idle hang).
+  if (document.visibilityState !== "visible") return;
   try {
     const text = await invoke<string | null>("get_clipboard_text");
     if (text && text !== lastClipboardText) {
@@ -174,6 +182,16 @@ async function loadNotesWidget() {
 
 // ===== Sysmon widget =====
 async function updateSysmon() {
+  // Skip while the launcher window is hidden — the launcher is `visible: false`
+  // by default (only shown on Win-tap). Its webview is alive regardless, so a
+  // bare setInterval would keep firing invoke() calls every 2 s while the user
+  // is doing other things. Under Modern-Standby / display-sleep the WebView
+  // throttles but does not pause JS — when the system resumes, all queued
+  // timers fire in a burst, flooding the IPC layer and contributing to the
+  // "click → Not Responding" hang after ~2 min idle. Visibility-gating the
+  // poll prevents that burst at the source. The first visible tick after a
+  // show captures fresh data within one interval (2 s).
+  if (document.visibilityState !== "visible") return;
   try {
     const stats = await invoke<{ cpu_usage: number; ram_usage: number; ram_total_gb: number; ram_used_gb: number }>("get_system_stats");
     cpuFill.style.width = `${stats.cpu_usage}%`;
