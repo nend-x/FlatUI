@@ -1230,8 +1230,7 @@ async function populateAppsWidget() {
   }
 }
 
-// Apps widget click — no longer opens a separate switcher overlay.
-// Clicks on tiles are handled by the tile's own listener (stopPropagation).
+// Apps widget — no switcher overlay. Clicks on tiles focus the window.
 // Clicks on empty space do nothing.
 
 minimizeAllBtn.addEventListener("click", () => {
