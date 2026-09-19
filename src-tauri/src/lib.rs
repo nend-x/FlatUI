@@ -114,21 +114,12 @@ pub fn run() {
     }
 
     // The app is always elevated at this point (we checked above and exited
-    // if not). No consent window needed — the user already ran as admin.
+    // if not). The setup window is visible by default (tauri.conf.json).
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(state.clone())
         .setup(move |app| {
-            // Hide the consent window (no longer used — app is always admin)
-            // and show the setup window directly.
-            if let Some(consent) = app.get_webview_window("consent") {
-                let _ = consent.hide();
-            }
-            if let Some(setup) = app.get_webview_window("setup") {
-                let _ = setup.show();
-            }
-
             // Run setup in background — emits to setup window
             let handle = app.handle().clone();
             std::thread::spawn(move || {
@@ -361,8 +352,6 @@ pub fn run() {
             add_to_startup,
             remove_from_startup,
             close_setup_window,
-            consent_proceed,
-            consent_decline,
             exit_flatui,
             get_active_theme,
             get_all_themes,
@@ -1305,68 +1294,6 @@ fn show_launcher_for_screenshot(app: tauri::AppHandle) {
 fn close_setup_window(app: tauri::AppHandle) {
     if let Some(setup) = app.get_webview_window("setup") {
         let _ = setup.close();
-    }
-}
-
-// ===== Consent window — elevation request flow =====
-//
-// The consent window asks the user "FlatUI needs administrative privileges
-// to work properly, agree?" with Proceed / No thanks buttons.
-//
-// consent_proceed: user clicked Proceed → request UAC elevation via
-//   ShellExecuteW("runas"). If the user accepts the UAC prompt, this
-//   process exits immediately (the elevated process takes over with its
-//   own consent window skipped because is_elevated() is true). If the
-//   user declines the UAC prompt, we close the consent window and show
-//   the setup window with the "UAC not accepted" message.
-//
-// consent_decline: user clicked "No thanks" → close the consent window
-//   and show the setup window with the "UAC not accepted" message.
-#[tauri::command]
-fn consent_proceed(app: tauri::AppHandle) {
-    match elevation::request_elevation() {
-        elevation::ElevationOutcome::Accepted => {
-            // The elevated relaunch is in flight. Exit this process now —
-            // the elevated process will show the setup window.
-            log::info!(
-                "consent_proceed: user accepted UAC, exiting non-elevated instance"
-            );
-            std::process::exit(0);
-        }
-        elevation::ElevationOutcome::AlreadyElevated => {
-            // Already elevated (shouldn't happen — the consent window is
-            // skipped when already elevated — but handle it anyway).
-            log::info!("consent_proceed: already elevated, continuing");
-            if let Some(consent) = app.get_webview_window("consent") {
-                let _ = consent.hide();
-            }
-            if let Some(setup) = app.get_webview_window("setup") {
-                let _ = setup.show();
-            }
-        }
-        elevation::ElevationOutcome::Declined => {
-            // User declined the UAC prompt. Close the consent window and
-            // show the setup window — the setup thread will emit the
-            // "UAC isn't accepted" message.
-            log::info!("consent_proceed: user declined UAC, continuing with basic rights");
-            if let Some(consent) = app.get_webview_window("consent") {
-                let _ = consent.hide();
-            }
-            if let Some(setup) = app.get_webview_window("setup") {
-                let _ = setup.show();
-            }
-        }
-    }
-}
-
-#[tauri::command]
-fn consent_decline(app: tauri::AppHandle) {
-    log::info!("consent_decline: user declined consent, continuing with basic rights");
-    if let Some(consent) = app.get_webview_window("consent") {
-        let _ = consent.hide();
-    }
-    if let Some(setup) = app.get_webview_window("setup") {
-        let _ = setup.show();
     }
 }
 

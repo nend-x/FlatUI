@@ -12,22 +12,6 @@
   "app": {
     "windows": [
       {
-        "label": "consent",
-        "title": "FlatUI",
-        "url": "consent/index.html",
-        "width": 440,
-        "height": 340,
-        "decorations": false,
-        "transparent": true,
-        "resizable": false,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "focus": true,
-        "center": true,
-        "shadow": false,
-        "visible": true
-      },
-      {
         "label": "setup",
         "title": "FlatUI Setup",
         "url": "setup/index.html",
@@ -41,7 +25,7 @@
         "focus": true,
         "center": true,
         "shadow": false,
-        "visible": false
+        "visible": true
       },
       {
         "label": "taskbar",
