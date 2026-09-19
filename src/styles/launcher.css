@@ -324,6 +324,8 @@ html.background-ready, html.background-ready body {
 .launcher-item.launching .icon-box {
   animation: icon-spin 1.2s linear infinite;
   border-color: var(--accent-terracotta);
+  box-shadow: 0 0 20px rgba(184, 131, 90, 0.4),
+              0 0 40px rgba(184, 131, 90, 0.2);
 }
 
 @keyframes icon-spin {
@@ -341,25 +343,97 @@ html.background-ready, html.background-ready body {
   100% { opacity: 0.6; }
 }
 
+/* ===== App icon frames — animated, layered, premium feel =====
+   Each icon box has:
+   - A base espresso gradient (not flat fill)
+   - A 1px border that brightens on hover
+   - An outer glow ring (box-shadow) that appears on hover
+   - A subtle inner highlight (inset shadow) for depth
+   - A "lift" transform on hover (translateY + scale)
+   - A gradient sweep that animates across the top edge on hover */
 .launcher-item .icon-box {
   width: var(--launcher-icon-size);
   height: var(--launcher-icon-size);
   border-radius: var(--launcher-icon-radius);
-  background: var(--bg-espresso-frosted);
+  /* Layered gradient background — espresso base with a subtle top-light */
+  background:
+    linear-gradient(160deg,
+      rgba(84, 64, 40, 0.85) 0%,
+      rgba(58, 42, 26, 0.90) 50%,
+      rgba(46, 33, 20, 0.92) 100%);
   border: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: transform 200ms var(--ease-spring),
-              border-color 160ms var(--ease-out-soft),
-              background-color 160ms var(--ease-out-soft);
+  position: relative;
+  /* Inner highlight for depth + outer shadow for lift */
+  box-shadow:
+    inset 0 1px 0 rgba(232, 220, 180, 0.06),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
+    0 2px 6px rgba(0, 0, 0, 0.22);
+  transition: transform 280ms var(--ease-spring),
+              border-color 200ms var(--ease-out-soft),
+              box-shadow 280ms var(--ease-out-soft);
+}
+
+/* Animated top-edge sweep — a thin gradient line that slides across
+   the top of the icon on hover. Uses a ::before pseudo-element. */
+.launcher-item .icon-box::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(232, 220, 180, 0.5),
+    transparent);
+  transition: left 600ms var(--ease-out-expo);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Subtle radial glow behind the icon on hover — uses ::after */
+.launcher-item .icon-box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--launcher-icon-radius);
+  background: radial-gradient(circle at 50% 40%,
+    rgba(184, 131, 90, 0.12),
+    transparent 70%);
+  opacity: 0;
+  transition: opacity 280ms var(--ease-out-soft);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .launcher-item:hover .icon-box {
-  transform: scale(1.06);
-  border-color: rgba(184, 131, 90, 0.30);
-  background: rgba(60, 44, 28, 0.85);
+  transform: translateY(-3px) scale(1.08);
+  border-color: rgba(184, 131, 90, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 220, 180, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
+    0 6px 16px rgba(0, 0, 0, 0.35),
+    0 0 24px rgba(184, 131, 90, 0.15);
+}
+
+/* Trigger the sweep animation on hover */
+.launcher-item:hover .icon-box::before {
+  left: 100%;
+}
+
+/* Show the radial glow on hover */
+.launcher-item:hover .icon-box::after {
+  opacity: 1;
+}
+
+/* Click feedback — quick squash */
+.launcher-item:active .icon-box {
+  transform: translateY(-1px) scale(1.02);
+  transition-duration: 80ms;
 }
 
 .launcher-item img,
@@ -368,6 +442,17 @@ html.background-ready, html.background-ready body {
   height: 36px;
   filter: brightness(0.94) saturate(0.78) sepia(0.15) hue-rotate(-6deg);
   pointer-events: none;
+  position: relative;
+  z-index: 1;
+  transition: filter 280ms var(--ease-out-soft),
+              transform 280ms var(--ease-spring);
+}
+
+/* On hover, brighten the icon slightly and add a tiny scale */
+.launcher-item:hover img,
+.launcher-item:hover svg {
+  filter: brightness(1.02) saturate(0.85) sepia(0.12) hue-rotate(-4deg);
+  transform: scale(1.05);
 }
 
 .launcher-item .label {

@@ -55,8 +55,18 @@ pub fn start() {
                 if !RUNNING.load(Ordering::SeqCst) {
                     break;
                 }
-                set_taskbars_hidden(true);
-                std::thread::sleep(std::time::Duration::from_secs(1));
+                // Check RUNNING again right before hiding — stop() might
+                // have been called between the check above and this line.
+                if RUNNING.load(Ordering::SeqCst) {
+                    set_taskbars_hidden(true);
+                }
+                // Sleep in short increments so stop() is responsive
+                for _ in 0..10 {
+                    if !RUNNING.load(Ordering::SeqCst) {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
             }
             log::info!("HideTaskbar monitor stopped");
         })
@@ -64,11 +74,16 @@ pub fn start() {
 }
 
 /// Stop the background thread and restore the taskbar.
+/// Waits briefly for the thread to exit, then sets alpha to 255.
 #[cfg(windows)]
 pub fn stop() {
     RUNNING.store(false, Ordering::SeqCst);
-    // Immediately show the taskbar — don't wait for the next poll.
+    // Wait a moment for the thread to notice RUNNING=false and exit.
+    // The thread checks every 100ms, so 200ms is enough.
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    // Now safely show the taskbar — no race with the background thread.
     set_taskbars_hidden(false);
+    log::info!("HideTaskbar stopped and taskbar restored");
 }
 
 #[cfg(windows)]

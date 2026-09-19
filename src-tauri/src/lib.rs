@@ -64,42 +64,32 @@ pub fn run() {
 
     // The app requires administrative privileges to function (the Win-key
     // hook needs to intercept input for elevated apps, and the start-menu
-    // killer needs to terminate StartMenuExperienceHost.exe which runs as
-    // a medium-IL process that a non-elevated process can't kill). If not
-    // elevated, show a message and exit — the user must run as admin.
+    // killer needs to terminate StartMenuExperienceHost.exe). If not
+    // elevated, automatically request UAC elevation via ShellExecuteW
+    // "runas" — the standard Windows UAC prompt appears. If the user
+    // accepts, this (non-elevated) process exits and the elevated process
+    // takes over. If the user declines, this process exits.
     #[cfg(windows)]
     if !elevation::is_elevated() {
-        log::error!("FlatUI requires administrative privileges. Exiting.");
-        // Show a MessageBox so the user knows why nothing happened.
-        #[cfg(windows)]
-        {
-            use std::ffi::OsStr;
-            use std::os::windows::ffi::OsStrExt;
-            use windows::core::PCWSTR;
-            use windows::Win32::UI::WindowsAndMessaging::{
-                MessageBoxW, MB_ICONERROR, MB_OK,
-            };
-            let title: Vec<u16> = OsStr::new("FlatUI")
-                .encode_wide()
-                .chain(std::iter::once(0))
-                .collect();
-            let msg: Vec<u16> = OsStr::new(
-                "FlatUI requires administrative privileges to run.\n\n\
-                 Please right-click the executable and select \"Run as administrator\".",
-            )
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
-            unsafe {
-                let _ = MessageBoxW(
-                    None,
-                    PCWSTR(msg.as_ptr()),
-                    PCWSTR(title.as_ptr()),
-                    MB_OK | MB_ICONERROR,
-                );
+        match elevation::request_elevation() {
+            elevation::ElevationOutcome::Accepted => {
+                // The elevated relaunch is in flight. Exit this process
+                // immediately — the elevated process will show the setup
+                // window and run normally.
+                log::info!("Exiting non-elevated instance — elevated relaunch is in flight");
+                std::process::exit(0);
+            }
+            elevation::ElevationOutcome::Declined => {
+                // User declined the UAC prompt. Exit — the app can't
+                // function without admin rights.
+                log::info!("User declined UAC — exiting");
+                std::process::exit(0);
+            }
+            elevation::ElevationOutcome::AlreadyElevated => {
+                // Shouldn't happen (we checked is_elevated above), but
+                // continue if it does.
             }
         }
-        std::process::exit(1);
     }
 
     // Check for -rs flag (reset/clean start)
