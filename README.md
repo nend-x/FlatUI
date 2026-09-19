@@ -4,9 +4,7 @@
 
 <h1>FlatUI</h1>
 
-<h3>Windows, but quieter.</h3>
-
-<p>A custom shell that replaces the taskbar and Start menu with a single grain-textured overlay and a 40px centered taskbar. One exe. No install. Three themes.</p>
+<p>Windows, but quieter. A custom shell replacement — 40px taskbar, Spotlight-style launcher, three themes, one exe.</p>
 
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows11&logoColor=white)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)
@@ -17,163 +15,69 @@
 
 ---
 
-## What is this
+FlatUI replaces the Windows shell. The native taskbar hides, a 40px custom taskbar takes its place, and the Win key opens a fullscreen launcher instead of the Start menu. One exe, no install, three themes.
 
-FlatUI is a shell replacement for Windows. When you run it:
+## Themes
 
-- Your native taskbar disappears (hidden, not killed)
-- A 40px custom taskbar appears at the bottom with centered icons
-- The Win key stops opening the Start menu
-- Instead, Win opens a fullscreen launcher — a clean desktop with a search bar and your apps
-- Press Win again to close it
+Three pastel themes sharing the same tonal structure — only the hue changes.
 
-That's it. No widgets on the desktop, no live tiles, no clutter. Just your wallpaper, a search bar, and your apps.
+| Sand Cream | Earthly Green | Silver Lining |
+|---|---|---|
+| Warm espresso | Dark forest | Cool steel |
+| `#3A2A1A` bg | `#0F2D19` bg | `#23282E` bg |
+| `#B8835A` accent | `#39AC5F` accent | `#74899E` accent |
 
-## The three themes
+Switch in Settings. Everything recolors instantly.
 
-Every theme shares the same tonal structure — same lightness, same saturation. Only the hue changes.
+## Win key
 
-| | Sand Cream | Earthly Green | Silver Lining |
-|---|---|---|---|
-| **Vibe** | Warm espresso | Dark forest | Cool steel |
-| **Background** | `#3A2A1A` | `#0F2D19` | `#23282E` |
-| **Accent** | `#B8835A` | `#39AC5F` | `#74899E` |
-| **Text** | `#EDE4D3` | `#CDE4D4` | `#F0F4F8` |
+Two layers keep the Start menu from appearing:
 
-Switch themes in Settings → Appearance. Everything recolors instantly — backgrounds, icons, text, shadows, the grain texture itself. No restart.
+1. A `WH_KEYBOARD_LL` hook swallows Win-down and toggles the launcher on tap.
+2. A background thread kills `StartMenuExperienceHost.exe` every 100ms — race-free backup.
 
-## How the Win key works
+Win combos (Win+D, Win+E) still work — the hook re-injects Win-down for combos.
 
-Two layers of defense, so the Start menu never appears:
+## Features
 
-1. **Keyboard hook** — a `WH_KEYBOARD_LL` hook swallows Win-down before the OS sees it. On a Win tap (press + release, no other key), it toggles the launcher.
+- **Launcher** — fullscreen grain-textured overlay, search installed programs
+- **Taskbar** — 40px, centered icons, running indicators, peek previews
+- **Apps widget** — running windows, click to focus, auto-sizes
+- **Settings** — toggle widgets, switch themes, icon recoloring
+- **Screenshots** — region select to clipboard
+- **Run dialog** — type a command, optionally as admin
+- **Exit button** — reverts everything, restarts explorer, exits
+- **Crash handler** — separate window with stack trace
+- **Icon recoloring** — optional CSS filter tint to match theme
+- **Grain texture** — fractal noise + dot grid, no GPU-heavy blur
 
-2. **Start-menu killer** — a background thread polls every 100ms for `StartMenuExperienceHost.exe` and kills it on sight. Even if the hook misses (which can happen under message traffic), the Start menu process dies before it can render a frame.
-
-The hook also handles Win combos (Win+D, Win+E, etc.) — it re-injects the Win-down so the combo resolves natively.
-
-## What's in the box
-
-| Feature | What it does |
-|---|---|
-| **Launcher** | Fullscreen grain-textured overlay. Search installed programs. Open apps. |
-| **Taskbar** | 40px, centered icons, running indicators, peek previews. Auto-hides for fullscreen apps. |
-| **Apps widget** | Top-left panel showing running windows. Click to focus. Auto-sizes. |
-| **Settings** | Toggle widgets, switch themes, toggle icon recoloring. Saves to config. |
-| **Screenshots** | Lightshot-style region select. Image goes to clipboard. |
-| **Run dialog** | Type a command, run it (optionally as admin). |
-| **Exit button** | Reverts everything (shows taskbar, restarts explorer) and exits. |
-| **Crash handler** | Separate window with stack trace if FlatUI ever crashes. |
-
-## Icon recoloring
-
-Optional toggle in Settings. When on, all icons get a 3-layer CSS filter:
-
-1. **15% grain transparency** — the background subtly shows through
-2. **Grayscale** — strip the original color
-3. **Theme tint** — sepia + hue-rotate to the active theme's accent color
-
-No assets are modified. Pure CSS filters, applied in realtime to launcher icons, apps widget tiles, and taskbar icons.
-
-## The grain texture
-
-Instead of GPU-heavy `backdrop-filter: blur()`, FlatUI uses a three-layer background:
-
-1. **Espresso wash** — a flat color at 62% alpha (the warm tint)
-2. **Fractal noise** — a 180×180 SVG `feTurbulence` tile at ~25% max alpha (the grain)
-3. **Dot grid** — a 22px radial-gradient pattern (the design grid)
-
-Cheap to render, looks premium, and it recolors with the theme.
-
-## Quick start
+## Install
 
 1. Download `FlatUI-v0.1.7-x64.exe` from [Releases](https://github.com/nend-x/FlatUI/releases)
-2. Run it
-3. Accept the UAC prompt (admin is required for the Win-key hook and start-menu killer)
-4. Press Win
+2. Run it (UAC prompt appears — admin required)
+3. Press Win
 
-To exit: open the launcher (Win) → click the exit button (top-left, the one with the door icon). FlatUI restores the native taskbar, restarts explorer, and exits.
+To exit: Win → click the exit button (top-left).
 
-## Building
-
-```bash
-npm install
-npm run build
-cd src-tauri
-cargo build --release
-```
-
-### Cross-compiling from Linux
-
-You need `xwin` (standalone binary, not cargo-xwin) and `llvm-mingw`:
+## Build
 
 ```bash
-# Pre-splat the Windows SDK (one-time, ~10 min)
-xwin --accept-license splat --output ~/.cache/cargo-xwin/xwin/splat
-
-# Set env vars
-export INCLUDE="~/.cache/cargo-xwin/xwin/splat/crt/include;..."
-export LIB="~/.cache/cargo-xwin/xwin/splat/crt/lib/x86_64;..."
-export CC=clang-cl CXX=clang-cl AR=llvm-ar
-
-# Build (NOT cargo xwin build — it hangs on re-splat)
-cargo build --release --target x86_64-pc-windows-msvc
+npm install && npm run build
+cd src-tauri && cargo build --release
 ```
 
-See `BUILD.md` for detailed instructions.
-
-## Project layout
-
-```
-flatui/
-├── src/                     # Frontend (TypeScript + Vite)
-│   ├── launcher/            #   The Win-key overlay
-│   ├── taskbar/             #   The 40px AppBar
-│   └── setup/               #   First-run splash
-├── src-tauri/src/
-│   ├── lib.rs               #   App entry + Tauri commands
-│   ├── hotkey.rs            #   WH_KEYBOARD_LL hook (Win-key tap detection)
-│   ├── start_menu_killer.rs #   Kills StartMenuExperienceHost.exe
-│   ├── hide_taskbar.rs      #   Hides native taskbar (in-process, no exe)
-│   ├── elevation.rs         #   UAC elevation via ShellExecuteW
-│   ├── persist.rs           #   Config (themes, widgets, settings)
-│   └── win32/               #   AppBar, window management, icons, screenshots
-└── assets/                  #   Banner, icon
-```
+Cross-compile from Linux requires `xwin` + `llvm-mingw`. See [BUILD.md](BUILD.md).
 
 ## Config
 
-Everything is stored in `%LOCALAPPDATA%\FlatUI\`:
-
-| File | What |
-|---|---|
-| `themes.json` | Theme definitions + active theme |
-| `settings.json` | General settings |
-| `widget_visibility.json` | Which widgets are shown |
-| `widget_positions.json` | Widget drag positions |
-| `icon_recolor.json` | Icon recolor toggle state |
-| `blacklist.json` | Blacklisted windows |
-
-## Requirements
-
-- Windows 10 or 11 (x64)
-- Edge WebView2 runtime (preinstalled on Win11, Evergreen on Win10)
-- Administrative privileges
+`%LOCALAPPDATA%\FlatUI\` — themes, settings, widget positions, blacklist.
 
 ## License
 
-[MIT](LICENSE) — do whatever.
+[MIT](LICENSE)
 
 <div align="center">
 
-<br>
-
-### Built by
-
-# Super Z
-
-an autonomous AI agent · [Z.ai](https://z.ai)
-
-<br>
+Built by **Super Z** — an autonomous AI agent · [Z.ai](https://z.ai)
 
 </div>
