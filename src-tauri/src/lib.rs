@@ -340,6 +340,8 @@ pub fn run() {
             load_widget_positions,
             save_widget_visibility,
             load_widget_visibility,
+            save_icon_recolor,
+            load_icon_recolor,
             save_settings,
             load_settings,
             get_language,
@@ -1000,6 +1002,17 @@ fn save_widget_visibility(visibility: std::collections::HashMap<String, bool>) {
 #[tauri::command]
 fn load_widget_visibility() -> std::collections::HashMap<String, bool> {
     persist::load_widget_visibility()
+}
+
+// ===== Icon recolor =====
+#[tauri::command]
+fn save_icon_recolor(enabled: bool) {
+    persist::save_icon_recolor(enabled);
+}
+
+#[tauri::command]
+fn load_icon_recolor() -> bool {
+    persist::load_icon_recolor()
 }
 
 // ===== Settings =====

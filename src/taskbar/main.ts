@@ -295,6 +295,20 @@ async function setupListeners() {
       maybeRenderIcons();
     })
   );
+
+  // Icon recolor toggle — applies the .icon-recolor class to the taskbar root
+  unlistenFns.push(
+    await listen<boolean>("icon-recolor://changed", (e) => {
+      const taskbarRoot = document.querySelector(".taskbar-root");
+      if (taskbarRoot) {
+        if (e.payload) {
+          taskbarRoot.classList.add("icon-recolor");
+        } else {
+          taskbarRoot.classList.remove("icon-recolor");
+        }
+      }
+    })
+  );
 }
 
 clockWrap.addEventListener("click", () => invoke("toggle_calendar_flyout"));
@@ -314,6 +328,15 @@ async function init() {
   }
 
   await setupListeners();
+
+  // Load icon recolor state on startup (in case the launcher isn't open yet)
+  try {
+    const iconRecolorEnabled = await invoke<boolean>("load_icon_recolor");
+    const taskbarRoot = document.querySelector(".taskbar-root");
+    if (taskbarRoot && iconRecolorEnabled) {
+      taskbarRoot.classList.add("icon-recolor");
+    }
+  } catch {}
 
   setInterval(async () => {
     try {

@@ -78,6 +78,7 @@ const toggleNotesWidget = document.getElementById("toggle-notes-widget") as HTML
 const toggleSysmonWidget = document.getElementById("toggle-sysmon-widget") as HTMLInputElement;
 const toggleAudioWidget = document.getElementById("toggle-audio-widget") as HTMLInputElement;
 const toggleAppsWidget = document.getElementById("toggle-apps-widget") as HTMLInputElement;
+const toggleIconRecolor = document.getElementById("toggle-icon-recolor") as HTMLInputElement;
 
 // ===== Clipboard widget =====
 let clipboardItems: string[] = [];
@@ -414,6 +415,37 @@ toggleAudioWidget.addEventListener("change", () => {
 toggleAppsWidget.addEventListener("change", () => {
   applyWidgetVisibility("apps-widget", toggleAppsWidget.checked);
   void saveWidgetVisibility();
+});
+
+// ===== Icon recolor toggle =====
+// Applies the .icon-recolor class to the launcher root and emits an event
+// so the taskbar can apply it too. Saves to config (icon_recolor.json).
+function applyIconRecolor(enabled: boolean) {
+  const launcherRoot = document.getElementById("launcher");
+  if (launcherRoot) {
+    if (enabled) {
+      launcherRoot.classList.add("icon-recolor");
+    } else {
+      launcherRoot.classList.remove("icon-recolor");
+    }
+  }
+  // Emit to the taskbar window so it can apply the same class
+  emit("icon-recolor://changed", enabled);
+}
+
+async function loadIconRecolor() {
+  try {
+    const enabled = await invoke<boolean>("load_icon_recolor");
+    toggleIconRecolor.checked = enabled;
+    applyIconRecolor(enabled);
+  } catch {
+    // Default: off
+  }
+}
+
+toggleIconRecolor.addEventListener("change", () => {
+  applyIconRecolor(toggleIconRecolor.checked);
+  invoke("save_icon_recolor", { enabled: toggleIconRecolor.checked });
 });
 
 // ===== Launcher open/close animation state machine =====
@@ -1687,6 +1719,7 @@ async function init() {
   initWidgetDragging();
   await loadWidgetPositions();
   await loadWidgetVisibilitySettings();
+  await loadIconRecolor();
 
   // (The running-build version badge used to live in the bottom-left
   // corner of the launcher. It has been removed from the surface — the

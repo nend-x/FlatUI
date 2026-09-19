@@ -144,6 +144,31 @@
   filter: brightness(1.02) saturate(0.88) sepia(0.12) hue-rotate(-4deg);
 }
 
+/* ===== Icon recoloring (toggled via Settings — same as launcher) =====
+   When the taskbar root has the .icon-recolor class, all taskbar icons
+   get the same 3-layer recolor: opacity 0.5 + grayscale + theme tint. */
+.taskbar-root.icon-recolor .taskbar-icon img,
+.taskbar-root.icon-recolor .taskbar-icon svg {
+  opacity: 0.5;
+  filter:
+    grayscale(1)
+    sepia(1)
+    hue-rotate(var(--icon-recolor-hue))
+    saturate(var(--icon-recolor-sat))
+    brightness(var(--icon-recolor-brightness));
+}
+
+.taskbar-root.icon-recolor .taskbar-icon:hover img,
+.taskbar-root.icon-recolor .taskbar-icon:hover svg {
+  opacity: 0.7;
+  filter:
+    grayscale(1)
+    sepia(1)
+    hue-rotate(var(--icon-recolor-hue))
+    saturate(calc(var(--icon-recolor-sat) * 1.2))
+    brightness(1.05);
+}
+
 .taskbar-icon .indicator {
   position: absolute;
   bottom: 2px;

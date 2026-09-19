@@ -130,6 +130,17 @@
   --grain-lines-size: 16px 16px, 16px 16px, 180px 180px;
   --grain-lines-position: 0 0, 0 0, 0 0;
   --grain-lines-repeat: repeat, repeat, repeat;
+
+  /* ===== Icon recolor filter values (per-theme) =====
+     When icon recoloring is enabled, icons get:
+       1. opacity 0.5 (grain transparency — the launcher bg shows through)
+       2. grayscale(1) (remove all original color)
+       3. sepia(1) hue-rotate(X) saturate(Y) (tint to the theme's accent color)
+     The hue-rotate and saturate values are computed per-theme to match
+     the --accent-terracotta color. Default (sand-cream): terracotta #B8835A. */
+  --icon-recolor-hue: -10deg;
+  --icon-recolor-sat: 1.5;
+  --icon-recolor-brightness: 0.95;
 }
 
 * {
