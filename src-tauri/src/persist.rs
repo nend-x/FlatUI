@@ -118,22 +118,6 @@ pub fn save_icon_recolor(enabled: bool) {
     }
 }
 
-// ===== Background blur (blur vs grain) =====
-pub fn load_background_blur() -> bool {
-    let path = data_dir().join("background_blur.json");
-    match fs::read_to_string(&path) {
-        Ok(s) => serde_json::from_str::<bool>(&s).unwrap_or(false),
-        Err(_) => false,
-    }
-}
-
-pub fn save_background_blur(enabled: bool) {
-    let path = data_dir().join("background_blur.json");
-    if let Ok(s) = serde_json::to_string_pretty(&enabled) {
-        let _ = fs::write(&path, s);
-    }
-}
-
 // ===== Settings =====
 #[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
 pub struct Settings {

@@ -80,7 +80,6 @@ const toggleAudioWidget = document.getElementById("toggle-audio-widget") as HTML
 const toggleAppsWidget = document.getElementById("toggle-apps-widget") as HTMLInputElement;
 const toggleIconRecolor = document.getElementById("toggle-icon-recolor") as HTMLInputElement;
 const themeSelect = document.getElementById("theme-select") as HTMLSelectElement;
-const toggleBlur = document.getElementById("toggle-blur") as HTMLInputElement;
 
 // ===== Clipboard widget =====
 let clipboardItems: string[] = [];
@@ -448,37 +447,6 @@ async function loadIconRecolor() {
 toggleIconRecolor.addEventListener("change", () => {
   applyIconRecolor(toggleIconRecolor.checked);
   invoke("save_icon_recolor", { enabled: toggleIconRecolor.checked });
-});
-
-// ===== Background blur toggle (blur vs grain) =====
-// When ON, adds .blur-mode to the launcher root and emits an event so the
-// taskbar does the same. The CSS uses backdrop-filter: blur() when
-// .blur-mode is present, and the grain texture when it's not.
-function applyBackgroundBlur(enabled: boolean) {
-  const launcherRoot = document.getElementById("launcher");
-  if (launcherRoot) {
-    if (enabled) {
-      launcherRoot.classList.add("blur-mode");
-    } else {
-      launcherRoot.classList.remove("blur-mode");
-    }
-  }
-  emit("blur-mode://changed", enabled);
-}
-
-async function loadBackgroundBlur() {
-  try {
-    const enabled = await invoke<boolean>("load_background_blur");
-    toggleBlur.checked = enabled;
-    applyBackgroundBlur(enabled);
-  } catch {
-    // Default: grain (off)
-  }
-}
-
-toggleBlur.addEventListener("change", () => {
-  applyBackgroundBlur(toggleBlur.checked);
-  invoke("save_background_blur", { enabled: toggleBlur.checked });
 });
 
 // ===== Theme switcher =====
@@ -1861,7 +1829,6 @@ async function init() {
   await loadWidgetPositions();
   await loadWidgetVisibilitySettings();
   await loadIconRecolor();
-  await loadBackgroundBlur();
   await loadActiveTheme();
 
   // (The running-build version badge used to live in the bottom-left

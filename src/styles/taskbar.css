@@ -414,13 +414,3 @@
 .taskbar-screenshot:hover svg {
   color: var(--text-primary);
 }
-
-
-/* ===== Blur mode (backdrop-filter blur instead of grain) =====
-   When .blur-mode is on the taskbar root, switch from grain to blur. */
-.taskbar-root.blur-mode {
-  background-color: rgba(var(--bg-espresso-deep-rgb), 0.55);
-  background-image: none;
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-}

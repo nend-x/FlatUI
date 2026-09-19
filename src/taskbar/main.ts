@@ -319,20 +319,6 @@ async function setupListeners() {
     })
   );
 
-  // Background blur toggle — adds .blur-mode to the taskbar root
-  unlistenFns.push(
-    await listen<boolean>("blur-mode://changed", (e) => {
-      const taskbarRoot = document.querySelector(".taskbar-root");
-      if (taskbarRoot) {
-        if (e.payload) {
-          taskbarRoot.classList.add("blur-mode");
-        } else {
-          taskbarRoot.classList.remove("blur-mode");
-        }
-      }
-    })
-  );
-
   // Theme change — applies the theme's colors as CSS variables on :root
   unlistenFns.push(
     await listen<{ name: string; colors: Record<string, string> }>("theme://changed", (e) => {
@@ -397,15 +383,6 @@ async function init() {
     const taskbarRoot = document.querySelector(".taskbar-root");
     if (taskbarRoot && iconRecolorEnabled) {
       taskbarRoot.classList.add("icon-recolor");
-    }
-  } catch {}
-
-  // Load background blur state on startup (in case the launcher isn't open yet)
-  try {
-    const blurEnabled = await invoke<boolean>("load_background_blur");
-    const taskbarRoot = document.querySelector(".taskbar-root");
-    if (taskbarRoot && blurEnabled) {
-      taskbarRoot.classList.add("blur-mode");
     }
   } catch {}
 
