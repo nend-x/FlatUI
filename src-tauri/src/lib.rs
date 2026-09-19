@@ -342,6 +342,8 @@ pub fn run() {
             load_widget_visibility,
             save_icon_recolor,
             load_icon_recolor,
+            save_background_blur,
+            load_background_blur,
             save_settings,
             load_settings,
             get_language,
@@ -500,6 +502,13 @@ fn hide_launcher_animated(app: &tauri::AppHandle) {
                 let _ = launcher.hide();
             }
             log::info!("launcher hidden via fallback timer");
+            // Restore focus to the taskbar (same as launcher_close_finished)
+            #[cfg(windows)]
+            {
+                if let Some(taskbar) = handle.get_webview_window("taskbar") {
+                    let _ = taskbar.set_focus();
+                }
+            }
         }
     });
 }
@@ -515,6 +524,18 @@ fn launcher_close_finished(app: tauri::AppHandle) {
     CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
     if let Some(launcher) = app.get_webview_window("launcher") {
         let _ = launcher.hide();
+    }
+    // Restore focus to the taskbar after closing the launcher.
+    // When the launcher hides, the system focus is left in limbo — no window
+    // has focus. This is made worse by the start-menu killer (killing
+    // StartMenuExperienceHost.exe can leave focus on a dead window). Setting
+    // focus to the taskbar (which is always visible and always-on-top) gives
+    // the system a proper focused window so subsequent Win key taps work.
+    #[cfg(windows)]
+    {
+        if let Some(taskbar) = app.get_webview_window("taskbar") {
+            let _ = taskbar.set_focus();
+        }
     }
 }
 
@@ -1013,6 +1034,17 @@ fn save_icon_recolor(enabled: bool) {
 #[tauri::command]
 fn load_icon_recolor() -> bool {
     persist::load_icon_recolor()
+}
+
+// ===== Background blur (blur vs grain) =====
+#[tauri::command]
+fn save_background_blur(enabled: bool) {
+    persist::save_background_blur(enabled);
+}
+
+#[tauri::command]
+fn load_background_blur() -> bool {
+    persist::load_background_blur()
 }
 
 // ===== Settings =====

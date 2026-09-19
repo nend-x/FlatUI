@@ -319,6 +319,20 @@ async function setupListeners() {
     })
   );
 
+  // Background blur toggle — adds .blur-mode to the taskbar root
+  unlistenFns.push(
+    await listen<boolean>("blur-mode://changed", (e) => {
+      const taskbarRoot = document.querySelector(".taskbar-root");
+      if (taskbarRoot) {
+        if (e.payload) {
+          taskbarRoot.classList.add("blur-mode");
+        } else {
+          taskbarRoot.classList.remove("blur-mode");
+        }
+      }
+    })
+  );
+
   // Theme change — applies the theme's colors as CSS variables on :root
   unlistenFns.push(
     await listen<{ name: string; colors: Record<string, string> }>("theme://changed", (e) => {
@@ -339,7 +353,7 @@ async function setupListeners() {
           const gNorm = (g / 255).toFixed(3);
           const bNorm = (b / 255).toFixed(3);
           // Launcher-level grain (high visibility — 3 octaves, 0.28 alpha)
-          const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.28 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+          const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
           root.style.setProperty("--grain-noise-svg", noiseSvg);
           // Taskbar-level grain (LOW visibility — 2 octaves, 0.13 alpha.
           // The increased grain looks good on the fullscreen launcher but
@@ -386,6 +400,15 @@ async function init() {
     }
   } catch {}
 
+  // Load background blur state on startup (in case the launcher isn't open yet)
+  try {
+    const blurEnabled = await invoke<boolean>("load_background_blur");
+    const taskbarRoot = document.querySelector(".taskbar-root");
+    if (taskbarRoot && blurEnabled) {
+      taskbarRoot.classList.add("blur-mode");
+    }
+  } catch {}
+
   // Load active theme on startup (in case the launcher isn't open yet)
   try {
     const theme = await invoke<{ name: string; colors: Record<string, string> } | null>("get_active_theme");
@@ -404,7 +427,7 @@ async function init() {
           const gNorm = (g / 255).toFixed(3);
           const bNorm = (b / 255).toFixed(3);
           // Launcher-level grain (high visibility)
-          const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.28 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+          const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
           root.style.setProperty("--grain-noise-svg", noiseSvg);
           // Taskbar-level grain (low visibility — less busy on the thin strip)
           const taskbarNoiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;

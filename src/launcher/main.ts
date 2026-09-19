@@ -80,6 +80,7 @@ const toggleAudioWidget = document.getElementById("toggle-audio-widget") as HTML
 const toggleAppsWidget = document.getElementById("toggle-apps-widget") as HTMLInputElement;
 const toggleIconRecolor = document.getElementById("toggle-icon-recolor") as HTMLInputElement;
 const themeSelect = document.getElementById("theme-select") as HTMLSelectElement;
+const toggleBlur = document.getElementById("toggle-blur") as HTMLInputElement;
 
 // ===== Clipboard widget =====
 let clipboardItems: string[] = [];
@@ -449,6 +450,37 @@ toggleIconRecolor.addEventListener("change", () => {
   invoke("save_icon_recolor", { enabled: toggleIconRecolor.checked });
 });
 
+// ===== Background blur toggle (blur vs grain) =====
+// When ON, adds .blur-mode to the launcher root and emits an event so the
+// taskbar does the same. The CSS uses backdrop-filter: blur() when
+// .blur-mode is present, and the grain texture when it's not.
+function applyBackgroundBlur(enabled: boolean) {
+  const launcherRoot = document.getElementById("launcher");
+  if (launcherRoot) {
+    if (enabled) {
+      launcherRoot.classList.add("blur-mode");
+    } else {
+      launcherRoot.classList.remove("blur-mode");
+    }
+  }
+  emit("blur-mode://changed", enabled);
+}
+
+async function loadBackgroundBlur() {
+  try {
+    const enabled = await invoke<boolean>("load_background_blur");
+    toggleBlur.checked = enabled;
+    applyBackgroundBlur(enabled);
+  } catch {
+    // Default: grain (off)
+  }
+}
+
+toggleBlur.addEventListener("change", () => {
+  applyBackgroundBlur(toggleBlur.checked);
+  invoke("save_background_blur", { enabled: toggleBlur.checked });
+});
+
 // ===== Theme switcher =====
 // Loads the active theme from the backend, applies its colors as CSS
 // variables on :root, and saves when the user picks a different theme.
@@ -520,7 +552,7 @@ function applyTheme(theme: Theme) {
     const rNorm = (r / 255).toFixed(3);
     const gNorm = (g / 255).toFixed(3);
     const bNorm = (b / 255).toFixed(3);
-    const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.28 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+    const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
     root.style.setProperty("--grain-noise-svg", noiseSvg);
   }
 
@@ -1829,6 +1861,7 @@ async function init() {
   await loadWidgetPositions();
   await loadWidgetVisibilitySettings();
   await loadIconRecolor();
+  await loadBackgroundBlur();
   await loadActiveTheme();
 
   // (The running-build version badge used to live in the bottom-left
