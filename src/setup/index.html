@@ -9,7 +9,7 @@
     body {
       margin: 0;
       padding: 0;
-      background-color: rgba(75, 54, 33, 0.97);
+      background-color: rgba(var(--bg-espresso-rgb), 0.97);
       background-image: var(--grain-image);
       background-size: var(--grain-size);
       background-position: var(--grain-position);
@@ -28,12 +28,12 @@
       /* Solid card panel so the text always has a readable background,
          even when the window itself is transparent and the desktop behind
          it is light/busy. */
-      background-color: rgba(36, 26, 17, 0.94);
+      background-color: rgba(var(--bg-espresso-deep-rgb), 0.94);
       background-image: var(--grain-image);
       background-size: var(--grain-size);
       background-position: var(--grain-position);
       background-repeat: var(--grain-repeat);
-      border: 1px solid rgba(194, 178, 128, 0.22);
+      border: 1px solid rgba(var(--sand-rgb), 0.22);
       border-radius: 14px;
       padding: 26px 44px 30px;
       box-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
@@ -57,7 +57,7 @@
     .setup-bar {
       width: 200px;
       height: 3px;
-      background: rgba(194, 178, 128, 0.15);
+      background: rgba(var(--sand-rgb), 0.15);
       border-radius: 2px;
       overflow: hidden;
     }

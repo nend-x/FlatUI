@@ -16,13 +16,13 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 20px;
-  background-color: rgba(75, 54, 33, 0.97);
+  background-color: rgba(var(--bg-espresso-rgb), 0.97);
   background-image: var(--grain-image);
   background-size: var(--grain-size);
   background-position: var(--grain-position);
   background-repeat: var(--grain-repeat);
   border-radius: 18px;
-  border: 1px solid rgba(194, 178, 128, 0.12);
+  border: 1px solid rgba(var(--sand-rgb), 0.12);
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
   animation: setup-pop-in 500ms var(--ease-spring);
 }
@@ -65,7 +65,7 @@ html, body {
 .setup-bar {
   width: 200px;
   height: 3px;
-  background: rgba(194, 178, 128, 0.15);
+  background: rgba(var(--sand-rgb), 0.15);
   border-radius: 2px;
   overflow: hidden;
 }

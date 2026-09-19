@@ -33,21 +33,34 @@
 }
 
 :root {
-  /* ===== Palette: Sand + Espresso — desaturated, premium ===== */
+  /* ===== Palette: Sand + Espresso — desaturated, premium =====
+     Each color has both a solid form (--bg-espresso) and an RGB-channel
+     form (--bg-espresso-rgb) so we can compose rgba(var(--bg-espresso-rgb), 0.45)
+     at any alpha. The RGB form is what makes theme switching work — every
+     hardcoded rgba() in the CSS has been replaced with rgba(var(--xxx-rgb), alpha). */
   --bg-espresso: #4B3621;
+  --bg-espresso-rgb: 75, 54, 33;
   --bg-espresso-deep: #3A2A1A;
+  --bg-espresso-deep-rgb: 58, 42, 26;
   --bg-espresso-raised: #54402D;
+  --bg-espresso-raised-rgb: 84, 64, 40;
   /* Frosted glass — espresso-based with strong backdrop blur */
   --bg-espresso-frosted: rgba(58, 42, 26, 0.55);
   --bg-espresso-glass: rgba(58, 42, 26, 0.65);
 
   --sand: #C2B280;
+  --sand-rgb: 194, 178, 128;
   --sand-bright: #D4C19C;
+  --sand-bright-rgb: 212, 193, 156;
   --sand-dim: #8A7B5C;
+  --sand-dim-rgb: 138, 123, 92;
   --sand-cream: #EDE4D3;
+  --sand-cream-rgb: 237, 228, 211;
 
   --accent-terracotta: #B8835A;
+  --accent-terracotta-rgb: 184, 131, 90;
   --accent-caramel: #D4A574;
+  --accent-caramel-rgb: 212, 165, 116;
   --accent-soft: rgba(184, 131, 90, 0.10);
 
   --border-subtle: rgba(194, 178, 128, 0.08);

@@ -186,25 +186,43 @@ pub fn save_settings(settings: &Settings) {
 pub struct ThemeColors {
     #[serde(rename = "bg-espresso")]
     pub bg_espresso: String,
+    #[serde(rename = "bg-espresso-rgb")]
+    pub bg_espresso_rgb: String,
     #[serde(rename = "bg-espresso-deep")]
     pub bg_espresso_deep: String,
+    #[serde(rename = "bg-espresso-deep-rgb")]
+    pub bg_espresso_deep_rgb: String,
     #[serde(rename = "bg-espresso-raised")]
     pub bg_espresso_raised: String,
+    #[serde(rename = "bg-espresso-raised-rgb")]
+    pub bg_espresso_raised_rgb: String,
     #[serde(rename = "bg-espresso-frosted")]
     pub bg_espresso_frosted: String,
     #[serde(rename = "bg-espresso-glass")]
     pub bg_espresso_glass: String,
     pub sand: String,
+    #[serde(rename = "sand-rgb")]
+    pub sand_rgb: String,
     #[serde(rename = "sand-bright")]
     pub sand_bright: String,
+    #[serde(rename = "sand-bright-rgb")]
+    pub sand_bright_rgb: String,
     #[serde(rename = "sand-dim")]
     pub sand_dim: String,
+    #[serde(rename = "sand-dim-rgb")]
+    pub sand_dim_rgb: String,
     #[serde(rename = "sand-cream")]
     pub sand_cream: String,
+    #[serde(rename = "sand-cream-rgb")]
+    pub sand_cream_rgb: String,
     #[serde(rename = "accent-terracotta")]
     pub accent_terracotta: String,
+    #[serde(rename = "accent-terracotta-rgb")]
+    pub accent_terracotta_rgb: String,
     #[serde(rename = "accent-caramel")]
     pub accent_caramel: String,
+    #[serde(rename = "accent-caramel-rgb")]
+    pub accent_caramel_rgb: String,
     #[serde(rename = "accent-soft")]
     pub accent_soft: String,
     #[serde(rename = "border-subtle")]
@@ -237,16 +255,25 @@ pub fn default_themes() -> ThemesConfig {
                 active: true,
                 colors: ThemeColors {
                     bg_espresso: "#4B3621".to_string(),
+                    bg_espresso_rgb: "75, 54, 33".to_string(),
                     bg_espresso_deep: "#3A2A1A".to_string(),
+                    bg_espresso_deep_rgb: "58, 42, 26".to_string(),
                     bg_espresso_raised: "#54402D".to_string(),
+                    bg_espresso_raised_rgb: "84, 64, 40".to_string(),
                     bg_espresso_frosted: "rgba(58,42,26,0.55)".to_string(),
                     bg_espresso_glass: "rgba(58,42,26,0.65)".to_string(),
                     sand: "#C2B280".to_string(),
+                    sand_rgb: "194, 178, 128".to_string(),
                     sand_bright: "#D4C19C".to_string(),
+                    sand_bright_rgb: "212, 193, 156".to_string(),
                     sand_dim: "#8A7B5C".to_string(),
+                    sand_dim_rgb: "138, 123, 92".to_string(),
                     sand_cream: "#EDE4D3".to_string(),
+                    sand_cream_rgb: "237, 228, 211".to_string(),
                     accent_terracotta: "#B8835A".to_string(),
+                    accent_terracotta_rgb: "184, 131, 90".to_string(),
                     accent_caramel: "#D4A574".to_string(),
+                    accent_caramel_rgb: "212, 165, 116".to_string(),
                     accent_soft: "rgba(184,131,90,0.18)".to_string(),
                     border_subtle: "rgba(194,178,128,0.08)".to_string(),
                     border_strong: "rgba(194,178,128,0.18)".to_string(),
@@ -259,16 +286,25 @@ pub fn default_themes() -> ThemesConfig {
                 active: false,
                 colors: ThemeColors {
                     bg_espresso: "#354f52".to_string(),
+                    bg_espresso_rgb: "53, 79, 82".to_string(),
                     bg_espresso_deep: "#2f3e46".to_string(),
+                    bg_espresso_deep_rgb: "47, 62, 70".to_string(),
                     bg_espresso_raised: "#4a6166".to_string(),
+                    bg_espresso_raised_rgb: "74, 97, 102".to_string(),
                     bg_espresso_frosted: "rgba(47,62,70,0.55)".to_string(),
                     bg_espresso_glass: "rgba(47,62,70,0.65)".to_string(),
                     sand: "#84a98c".to_string(),
+                    sand_rgb: "132, 169, 140".to_string(),
                     sand_bright: "#9bbfa0".to_string(),
+                    sand_bright_rgb: "155, 191, 160".to_string(),
                     sand_dim: "#52796f".to_string(),
+                    sand_dim_rgb: "82, 121, 111".to_string(),
                     sand_cream: "#cad2c5".to_string(),
+                    sand_cream_rgb: "202, 210, 197".to_string(),
                     accent_terracotta: "#52796f".to_string(),
+                    accent_terracotta_rgb: "82, 121, 111".to_string(),
                     accent_caramel: "#84a98c".to_string(),
+                    accent_caramel_rgb: "132, 169, 140".to_string(),
                     accent_soft: "rgba(82,121,111,0.18)".to_string(),
                     border_subtle: "rgba(202,210,197,0.08)".to_string(),
                     border_strong: "rgba(202,210,197,0.18)".to_string(),
@@ -281,16 +317,25 @@ pub fn default_themes() -> ThemesConfig {
                 active: false,
                 colors: ThemeColors {
                     bg_espresso: "#7f7f7f".to_string(),
+                    bg_espresso_rgb: "127, 127, 127".to_string(),
                     bg_espresso_deep: "#595959".to_string(),
+                    bg_espresso_deep_rgb: "89, 89, 89".to_string(),
                     bg_espresso_raised: "#969696".to_string(),
+                    bg_espresso_raised_rgb: "150, 150, 150".to_string(),
                     bg_espresso_frosted: "rgba(89,89,89,0.55)".to_string(),
                     bg_espresso_glass: "rgba(89,89,89,0.65)".to_string(),
                     sand: "#a5a5a5".to_string(),
+                    sand_rgb: "165, 165, 165".to_string(),
                     sand_bright: "#cccccc".to_string(),
+                    sand_bright_rgb: "204, 204, 204".to_string(),
                     sand_dim: "#7f7f7f".to_string(),
+                    sand_dim_rgb: "127, 127, 127".to_string(),
                     sand_cream: "#f2f2f2".to_string(),
+                    sand_cream_rgb: "242, 242, 242".to_string(),
                     accent_terracotta: "#a5a5a5".to_string(),
+                    accent_terracotta_rgb: "165, 165, 165".to_string(),
                     accent_caramel: "#cccccc".to_string(),
+                    accent_caramel_rgb: "204, 204, 204".to_string(),
                     accent_soft: "rgba(165,165,165,0.18)".to_string(),
                     border_subtle: "rgba(242,242,242,0.08)".to_string(),
                     border_strong: "rgba(242,242,242,0.18)".to_string(),

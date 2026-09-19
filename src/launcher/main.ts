@@ -457,16 +457,25 @@ toggleIconRecolor.addEventListener("change", () => {
 
 interface ThemeColors {
   "bg-espresso": string;
+  "bg-espresso-rgb": string;
   "bg-espresso-deep": string;
+  "bg-espresso-deep-rgb": string;
   "bg-espresso-raised": string;
+  "bg-espresso-raised-rgb": string;
   "bg-espresso-frosted": string;
   "bg-espresso-glass": string;
   sand: string;
+  "sand-rgb": string;
   "sand-bright": string;
+  "sand-bright-rgb": string;
   "sand-dim": string;
+  "sand-dim-rgb": string;
   "sand-cream": string;
+  "sand-cream-rgb": string;
   "accent-terracotta": string;
+  "accent-terracotta-rgb": string;
   "accent-caramel": string;
+  "accent-caramel-rgb": string;
   "accent-soft": string;
   "border-subtle": string;
   "border-strong": string;
@@ -491,24 +500,15 @@ const THEME_ICON_RECOLOR: Record<string, { hue: string; sat: string; brightness:
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
-  // Apply each color as a CSS variable on :root
+  // Apply EVERY color from the theme as a CSS variable on :root.
+  // The keys match the serde-renamed ThemeColors field names, so
+  // "bg-espresso" → --bg-espresso, "bg-espresso-rgb" → --bg-espresso-rgb, etc.
+  // This covers all solid colors AND all RGB-channel forms (used for
+  // rgba(var(--xxx-rgb), alpha) compositions in the CSS).
   const colors = theme.colors;
-  root.style.setProperty("--bg-espresso", colors["bg-espresso"]);
-  root.style.setProperty("--bg-espresso-deep", colors["bg-espresso-deep"]);
-  root.style.setProperty("--bg-espresso-raised", colors["bg-espresso-raised"]);
-  root.style.setProperty("--bg-espresso-frosted", colors["bg-espresso-frosted"]);
-  root.style.setProperty("--bg-espresso-glass", colors["bg-espresso-glass"]);
-  root.style.setProperty("--sand", colors.sand);
-  root.style.setProperty("--sand-bright", colors["sand-bright"]);
-  root.style.setProperty("--sand-dim", colors["sand-dim"]);
-  root.style.setProperty("--sand-cream", colors["sand-cream"]);
-  root.style.setProperty("--accent-terracotta", colors["accent-terracotta"]);
-  root.style.setProperty("--accent-caramel", colors["accent-caramel"]);
-  root.style.setProperty("--accent-soft", colors["accent-soft"]);
-  root.style.setProperty("--border-subtle", colors["border-subtle"]);
-  root.style.setProperty("--border-strong", colors["border-strong"]);
-  root.style.setProperty("--status-running", colors["status-running"]);
-  root.style.setProperty("--status-pinned", colors["status-pinned"]);
+  for (const [key, value] of Object.entries(colors)) {
+    root.style.setProperty("--" + key, value);
+  }
 
   // Apply per-theme icon recolor values
   const recolor = THEME_ICON_RECOLOR[theme.name];
@@ -1720,7 +1720,7 @@ async function startScreenshotWithData(dataUrl: string) {
       ctx.drawImage(img, x, y, w, h, x, y, w, h);
       // Draw border (constant on-screen thickness regardless of scale)
       const rect = screenshotCanvas.getBoundingClientRect();
-      ctx.strokeStyle = "rgba(184, 131, 90, 0.8)";
+      ctx.strokeStyle = "rgba(var(--accent-terracotta-rgb), 0.8)";
       ctx.lineWidth = 2 / (img.naturalWidth / rect.width);
       ctx.strokeRect(x, y, w, h);
     };

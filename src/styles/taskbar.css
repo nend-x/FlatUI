@@ -10,7 +10,7 @@
   justify-content: center;
   height: var(--taskbar-height);
   /* Grain + dot-grid (replaces backdrop-filter blur) */
-  background-color: rgba(58, 42, 26, 0.55);
+  background-color: var(--bg-espresso-frosted);
   background-image: var(--grain-image);
   background-size: var(--grain-size);
   background-position: var(--grain-position);
@@ -87,7 +87,7 @@
   height: 4px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(194, 178, 128, 0.15);
+  background: rgba(var(--sand-rgb), 0.15);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -264,7 +264,7 @@
 .tb-context-menu {
   position: fixed;
   min-width: 140px;
-  background-color: rgba(58, 42, 26, 0.65);
+  background-color: rgba(var(--bg-espresso-deep-rgb), 0.65);
   background-image: var(--grain-image);
   background-size: var(--grain-size);
   background-position: var(--grain-position);
