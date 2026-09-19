@@ -1,6 +1,5 @@
 <div align="center">
 
-<<<<<<< HEAD
 <img src="assets/banner.png" alt="FlatUI" width="100%"/>
 =======
 <img src="assets/banner.png" alt="FlatUI — three themes: Sand Cream, Earthly Green, Silver Lining" width="100%"/>
@@ -8,7 +7,6 @@
 
 
 
-<<<<<<< HEAD
 <p>Windows, but quieter. A custom shell replacement — 40px taskbar, Spotlight-style launcher, three themes, one exe.</p>
 
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows11&logoColor=white)
