@@ -494,7 +494,7 @@ interface Theme {
 // accent color. Computed from each theme's accent-terracotta hue/saturation.
 const THEME_ICON_RECOLOR: Record<string, { hue: string; sat: string; brightness: string }> = {
   "sand-cream": { hue: "-16deg", sat: "0.8", brightness: "0.95" },
-  "earthly-green": { hue: "108deg", sat: "0.85", brightness: "0.95" },
+  "earthly-green": { hue: "98deg", sat: "1.0", brightness: "0.95" },
   "silver-lining": { hue: "168deg", sat: "0.4", brightness: "0.90" },
 };
 
