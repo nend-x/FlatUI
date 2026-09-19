@@ -153,12 +153,11 @@
 
 /* ===== Icon recoloring (toggled via Settings — same as launcher) =====
    When the taskbar root has the .icon-recolor class, all taskbar icons
-   get the same 3-layer recolor. Taskbar icons are SMALLER (22px vs 36px
-   in the launcher) so they need HIGHER opacity to stay visible — 0.05
-   (95% opaque) instead of the launcher's 0.15 (85% opaque). */
+   get the same 3-layer recolor. opacity 0.85 = 85% visible (15% of the
+   background shows through). */
 .taskbar-root.icon-recolor .taskbar-icon img,
 .taskbar-root.icon-recolor .taskbar-icon svg {
-  opacity: 0.05;
+  opacity: 0.85;
   filter:
     grayscale(1)
     sepia(1)
@@ -169,7 +168,7 @@
 
 .taskbar-root.icon-recolor .taskbar-icon:hover img,
 .taskbar-root.icon-recolor .taskbar-icon:hover svg {
-  opacity: 0.15;
+  opacity: 0.95;
   filter:
     grayscale(1)
     sepia(1)
