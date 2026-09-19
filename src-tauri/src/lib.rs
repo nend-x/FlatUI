@@ -193,36 +193,33 @@ pub fn run() {
             // :2290 /toggle bridge (both removed).
             #[cfg(windows)]
             {
-                // (1) Install prevent-alt-win-menu FIRST so it sits at the
-                // END of the LIFO hook chain (called after our own hook).
-                use prevent_alt_win_menu::event_handler::{
-                    Config, HoldEvent, KeyboardAndMouse, MenuTrigger, MenuTriggerEvent,
-                };
-                let alt_only_config = Config::default().set_on_released(move |hold: HoldEvent| {
-                    // Only suppress for Alt releases — never for Win. Our
-                    // own `win32::hotkey` hook swallows Win events before
-                    // prevent-alt-win-menu ever sees them, but defensively
-                    // bail out of Win here too in case hook ordering ever
-                    // changes.
-                    if hold.press.menu_trigger() == Some(MenuTrigger::Win) {
-                        return None;
-                    }
-                    // Alt release: send the dummy key-up so the focused
-                    // window's menu bar doesn't activate.
-                    Some(KeyboardAndMouse::VK__none_)
-                });
-                match prevent_alt_win_menu::start(alt_only_config) {
-                    Ok(_) => log::info!(
-                        "Alt-key menu suppression installed (prevent-alt-win-menu, Alt-only)"
-                    ),
-                    Err(e) => log::error!(
-                        "Failed to install Alt-key hook (prevent-alt-win-menu): {e}"
-                    ),
-                }
+                // (1) prevent-alt-win-menu is DISABLED.
+                //
+                // It was interfering with the Win-key close-tap: when the
+                // launcher was open, tapping Win opened the Start menu
+                // instead of closing the launcher. The crate installs its
+                // own WH_KEYBOARD_LL hook on a separate thread, and the
+                // two hooks' message pumps can interfere under focus
+                // changes (when the launcher webview takes focus, the
+                // crate's hook thread can stall the hook chain).
+                //
+                // Our own win32::hotkey hook (installed below) handles
+                // BOTH Win (swallow + tap → toggle launcher) and Alt
+                // (we add Alt menu suppression directly in the hook
+                // callback — see hotkey.rs). No second hook needed.
+                //
+                // The crate is still in Cargo.toml for now (removing it
+                // would require a Cargo.lock update); we just don't call
+                // start().
 
-                // (2) Install our own Win-key hook LAST so it sits at the
-                // START of the LIFO hook chain (called first — can swallow
-                // Win events before prevent-alt-win-menu sees them).
+                // (2) Install our own Win-key hook. It handles:
+                //   - Win tap (press + release alone) → toggle launcher
+                //   - Win combo (Win+D, Win+E, ...) → re-inject Win, let
+                //     the combo resolve natively
+                //   - Alt release alone → inject VK__none_ to suppress
+                //     the focused window's menu bar (same as the crate
+                //     used to do, but in our own hook — no second thread,
+                //     no second message pump, no interference).
                 let app_handle = app.handle().clone();
                 win32::hotkey::install(Box::new(move || {
                     let app = app_handle.clone();

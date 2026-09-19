@@ -171,12 +171,13 @@ html.background-ready, html.background-ready body {
 
 /* ===== Action buttons (left side) =====
    The old `winselect-btn` (top of this column) has been replaced by the
-   Apps widget above. The column now starts below the widget and contains
-   the remaining actions: minimize-all, run, blacklist. */
+   Apps widget (see below). The 3 remaining buttons (minimize-all, run,
+   blacklist) stay at the original top:24 position. The Apps widget sits
+   BELOW them. */
 .launcher-actions {
   position: absolute;
   left: 24px;
-  top: 112px;
+  top: 24px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -799,10 +800,13 @@ html.background-ready, html.background-ready body {
    A compact panel that previews the running windows. Click any preview to
    focus that window; click the widget chrome (header / empty space) to
    open the full window-switcher overlay. Inherits the .widget base rules
-   (draggable header, frosted panel, shadow). */
+   (draggable header, frosted panel, shadow).
+   Positioned BELOW the 3 action buttons (minimize-all, run, blacklist)
+   which sit at top:24. 3 buttons × 40px + 2 × 8px gap = 136px, so the
+   widget starts at top:24+136+8 = 168. */
 .apps-widget {
   left: 24px;
-  top: 24px;
+  top: 168px;
   width: 240px;
   padding: 0 12px 8px;
   display: flex;

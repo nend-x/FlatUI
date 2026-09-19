@@ -210,15 +210,18 @@ function makeDraggable(el: HTMLElement) {
   if (!header) return;
 
   let isDragging = false;
+  let didDrag = false; // true if the mouse actually moved during the drag
   let startX = 0;
   let startY = 0;
   let origLeft = 0;
   let origTop = 0;
+  const DRAG_THRESHOLD = 4; // px — below this, it's a click, not a drag
 
   header.addEventListener("mousedown", (e) => {
     // Don't drag if clicking inside textarea/input
     if ((e.target as HTMLElement).tagName === "INPUT" || (e.target as HTMLElement).tagName === "TEXTAREA") return;
     isDragging = true;
+    didDrag = false;
     startX = e.clientX;
     startY = e.clientY;
     const rect = el.getBoundingClientRect();
@@ -236,16 +239,42 @@ function makeDraggable(el: HTMLElement) {
     if (!isDragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    el.style.left = `${origLeft + dx}px`;
-    el.style.top = `${origTop + dy}px`;
+    if (!didDrag && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+      didDrag = true;
+    }
+    if (didDrag) {
+      el.style.left = `${origLeft + dx}px`;
+      el.style.top = `${origTop + dy}px`;
+    }
   });
 
   document.addEventListener("mouseup", () => {
     if (isDragging) {
       isDragging = false;
-      // Save positions after drag
-      if (widgetSaveTimer) clearTimeout(widgetSaveTimer);
-      widgetSaveTimer = window.setTimeout(saveWidgetPositions, 300);
+      // If we actually dragged, save positions and suppress the next click
+      // so the widget's click handler doesn't fire (e.g. opening the
+      // window switcher after moving the apps-widget).
+      if (didDrag) {
+        if (widgetSaveTimer) clearTimeout(widgetSaveTimer);
+        widgetSaveTimer = window.setTimeout(saveWidgetPositions, 300);
+        // Suppress the next click event on this element (the click that
+        // follows mouseup after a drag). We capture it on the capture phase
+        // and stop it.
+        const suppressClick = (ev: Event) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          el.removeEventListener("click", suppressClick, true);
+        };
+        el.addEventListener("click", suppressClick, true);
+        // Also suppress on the header itself (the click might target the
+        // header element, not the widget container).
+        const suppressHeaderClick = (ev: Event) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          header.removeEventListener("click", suppressHeaderClick, true);
+        };
+        header.addEventListener("click", suppressHeaderClick, true);
+      }
     }
   });
 }
@@ -803,6 +832,17 @@ function updateSpotlightSelection() {
 searchInput.addEventListener("input", applyFilter);
 
 document.addEventListener("keydown", (e) => {
+  // Win key detection (fallback for when the Rust-level hook doesn't fire
+  // while the launcher has focus). On Windows, the Win key is reported as
+  // e.key === "Meta" and e.code === "MetaLeft" or "MetaRight". When the
+  // launcher is open and the user taps Win, close the launcher — this
+  // mirrors the Rust hook's toggle behavior for the close-tap case.
+  if (e.key === "Meta" || e.code === "MetaLeft" || e.code === "MetaRight") {
+    e.preventDefault();
+    closeLauncher();
+    return;
+  }
+
   // If focus is in notes textarea or run input, don't process launcher shortcuts
   const target = e.target as HTMLElement;
   if (target.tagName === "TEXTAREA" || (target.tagName === "INPUT" && target.id !== "search")) {
