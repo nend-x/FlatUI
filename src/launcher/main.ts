@@ -4,7 +4,6 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
-import { getVersion } from "@tauri-apps/api/app";
 
 interface LauncherItem {
   id: string;
@@ -43,7 +42,8 @@ const grid = document.getElementById("grid")!;
 const spotlightResultsEl = document.getElementById("spotlight-results")!;
 const actionsWrap = document.querySelector<HTMLElement>(".launcher-actions")!;
 const searchWrap = document.querySelector<HTMLElement>(".launcher-search-wrap")!;
-const winselectBtn = document.getElementById("winselect-btn")!;
+const appsWidget = document.getElementById("apps-widget")!;
+const appsBody = document.getElementById("apps-body")!;
 const minimizeAllBtn = document.getElementById("minimize-all-btn")!;
 const runBtn = document.getElementById("run-btn")!;
 const blacklistBtn = document.getElementById("blacklist-btn")!;
@@ -423,7 +423,7 @@ async function showLauncherSequence(): Promise<void> {
   if (launcherSession !== session) return;
 
   if (onScreen) {
-    const ended = waitAnimationEnd(expandOverlay, "cube-expand", 2400);
+    const ended = waitAnimationEnd(expandOverlay, "cube-expand", 1500);
     expandOverlay.classList.add("expanding");
     await ended;
     if (launcherSession !== session) return;
@@ -435,6 +435,10 @@ async function showLauncherSequence(): Promise<void> {
   root.classList.remove("hidden");
   root.classList.add("opening");
   searchInput.focus({ preventScroll: true });
+
+  // Refresh the apps widget so the running-window preview is fresh.
+  // Fire-and-forget — never block the launcher open on this.
+  void populateAppsWidget();
 
   // Drop .opening once the element cascade has finished (longest delay
   // 400ms + 400ms duration + slack). Session-guarded, so a rapid
@@ -479,7 +483,7 @@ async function hideLauncherSequence(): Promise<void> {
   // fullscreen appearance.
   expandOverlay.classList.remove("expanded");
   expandOverlay.classList.add("collapsing");
-  await waitAnimationEnd(expandOverlay, "cube-collapse", 1600);
+  await waitAnimationEnd(expandOverlay, "cube-collapse", 1500);
   if (launcherSession !== session) return; // re-shown mid-collapse
   resetLauncherDom();
   invoke("launcher_close_finished");
@@ -905,7 +909,79 @@ root.addEventListener("click", (e) => {
 });
 
 // ===== Action buttons =====
-winselectBtn.addEventListener("click", () => showWindowSwitcher());
+// Apps widget: a compact preview of running windows that lives where the
+// old `winselect-btn` action button used to be. Click any tile to focus
+// that window; click the widget chrome (header / empty body) to open the
+// full window-switcher overlay (same behavior as the old button).
+async function populateAppsWidget() {
+  let windows: WindowEntry[] = [];
+  try {
+    windows = await invoke<WindowEntry[]>("get_all_windows");
+  } catch (err) {
+    console.error("get_all_windows failed (apps-widget):", err);
+  }
+
+  appsBody.innerHTML = "";
+
+  if (windows.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "apps-empty";
+    empty.textContent = "No open windows";
+    appsBody.appendChild(empty);
+    return;
+  }
+
+  // Show up to 6 tiles — enough to be useful, not so many that the widget
+  // grows past its compact footprint. The "+N" count badge handles overflow.
+  const MAX_TILES = 6;
+  const shown = windows.slice(0, MAX_TILES);
+
+  for (const w of shown) {
+    const tile = document.createElement("div");
+    tile.className = "apps-tile";
+    tile.title = w.title;
+
+    if (w.icon_data_url) {
+      const img = document.createElement("img");
+      img.src = w.icon_data_url;
+      img.alt = w.title;
+      tile.appendChild(img);
+    } else {
+      const fb = document.createElement("span");
+      fb.className = "apps-tile-fallback";
+      fb.textContent = (w.title || "?").charAt(0).toUpperCase();
+      tile.appendChild(fb);
+    }
+
+    tile.addEventListener("click", (e) => {
+      e.stopPropagation();
+      invoke("activate_window", { hwnd: w.hwnd });
+      closeLauncher();
+    });
+
+    appsBody.appendChild(tile);
+  }
+
+  if (windows.length > MAX_TILES) {
+    const count = document.createElement("span");
+    count.className = "apps-count";
+    count.textContent = `+${windows.length - MAX_TILES}`;
+    appsBody.appendChild(count);
+  }
+}
+
+appsWidget.addEventListener("click", (e) => {
+  // Clicks on a tile are handled by the tile's own listener (stopPropagation).
+  // Clicks anywhere else on the widget chrome open the full switcher.
+  if ((e.target as HTMLElement).closest(".apps-tile")) return;
+  showWindowSwitcher();
+});
+
+appsBody.addEventListener("click", (e) => {
+  // Body click also opens the switcher unless it landed on a tile.
+  if ((e.target as HTMLElement).closest(".apps-tile")) return;
+  showWindowSwitcher();
+});
 
 minimizeAllBtn.addEventListener("click", () => {
   // The Rust handler will hide the launcher itself.
@@ -1474,15 +1550,9 @@ async function init() {
   initWidgetDragging();
   await loadWidgetPositions();
 
-  // Surface the running build's version — an old resident instance must be
-  // unmistakable next to a freshly launched one.
-  try {
-    const v = await getVersion();
-    const badge = document.getElementById("version-badge");
-    if (badge) badge.textContent = `FlatUI v${v}`;
-  } catch {
-    /* badge stays empty — cosmetic only */
-  }
+  // (The running-build version badge used to live in the bottom-left
+  // corner of the launcher. It has been removed from the surface — the
+  // backend still reports the version via Tauri APIs if a tool needs it.)
   // NOTE: no focus timer here — the launcher page loads hidden; the show
   // sequence (showLauncherSequence) focuses the search input at the right
   // moment, after the background animation has finished.

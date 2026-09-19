@@ -12,16 +12,20 @@
   <div class="expand-overlay" id="expand-overlay"></div>
 
   <div class="launcher-root hidden" id="launcher">
-    <!-- Left side: action buttons -->
+    <!-- Top-left Apps widget — replaces the old winselect action button.
+         Shows a compact preview of running windows; click any preview to
+         focus that window, click the widget chrome to open the full
+         window-switcher overlay. -->
+    <div class="widget apps-widget" id="apps-widget">
+      <div class="widget-header">Apps</div>
+      <div class="apps-body" id="apps-body">
+        <div class="apps-empty">No open windows</div>
+      </div>
+    </div>
+
+    <!-- Left side: action buttons (apps/winselect moved out into a widget
+         above; the remaining actions are: minimize-all, run, blacklist) -->
     <div class="launcher-actions">
-      <button class="action-btn" id="winselect-btn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1"/>
-          <rect x="14" y="3" width="7" height="7" rx="1"/>
-          <rect x="3" y="14" width="7" height="7" rx="1"/>
-          <rect x="14" y="14" width="7" height="7" rx="1"/>
-        </svg>
-      </button>
       <button class="action-btn" id="minimize-all-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="5" y1="12" x2="19" y2="12"/>
@@ -60,10 +64,6 @@
 
     <!-- Desktop grid -->
     <div class="launcher-grid" id="grid"></div>
-
-    <!-- Running build version — makes it impossible to confuse an old
-         resident instance with a freshly launched one -->
-    <div class="version-badge" id="version-badge"></div>
 
     <!-- Spotlight results -->
     <div class="spotlight-results hidden" id="spotlight-results"></div>

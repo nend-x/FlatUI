@@ -14,6 +14,7 @@
 
 mod app_state;
 pub mod crash_handler;
+mod elevation;
 mod embedded;
 mod persist;
 mod setup;
@@ -95,8 +96,48 @@ pub fn run() {
 
                 // Step 1: Welcome (already shown), wait 1s
                 std::thread::sleep(std::time::Duration::from_secs(1));
+
+                // Step 2: Request UAC elevation. The win-key block (low-level
+                // keyboard hook) can't intercept keystrokes destined for
+                // elevated apps unless FlatUI itself runs elevated (UIPI).
+                // Ask the user to elevate; if they accept, a new elevated
+                // instance takes over and this one exits. If they decline,
+                // we continue with basic rights — the hook still works
+                // against non-elevated windows.
+                let _ = handle.emit("setup://step", "Requesting elevation...");
+                std::thread::sleep(std::time::Duration::from_millis(600));
+                match elevation::request_elevation() {
+                    elevation::ElevationOutcome::AlreadyElevated => {
+                        // Already admin (e.g. user launched the exe with
+                        // "Run as administrator" directly, or this is the
+                        // elevated relaunch from a previous prompt accept).
+                        let _ = handle.emit("setup://step", "UAC accepted - continuing");
+                        std::thread::sleep(std::time::Duration::from_secs(1));
+                    }
+                    elevation::ElevationOutcome::Accepted => {
+                        // The elevated relaunch is in flight. Show the
+                        // acceptance message briefly, then exit so the
+                        // new elevated process can take over without a
+                        // double-instance race.
+                        let _ = handle.emit("setup://step", "UAC accepted - continuing");
+                        std::thread::sleep(std::time::Duration::from_secs(1));
+                        log::info!("Exiting non-elevated instance — elevated relaunch is in flight");
+                        std::process::exit(0);
+                    }
+                    elevation::ElevationOutcome::Declined => {
+                        let _ = handle.emit(
+                            "setup://step",
+                            "UAC isn't accepted, continuing with basic rights...",
+                        );
+                        std::thread::sleep(std::time::Duration::from_secs(1));
+                    }
+                }
+
+                // Step 3: Hide the native taskbar (HideTaskbar.exe child).
                 let _ = handle.emit("setup://step", "Hiding taskbar...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
+
+                // Step 4: Install the Win-key + Alt-key hooks.
                 let _ = handle.emit("setup://step", "Installing Win key handler...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 let _ = handle.emit("setup://done", ());
