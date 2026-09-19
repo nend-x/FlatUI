@@ -62,23 +62,3 @@ Every element recolors when you switch: backgrounds, grain texture, dot/line gri
 Themes persist to `themes.json` and survive restarts.
 
 <br>
-
-## 🧠 How it works
-
-```mermaid
-flowchart LR
-    WIN(["⌨️ Win key press"])
-    subgraph APP["FlatUI — Rust + Tauri 2 (single exe)"]
-        HOOK["WH_KEYBOARD_LL hook\nswallows Win-down → tap detection"]
-        KILLER["Start-menu killer\nkills StartMenuExperienceHost.exe"]
-        TOGGLE["toggle_launcher"]
-        MIN["minimize all windows\n(show-desktop effect)"]
-        L["Launcher overlay\ngrain + dot-grid background"]
-        T["AppBar taskbar\n40px, centered icons"]
-        HT["HideTaskbar\nin-process, sets alpha 0"]
-    end
-    WIN -.->|intercepted by| HOOK
-    HOOK -- "Win tap" --> TOGGLE
-    TOGGLE --> MIN --> L
-    KILLER -.->|kills Start menu\nif it appears| L
-    HT -.->|hides native taskbar| T
