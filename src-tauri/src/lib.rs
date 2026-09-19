@@ -500,19 +500,6 @@ fn hide_launcher_animated(app: &tauri::AppHandle) {
                 let _ = launcher.hide();
             }
             log::info!("launcher hidden via fallback timer");
-            // Restore focus to the taskbar (same as launcher_close_finished)
-            #[cfg(windows)]
-            {
-                std::thread::sleep(std::time::Duration::from_millis(50));
-                if let Some(taskbar) = handle.get_webview_window("taskbar") {
-                    let _ = taskbar.set_focus();
-                    if let Ok(hwnd) = taskbar.hwnd() {
-                        unsafe {
-                            let _ = windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow(hwnd);
-                        }
-                    }
-                }
-            }
         }
     });
 }
@@ -528,32 +515,6 @@ fn launcher_close_finished(app: tauri::AppHandle) {
     CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
     if let Some(launcher) = app.get_webview_window("launcher") {
         let _ = launcher.hide();
-    }
-    // Restore focus after closing the launcher.
-    //
-    // The start-menu killer kills StartMenuExperienceHost.exe, but it
-    // appears briefly first and steals focus. When it dies, focus is left
-    // in limbo. We wait 50ms (for the killer to catch up), then force
-    // the taskbar to the foreground via SetForegroundWindow — this is
-    // stronger than set_focus() and ensures the next Win key tap reaches
-    // a live, focused window.
-    #[cfg(windows)]
-    {
-        let handle = app.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(50));
-            if let Some(taskbar) = handle.get_webview_window("taskbar") {
-                let _ = taskbar.set_focus();
-                // Also try the Win32 SetForegroundWindow for a stronger
-                // focus grab — set_focus() alone may not bring the window
-                // to the foreground if another process grabbed it.
-                if let Ok(hwnd) = taskbar.hwnd() {
-                    unsafe {
-                        let _ = windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow(hwnd);
-                    }
-                }
-            }
-        });
     }
 }
 
