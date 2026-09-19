@@ -37,13 +37,13 @@ use once_cell::sync::OnceCell;
 use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY, VIRTUAL_KEY, VK_LWIN,
-    VK_RWIN,
+    SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP,
+    VIRTUAL_KEY, VK_LMENU, VK_LWIN, VK_MENU, VK_RMENU, VK_RWIN,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, GetMessageW, SetWindowsHookExW, HC_ACTION, HHOOK, KBDLLHOOKSTRUCT,
-    LLKHF_INJECTED, MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
-    UnhookWindowsHookEx,
+    CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW, TranslateMessage, HC_ACTION,
+    HHOOK, KBDLLHOOKSTRUCT, LLKHF_INJECTED, MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP,
+    WM_SYSKEYDOWN, WM_SYSKEYUP, UnhookWindowsHookEx,
 };
 
 type ToggleFn = Box<dyn Fn() + Send + Sync>;
@@ -51,17 +51,55 @@ type ToggleFn = Box<dyn Fn() + Send + Sync>;
 static TOGGLER: OnceCell<ToggleFn> = OnceCell::new();
 static WIN_PENDING: AtomicBool = AtomicBool::new(false);
 
+// Alt menu suppression state — replaces the prevent-alt-win-menu crate.
+// ALT_PENDING is set on Alt-down and cleared when any OTHER key is pressed
+// (meaning it was an Alt+X combo, not a standalone Alt tap). On Alt-up, if
+// ALT_PENDING is still true, we inject a dummy VK__none_ key-up which
+// prevents the focused window's menu bar from activating.
+static ALT_PENDING: AtomicBool = AtomicBool::new(false);
+
+/// Tracks whether the hook thread is alive. The health-check timer
+/// monitors this — if the thread dies (e.g. Windows removed the hook
+/// after a LowLevelHooksTimeout, or the thread panicked), the timer
+/// re-installs the hook on a fresh thread.
+static HOOK_ALIVE: AtomicBool = AtomicBool::new(false);
+
 /// Install the hook. `toggle` is called whenever the user taps Win alone.
-/// Safe to call once at app startup. Installing more than once is a no-op
-/// (the second call logs a warning and returns without re-installing).
+/// Safe to call once at app startup. Also starts a background health-check
+/// timer that re-installs the hook if it ever dies (Windows can silently
+/// remove low-level hooks if the callback takes too long, if the hook
+/// thread's message pump stalls, or if an AV interferes).
 pub fn install(toggle: ToggleFn) {
     if TOGGLER.set(toggle).is_err() {
         log::warn!("win hotkey hook already installed");
         return;
     }
+    spawn_hook_thread();
+
+    // Health-check timer: every 5s, check if the hook thread is alive.
+    // If not, re-install the hook on a fresh thread. This makes the hook
+    // self-healing — if Windows removes it for any reason (timeout, AV
+    // interference, thread panic), it comes back within 5 seconds.
+    std::thread::Builder::new()
+        .name("win-key-hook-health".into())
+        .spawn(|| {
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                if !HOOK_ALIVE.load(Ordering::SeqCst) {
+                    log::warn!("Win key hook thread died — re-installing");
+                    spawn_hook_thread();
+                }
+            }
+        })
+        .ok();
+}
+
+fn spawn_hook_thread() {
     std::thread::Builder::new()
         .name("win-key-hook".into())
         .spawn(|| unsafe {
+            HOOK_ALIVE.store(true, Ordering::SeqCst);
+
             // Per MSDN, WH_KEYBOARD_LL's hMod can be NULL because the hook is
             // not injected into another process — but using the EXE's HMODULE
             // (via GetModuleHandleW(NULL)) is the more robust form that
@@ -75,13 +113,35 @@ pub fn install(toggle: ToggleFn) {
                 Ok(h) => h,
                 Err(e) => {
                     log::error!("SetWindowsHookExW(WH_KEYBOARD_LL) failed: {e}");
+                    HOOK_ALIVE.store(false, Ordering::SeqCst);
                     return;
                 }
             };
             log::info!("Win key hook installed (swallow-down + tap -> launcher, combos -> native)");
+            // CRITICAL: the message loop MUST call TranslateMessage + DispatchMessageW.
+            //
+            // WH_KEYBOARD_LL hooks are delivered via SendMessage to the thread
+            // that installed the hook. The hook callback fires during message
+            // dispatch — without DispatchMessageW, the hook message is
+            // retrieved by GetMessageW but never dispatched to the hook
+            // procedure. This causes the hook to silently stop firing under
+            // message traffic (e.g. when a WebView2 window in the same
+            // process takes focus), which is exactly the bug where the Start
+            // menu opens when tapping Win to close the launcher.
+            //
+            // This matches the standard Microsoft pattern and what the
+            // prevent-alt-win-menu crate does.
             let mut msg = MSG::default();
-            while GetMessageW(&mut msg, None, 0, 0).as_bool() {}
+            while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+                let _ = TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
             let _ = UnhookWindowsHookEx(hook);
+
+            // If we reach here, GetMessageW returned 0 (WM_QUIT) or -1 (error).
+            // Mark the hook as dead so the health-check timer re-installs it.
+            HOOK_ALIVE.store(false, Ordering::SeqCst);
+            log::warn!("Win key hook thread exiting — will be re-installed by health check");
         })
         .ok();
 }
@@ -100,7 +160,8 @@ unsafe extern "system" fn ll_keyboard_proc(
         let is_up = w_param.0 as u32 == WM_KEYUP || w_param.0 as u32 == WM_SYSKEYUP;
         let vk = VIRTUAL_KEY(kb.vkCode as u16);
 
-        // Never touch synthetic input (incl. our own re-injected Win down).
+        // Never touch synthetic input (incl. our own re-injected Win down
+        // or the VK__none_ dummy key-up for Alt suppression).
         if !injected {
             if vk == VK_LWIN || vk == VK_RWIN {
                 if is_down {
@@ -128,12 +189,35 @@ unsafe extern "system" fn ll_keyboard_proc(
                     // sane for the OS shell.
                     return CallNextHookEx(None, n_code, w_param, l_param);
                 }
+            } else if vk == VK_LMENU || vk == VK_RMENU || vk == VK_MENU {
+                // Alt menu suppression (replaces prevent-alt-win-menu crate).
+                // Track Alt state: on Alt-down, mark pending. On Alt-up, if
+                // still pending (no other key was pressed while Alt was held),
+                // inject a dummy VK__none_ key-up to suppress the menu bar.
+                if is_down {
+                    ALT_PENDING.store(true, Ordering::SeqCst);
+                } else if is_up {
+                    if ALT_PENDING.swap(false, Ordering::SeqCst) {
+                        // Standalone Alt tap — inject dummy key-up to
+                        // prevent the focused window's menu bar from
+                        // activating. This runs on the hook thread, but
+                        // SendInput is fast (<1ms) so it won't trigger
+                        // LowLevelHooksTimeout.
+                        inject_dummy_keyup();
+                    }
+                }
+                // Let Alt through normally — we don't suppress it, we just
+                // add a dummy key-up after the release.
             } else if is_down && WIN_PENDING.load(Ordering::SeqCst) {
                 // Combo detected (Win+D, Win+E, ...): cancel the tap and
                 // put the Win modifier back so Windows sees the real
                 // shortcut.
                 WIN_PENDING.store(false, Ordering::SeqCst);
                 re_inject_win_down();
+            } else if is_down {
+                // Any non-Win, non-Alt key pressed — cancel any pending
+                // Alt tap (it was an Alt+X combo, not a standalone Alt).
+                ALT_PENDING.store(false, Ordering::SeqCst);
             }
         }
     }
@@ -160,6 +244,35 @@ fn re_inject_win_down() {
         let sent = SendInput(&[input], std::mem::size_of::<INPUT>() as i32);
         if sent != 1 {
             log::warn!("re_inject_win_down: SendInput sent {sent}");
+        }
+    }
+}
+
+/// Inject a dummy VK__none_ key-up to suppress the focused window's menu
+/// bar activation on a standalone Alt release. This is the same technique
+/// the `prevent-alt-win-menu` crate used, but done in our own hook callback
+/// — no second hook thread, no second message pump.
+fn inject_dummy_keyup() {
+    // VK__none_ = 0xFF — a virtual key that no real keyboard produces.
+    // Sending its key-up after Alt-up causes Windows to cancel the menu
+    // activation that would otherwise fire on a standalone Alt release.
+    let vk_none = VIRTUAL_KEY(0xFF);
+    let input = INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: windows::Win32::UI::Input::KeyboardAndMouse::INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: vk_none,
+                wScan: 0,
+                dwFlags: KEYEVENTF_KEYUP,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    };
+    unsafe {
+        let sent = SendInput(&[input], std::mem::size_of::<INPUT>() as i32);
+        if sent != 1 {
+            log::warn!("inject_dummy_keyup: SendInput sent {sent}");
         }
     }
 }

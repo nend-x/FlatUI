@@ -14,9 +14,13 @@
 
 mod app_state;
 pub mod crash_handler;
+mod elevation;
 mod embedded;
+mod hide_taskbar;
 mod persist;
 mod setup;
+#[cfg(windows)]
+mod start_menu_killer;
 #[cfg(windows)]
 mod win32;
 
@@ -58,6 +62,36 @@ pub fn run() {
 
     log::info!("FlatUI starting up…");
 
+    // The app requires administrative privileges to function (the Win-key
+    // hook needs to intercept input for elevated apps, and the start-menu
+    // killer needs to terminate StartMenuExperienceHost.exe). If not
+    // elevated, automatically request UAC elevation via ShellExecuteW
+    // "runas" — the standard Windows UAC prompt appears. If the user
+    // accepts, this (non-elevated) process exits and the elevated process
+    // takes over. If the user declines, this process exits.
+    #[cfg(windows)]
+    if !elevation::is_elevated() {
+        match elevation::request_elevation() {
+            elevation::ElevationOutcome::Accepted => {
+                // The elevated relaunch is in flight. Exit this process
+                // immediately — the elevated process will show the setup
+                // window and run normally.
+                log::info!("Exiting non-elevated instance — elevated relaunch is in flight");
+                std::process::exit(0);
+            }
+            elevation::ElevationOutcome::Declined => {
+                // User declined the UAC prompt. Exit — the app can't
+                // function without admin rights.
+                log::info!("User declined UAC — exiting");
+                std::process::exit(0);
+            }
+            elevation::ElevationOutcome::AlreadyElevated => {
+                // Shouldn't happen (we checked is_elevated above), but
+                // continue if it does.
+            }
+        }
+    }
+
     // Check for -rs flag (reset/clean start)
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "-rs") {
@@ -65,10 +99,10 @@ pub fn run() {
         reset_config();
     }
 
-    // Run setup (launch child processes) — guarded by SETUP_ONCE, runs once.
-    // Helpers are embedded in the binary (see embedded.rs) and extracted to
-    // %LOCALAPPDATA%\FlatUI\bin — no external exe files required.
-    setup::run_setup();
+    // Start the in-process HideTaskbar monitor (replaces the old
+    // HideTaskbar.exe child process — no more standalone exe needed).
+    #[cfg(windows)]
+    hide_taskbar::start();
 
     let state = Arc::new(Mutex::new(AppState::new()));
 
@@ -78,6 +112,9 @@ pub fn run() {
         s.blacklisted = persist::load_blacklist();
         log::info!("Loaded {} blacklisted window entries from disk", s.blacklisted.len());
     }
+
+    // The app is always elevated at this point (we checked above and exited
+    // if not). The setup window is visible by default (tauri.conf.json).
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -89,14 +126,14 @@ pub fn run() {
                 // Wait for setup window to load
                 std::thread::sleep(std::time::Duration::from_millis(500));
 
-                // Helpers were already launched before the builder ran —
-                // run_setup() is guarded by SETUP_ONCE, so never call it again
-                // here (it used to double-spawn both helper processes).
-
                 // Step 1: Welcome (already shown), wait 1s
                 std::thread::sleep(std::time::Duration::from_secs(1));
+
+                // Step 2: Hiding the native taskbar (in-process, no child exe)
                 let _ = handle.emit("setup://step", "Hiding taskbar...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
+
+                // Step 3: Installing Win key handler
                 let _ = handle.emit("setup://step", "Installing Win key handler...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
                 let _ = handle.emit("setup://done", ());
@@ -148,36 +185,33 @@ pub fn run() {
             // :2290 /toggle bridge (both removed).
             #[cfg(windows)]
             {
-                // (1) Install prevent-alt-win-menu FIRST so it sits at the
-                // END of the LIFO hook chain (called after our own hook).
-                use prevent_alt_win_menu::event_handler::{
-                    Config, HoldEvent, KeyboardAndMouse, MenuTrigger, MenuTriggerEvent,
-                };
-                let alt_only_config = Config::default().set_on_released(move |hold: HoldEvent| {
-                    // Only suppress for Alt releases — never for Win. Our
-                    // own `win32::hotkey` hook swallows Win events before
-                    // prevent-alt-win-menu ever sees them, but defensively
-                    // bail out of Win here too in case hook ordering ever
-                    // changes.
-                    if hold.press.menu_trigger() == Some(MenuTrigger::Win) {
-                        return None;
-                    }
-                    // Alt release: send the dummy key-up so the focused
-                    // window's menu bar doesn't activate.
-                    Some(KeyboardAndMouse::VK__none_)
-                });
-                match prevent_alt_win_menu::start(alt_only_config) {
-                    Ok(_) => log::info!(
-                        "Alt-key menu suppression installed (prevent-alt-win-menu, Alt-only)"
-                    ),
-                    Err(e) => log::error!(
-                        "Failed to install Alt-key hook (prevent-alt-win-menu): {e}"
-                    ),
-                }
+                // (1) prevent-alt-win-menu is DISABLED.
+                //
+                // It was interfering with the Win-key close-tap: when the
+                // launcher was open, tapping Win opened the Start menu
+                // instead of closing the launcher. The crate installs its
+                // own WH_KEYBOARD_LL hook on a separate thread, and the
+                // two hooks' message pumps can interfere under focus
+                // changes (when the launcher webview takes focus, the
+                // crate's hook thread can stall the hook chain).
+                //
+                // Our own win32::hotkey hook (installed below) handles
+                // BOTH Win (swallow + tap → toggle launcher) and Alt
+                // (we add Alt menu suppression directly in the hook
+                // callback — see hotkey.rs). No second hook needed.
+                //
+                // The crate is still in Cargo.toml for now (removing it
+                // would require a Cargo.lock update); we just don't call
+                // start().
 
-                // (2) Install our own Win-key hook LAST so it sits at the
-                // START of the LIFO hook chain (called first — can swallow
-                // Win events before prevent-alt-win-menu sees them).
+                // (2) Install our own Win-key hook. It handles:
+                //   - Win tap (press + release alone) → toggle launcher
+                //   - Win combo (Win+D, Win+E, ...) → re-inject Win, let
+                //     the combo resolve natively
+                //   - Alt release alone → inject VK__none_ to suppress
+                //     the focused window's menu bar (same as the crate
+                //     used to do, but in our own hook — no second thread,
+                //     no second message pump, no interference).
                 let app_handle = app.handle().clone();
                 win32::hotkey::install(Box::new(move || {
                     let app = app_handle.clone();
@@ -189,6 +223,17 @@ pub fn run() {
                         toggle_launcher_impl(&app);
                     });
                 }));
+            }
+
+            // Start the Start menu killer monitor. This polls every 100ms
+            // for StartMenuExperienceHost.exe (and SearchHost.exe) and kills
+            // them on sight. This is the race-free way to prevent the Start
+            // menu from appearing when the user taps Win — even if the
+            // keyboard hook misses the Win-down event, the Start menu
+            // process is terminated before it can render.
+            #[cfg(windows)]
+            {
+                start_menu_killer::start();
             }
 
             // Initial icon scan
@@ -293,6 +338,8 @@ pub fn run() {
             set_app_volume,
             save_widget_positions,
             load_widget_positions,
+            save_widget_visibility,
+            load_widget_visibility,
             save_settings,
             load_settings,
             get_language,
@@ -307,6 +354,7 @@ pub fn run() {
             add_to_startup,
             remove_from_startup,
             close_setup_window,
+            exit_flatui,
             get_active_theme,
             get_all_themes,
             set_active_theme,
@@ -943,6 +991,17 @@ fn load_widget_positions() -> std::collections::HashMap<String, (f64, f64)> {
     persist::load_widget_positions()
 }
 
+// ===== Widget visibility =====
+#[tauri::command]
+fn save_widget_visibility(visibility: std::collections::HashMap<String, bool>) {
+    persist::save_widget_visibility(&visibility);
+}
+
+#[tauri::command]
+fn load_widget_visibility() -> std::collections::HashMap<String, bool> {
+    persist::load_widget_visibility()
+}
+
 // ===== Settings =====
 #[tauri::command]
 fn save_settings(settings: serde_json::Value) {
@@ -1249,6 +1308,49 @@ fn close_setup_window(app: tauri::AppHandle) {
     if let Some(setup) = app.get_webview_window("setup") {
         let _ = setup.close();
     }
+}
+
+// ===== Exit FlatUI — revert everything and quit =====
+//
+// Called when the user clicks the exit button (top-left of the launcher).
+// Reverts all shell modifications:
+//   1. Stop the start-menu killer (so StartMenuExperienceHost.exe can run)
+//   2. Show the native taskbar (stop hiding it)
+//   3. Restart explorer.exe (restores the native shell: taskbar, Start menu,
+//      desktop icons, tray)
+//   4. Exit the FlatUI process
+#[tauri::command]
+fn exit_flatui() {
+    log::info!("exit_flatui: reverting everything and exiting");
+
+    // 1. Stop the start-menu killer
+    #[cfg(windows)]
+    start_menu_killer::stop();
+
+    // 2. Show the native taskbar (stop the hide_taskbar monitor and
+    //    immediately set alpha to 255)
+    #[cfg(windows)]
+    hide_taskbar::stop();
+
+    // 3. Restart explorer.exe — this restores the native shell (taskbar,
+    //    Start menu, desktop). We kill explorer first, then relaunch it.
+    //    The relaunch uses ShellExecuteW with "open" on explorer.exe.
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        // Kill explorer — it will auto-restart, but we also relaunch it
+        // explicitly to be sure.
+        let _ = Command::new("taskkill")
+            .args(["/f", "/im", "explorer.exe"])
+            .spawn();
+        // Give it a moment to die
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        // Relaunch explorer
+        let _ = Command::new("explorer.exe").spawn();
+    }
+
+    // 4. Exit the FlatUI process
+    std::process::exit(0);
 }
 
 // ===== System commands =====

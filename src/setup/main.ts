@@ -6,6 +6,12 @@ const setupStatus = document.getElementById("setup-status")!;
 const setupBarFill = document.getElementById("setup-bar-fill")!;
 let stepCount = 0;
 
+// Total expected step emits (matches the Rust setup thread in lib.rs):
+//   1. "Hiding taskbar..."
+//   2. "Installing Win key handler..."
+// The final setup://done event bumps the bar to 100% explicitly.
+const EXPECTED_STEPS = 2;
+
 listen<string>("setup://step", (event) => {
   setupStatus.classList.add("fading");
   setTimeout(() => {
@@ -13,7 +19,7 @@ listen<string>("setup://step", (event) => {
     setupStatus.classList.remove("fading");
   }, 300);
   stepCount++;
-  setupBarFill.style.width = `${(stepCount / 3) * 100}%`;
+  setupBarFill.style.width = `${(stepCount / EXPECTED_STEPS) * 100}%`;
 });
 
 listen("setup://done", () => {

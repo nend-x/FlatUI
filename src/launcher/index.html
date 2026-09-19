@@ -12,14 +12,31 @@
   <div class="expand-overlay" id="expand-overlay"></div>
 
   <div class="launcher-root hidden" id="launcher">
-    <!-- Left side: action buttons -->
+    <!-- Top-left Apps widget — replaces the old winselect action button.
+         Shows a compact preview of running windows; click any preview to
+         focus that window, click the widget chrome to open the full
+         window-switcher overlay. -->
+    <div class="widget apps-widget" id="apps-widget">
+      <div class="widget-header">Apps</div>
+      <div class="apps-body" id="apps-body">
+        <div class="apps-empty">No open windows</div>
+      </div>
+    </div>
+
+    <!-- Left side: action buttons. Exit button at the top (reverts everything
+         and quits), then settings, minimize-all, run, blacklist. -->
     <div class="launcher-actions">
-      <button class="action-btn" id="winselect-btn">
+      <button class="action-btn exit-btn" id="exit-btn" title="Exit FlatUI (restore Windows shell)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1"/>
-          <rect x="14" y="3" width="7" height="7" rx="1"/>
-          <rect x="3" y="14" width="7" height="7" rx="1"/>
-          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+      <button class="action-btn" id="settings-btn" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
       </button>
       <button class="action-btn" id="minimize-all-btn">
@@ -60,10 +77,6 @@
 
     <!-- Desktop grid -->
     <div class="launcher-grid" id="grid"></div>
-
-    <!-- Running build version — makes it impossible to confuse an old
-         resident instance with a freshly launched one -->
-    <div class="version-badge" id="version-badge"></div>
 
     <!-- Spotlight results -->
     <div class="spotlight-results hidden" id="spotlight-results"></div>
@@ -139,6 +152,39 @@
   <div class="screenshot-overlay hidden" id="screenshot-overlay">
     <canvas class="screenshot-canvas" id="screenshot-canvas"></canvas>
     <div class="screenshot-hint" id="screenshot-hint">Select area</div>
+  </div>
+
+  <!-- Settings overlay -->
+  <div class="settings-overlay hidden" id="settings-overlay">
+    <div class="settings-content">
+      <div class="settings-header">
+        <span class="settings-title">Settings</span>
+        <button class="settings-close" id="settings-close">&times;</button>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Widgets</div>
+        <div class="settings-row">
+          <span class="settings-label">Clipboard</span>
+          <label class="toggle"><input type="checkbox" id="toggle-clipboard-widget" checked /><span class="toggle-slider"></span></label>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Notes</span>
+          <label class="toggle"><input type="checkbox" id="toggle-notes-widget" checked /><span class="toggle-slider"></span></label>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">System Monitor</span>
+          <label class="toggle"><input type="checkbox" id="toggle-sysmon-widget" checked /><span class="toggle-slider"></span></label>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Volume</span>
+          <label class="toggle"><input type="checkbox" id="toggle-audio-widget" checked /><span class="toggle-slider"></span></label>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Apps</span>
+          <label class="toggle"><input type="checkbox" id="toggle-apps-widget" checked /><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="./main.ts"></script>

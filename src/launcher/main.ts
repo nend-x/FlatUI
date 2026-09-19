@@ -4,7 +4,6 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, emit } from "@tauri-apps/api/event";
-import { getVersion } from "@tauri-apps/api/app";
 
 interface LauncherItem {
   id: string;
@@ -43,10 +42,12 @@ const grid = document.getElementById("grid")!;
 const spotlightResultsEl = document.getElementById("spotlight-results")!;
 const actionsWrap = document.querySelector<HTMLElement>(".launcher-actions")!;
 const searchWrap = document.querySelector<HTMLElement>(".launcher-search-wrap")!;
-const winselectBtn = document.getElementById("winselect-btn")!;
+const appsWidget = document.getElementById("apps-widget")!;
+const appsBody = document.getElementById("apps-body")!;
 const minimizeAllBtn = document.getElementById("minimize-all-btn")!;
 const runBtn = document.getElementById("run-btn")!;
 const blacklistBtn = document.getElementById("blacklist-btn")!;
+const exitBtn = document.getElementById("exit-btn")!;
 const winSwitcherOverlay = document.getElementById("win-switcher-overlay")!;
 const winSwitcherGrid = document.getElementById("win-switcher-grid")!;
 const blacklistOverlay = document.getElementById("blacklist-overlay")!;
@@ -67,10 +68,16 @@ const audioMasterVal = document.getElementById("audio-master-val")!;
 const settingsBtn = document.getElementById("settings-btn")!;
 const settingsOverlay = document.getElementById("settings-overlay")!;
 const settingsClose = document.getElementById("settings-close")!;
-const settingsSave = document.getElementById("settings-save")!;
 const screenshotOverlay = document.getElementById("screenshot-overlay")!;
 const screenshotCanvas = document.getElementById("screenshot-canvas") as HTMLCanvasElement;
 const clipboardClearBtn = document.getElementById("clipboard-clear")!;
+
+// Widget toggle checkboxes
+const toggleClipboardWidget = document.getElementById("toggle-clipboard-widget") as HTMLInputElement;
+const toggleNotesWidget = document.getElementById("toggle-notes-widget") as HTMLInputElement;
+const toggleSysmonWidget = document.getElementById("toggle-sysmon-widget") as HTMLInputElement;
+const toggleAudioWidget = document.getElementById("toggle-audio-widget") as HTMLInputElement;
+const toggleAppsWidget = document.getElementById("toggle-apps-widget") as HTMLInputElement;
 
 // ===== Clipboard widget =====
 let clipboardItems: string[] = [];
@@ -210,15 +217,18 @@ function makeDraggable(el: HTMLElement) {
   if (!header) return;
 
   let isDragging = false;
+  let didDrag = false; // true if the mouse actually moved during the drag
   let startX = 0;
   let startY = 0;
   let origLeft = 0;
   let origTop = 0;
+  const DRAG_THRESHOLD = 4; // px — below this, it's a click, not a drag
 
   header.addEventListener("mousedown", (e) => {
     // Don't drag if clicking inside textarea/input
     if ((e.target as HTMLElement).tagName === "INPUT" || (e.target as HTMLElement).tagName === "TEXTAREA") return;
     isDragging = true;
+    didDrag = false;
     startX = e.clientX;
     startY = e.clientY;
     const rect = el.getBoundingClientRect();
@@ -236,16 +246,42 @@ function makeDraggable(el: HTMLElement) {
     if (!isDragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    el.style.left = `${origLeft + dx}px`;
-    el.style.top = `${origTop + dy}px`;
+    if (!didDrag && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+      didDrag = true;
+    }
+    if (didDrag) {
+      el.style.left = `${origLeft + dx}px`;
+      el.style.top = `${origTop + dy}px`;
+    }
   });
 
   document.addEventListener("mouseup", () => {
     if (isDragging) {
       isDragging = false;
-      // Save positions after drag
-      if (widgetSaveTimer) clearTimeout(widgetSaveTimer);
-      widgetSaveTimer = window.setTimeout(saveWidgetPositions, 300);
+      // If we actually dragged, save positions and suppress the next click
+      // so the widget's click handler doesn't fire (e.g. opening the
+      // window switcher after moving the apps-widget).
+      if (didDrag) {
+        if (widgetSaveTimer) clearTimeout(widgetSaveTimer);
+        widgetSaveTimer = window.setTimeout(saveWidgetPositions, 300);
+        // Suppress the next click event on this element (the click that
+        // follows mouseup after a drag). We capture it on the capture phase
+        // and stop it.
+        const suppressClick = (ev: Event) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          el.removeEventListener("click", suppressClick, true);
+        };
+        el.addEventListener("click", suppressClick, true);
+        // Also suppress on the header itself (the click might target the
+        // header element, not the widget container).
+        const suppressHeaderClick = (ev: Event) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          header.removeEventListener("click", suppressHeaderClick, true);
+        };
+        header.addEventListener("click", suppressHeaderClick, true);
+      }
     }
   });
 }
@@ -290,6 +326,95 @@ async function loadWidgetPositions() {
     }
   } catch {}
 }
+
+// ===== Widget visibility settings =====
+const WIDGET_IDS = [
+  "clipboard-widget",
+  "notes-widget",
+  "sysmon-widget",
+  "audio-widget",
+  "apps-widget",
+] as const;
+
+async function loadWidgetVisibilitySettings() {
+  try {
+    const visibility = await invoke<Record<string, boolean>>("load_widget_visibility");
+    // Apply loaded visibility to each widget
+    for (const id of WIDGET_IDS) {
+      const visible = visibility[id] ?? true; // default to visible
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.display = visible ? "" : "none";
+      }
+      // Update the toggle checkbox
+      const toggle = document.getElementById(`toggle-${id}`) as HTMLInputElement | null;
+      if (toggle) {
+        toggle.checked = visible;
+      }
+    }
+  } catch {
+    // If load fails, all widgets are visible by default
+  }
+}
+
+async function saveWidgetVisibility() {
+  const visibility: Record<string, boolean> = {};
+  for (const id of WIDGET_IDS) {
+    const toggle = document.getElementById(`toggle-${id}`) as HTMLInputElement | null;
+    if (toggle) {
+      visibility[id] = toggle.checked;
+    }
+  }
+  try {
+    await invoke("save_widget_visibility", { visibility });
+  } catch (err) {
+    console.error("save_widget_visibility failed:", err);
+  }
+}
+
+function applyWidgetVisibility(id: string, visible: boolean) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.display = visible ? "" : "none";
+  }
+}
+
+// Settings button — open/close the settings overlay
+settingsBtn.addEventListener("click", () => {
+  settingsOverlay.classList.remove("hidden");
+});
+
+settingsClose.addEventListener("click", () => {
+  settingsOverlay.classList.add("hidden");
+});
+
+settingsOverlay.addEventListener("click", (e) => {
+  if (e.target === settingsOverlay) {
+    settingsOverlay.classList.add("hidden");
+  }
+});
+
+// Widget toggle handlers — apply immediately and save to config
+toggleClipboardWidget.addEventListener("change", () => {
+  applyWidgetVisibility("clipboard-widget", toggleClipboardWidget.checked);
+  void saveWidgetVisibility();
+});
+toggleNotesWidget.addEventListener("change", () => {
+  applyWidgetVisibility("notes-widget", toggleNotesWidget.checked);
+  void saveWidgetVisibility();
+});
+toggleSysmonWidget.addEventListener("change", () => {
+  applyWidgetVisibility("sysmon-widget", toggleSysmonWidget.checked);
+  void saveWidgetVisibility();
+});
+toggleAudioWidget.addEventListener("change", () => {
+  applyWidgetVisibility("audio-widget", toggleAudioWidget.checked);
+  void saveWidgetVisibility();
+});
+toggleAppsWidget.addEventListener("change", () => {
+  applyWidgetVisibility("apps-widget", toggleAppsWidget.checked);
+  void saveWidgetVisibility();
+});
 
 // ===== Launcher open/close animation state machine =====
 //
@@ -423,7 +548,7 @@ async function showLauncherSequence(): Promise<void> {
   if (launcherSession !== session) return;
 
   if (onScreen) {
-    const ended = waitAnimationEnd(expandOverlay, "cube-expand", 2400);
+    const ended = waitAnimationEnd(expandOverlay, "cube-expand", 1500);
     expandOverlay.classList.add("expanding");
     await ended;
     if (launcherSession !== session) return;
@@ -435,6 +560,10 @@ async function showLauncherSequence(): Promise<void> {
   root.classList.remove("hidden");
   root.classList.add("opening");
   searchInput.focus({ preventScroll: true });
+
+  // Refresh the apps widget so the running-window preview is fresh.
+  // Fire-and-forget — never block the launcher open on this.
+  void populateAppsWidget();
 
   // Drop .opening once the element cascade has finished (longest delay
   // 400ms + 400ms duration + slack). Session-guarded, so a rapid
@@ -479,7 +608,7 @@ async function hideLauncherSequence(): Promise<void> {
   // fullscreen appearance.
   expandOverlay.classList.remove("expanded");
   expandOverlay.classList.add("collapsing");
-  await waitAnimationEnd(expandOverlay, "cube-collapse", 1600);
+  await waitAnimationEnd(expandOverlay, "cube-collapse", 1500);
   if (launcherSession !== session) return; // re-shown mid-collapse
   resetLauncherDom();
   invoke("launcher_close_finished");
@@ -672,19 +801,12 @@ async function applyFilter() {
     return;
   }
 
-  // Non-empty: filter desktop items locally + query backend for installed programs
-  const localFiltered = allItems.filter((it) => it.name.toLowerCase().includes(q));
-
-  // Show grid immediately with local results (so user sees something)
-  filteredItems = localFiltered;
+  // Non-empty: desktop is EXCLUDED from search — only installed programs
+  // and system shortcuts are searched (via search_programs). The desktop
+  // grid is hidden while typing.
+  filteredItems = [];
   selectedIdx = 0;
-  if (localFiltered.length > 0) {
-    grid.classList.remove("hidden");
-    spotlightResultsEl.classList.add("hidden");
-    renderGrid();
-  } else {
-    grid.classList.add("hidden");
-  }
+  grid.classList.add("hidden");
 
   // Debounced search_programs call
   if (spotlightSearchTimer) window.clearTimeout(spotlightSearchTimer);
@@ -799,6 +921,17 @@ function updateSpotlightSelection() {
 searchInput.addEventListener("input", applyFilter);
 
 document.addEventListener("keydown", (e) => {
+  // Win key detection (fallback for when the Rust-level hook doesn't fire
+  // while the launcher has focus). On Windows, the Win key is reported as
+  // e.key === "Meta" and e.code === "MetaLeft" or "MetaRight". When the
+  // launcher is open and the user taps Win, close the launcher — this
+  // mirrors the Rust hook's toggle behavior for the close-tap case.
+  if (e.key === "Meta" || e.code === "MetaLeft" || e.code === "MetaRight") {
+    e.preventDefault();
+    closeLauncher();
+    return;
+  }
+
   // If focus is in notes textarea or run input, don't process launcher shortcuts
   const target = e.target as HTMLElement;
   if (target.tagName === "TEXTAREA" || (target.tagName === "INPUT" && target.id !== "search")) {
@@ -905,13 +1038,93 @@ root.addEventListener("click", (e) => {
 });
 
 // ===== Action buttons =====
-winselectBtn.addEventListener("click", () => showWindowSwitcher());
+// Apps widget: a compact preview of running windows that lives where the
+// old `winselect-btn` action button used to be. Click any tile to focus
+// that window; click the widget chrome (header / empty body) to open the
+// full window-switcher overlay (same behavior as the old button).
+async function populateAppsWidget() {
+  let windows: WindowEntry[] = [];
+  try {
+    windows = await invoke<WindowEntry[]>("get_all_windows");
+  } catch (err) {
+    console.error("get_all_windows failed (apps-widget):", err);
+  }
+
+  appsBody.innerHTML = "";
+
+  if (windows.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "apps-empty";
+    empty.textContent = "No open windows";
+    appsBody.appendChild(empty);
+    return;
+  }
+
+  // Show up to 6 tiles — enough to be useful, not so many that the widget
+  // grows past its compact footprint. The "+N" count badge handles overflow.
+  const MAX_TILES = 6;
+  const shown = windows.slice(0, MAX_TILES);
+
+  for (const w of shown) {
+    const tile = document.createElement("div");
+    tile.className = "apps-tile";
+    tile.title = w.title;
+
+    if (w.icon_data_url) {
+      const img = document.createElement("img");
+      img.src = w.icon_data_url;
+      img.alt = w.title;
+      tile.appendChild(img);
+    } else {
+      const fb = document.createElement("span");
+      fb.className = "apps-tile-fallback";
+      fb.textContent = (w.title || "?").charAt(0).toUpperCase();
+      tile.appendChild(fb);
+    }
+
+    tile.addEventListener("click", (e) => {
+      e.stopPropagation();
+      invoke("activate_window", { hwnd: w.hwnd });
+      closeLauncher();
+    });
+
+    appsBody.appendChild(tile);
+  }
+
+  if (windows.length > MAX_TILES) {
+    const count = document.createElement("span");
+    count.className = "apps-count";
+    count.textContent = `+${windows.length - MAX_TILES}`;
+    appsBody.appendChild(count);
+  }
+}
+
+appsWidget.addEventListener("click", (e) => {
+  // Clicks on a tile are handled by the tile's own listener (stopPropagation).
+  // Clicks anywhere else on the widget chrome open the full switcher.
+  if ((e.target as HTMLElement).closest(".apps-tile")) return;
+  showWindowSwitcher();
+});
+
+appsBody.addEventListener("click", (e) => {
+  // Body click also opens the switcher unless it landed on a tile.
+  if ((e.target as HTMLElement).closest(".apps-tile")) return;
+  showWindowSwitcher();
+});
 
 minimizeAllBtn.addEventListener("click", () => {
   // The Rust handler will hide the launcher itself.
   invoke("minimize_all_windows");
   minimizeAllBtn.classList.add("active");
   setTimeout(() => minimizeAllBtn.classList.remove("active"), 300);
+});
+
+// Exit button — reverts everything (kills start-menu killer, shows taskbar,
+// restarts explorer) and exits the app. The Rust command handles all the
+// cleanup; we just invoke it.
+exitBtn.addEventListener("click", () => {
+  exitBtn.classList.add("active");
+  invoke("exit_flatui");
 });
 
 runBtn.addEventListener("click", () => showRunDialog());
@@ -1473,16 +1686,11 @@ async function init() {
   setInterval(updateSysmon, 2000);
   initWidgetDragging();
   await loadWidgetPositions();
+  await loadWidgetVisibilitySettings();
 
-  // Surface the running build's version — an old resident instance must be
-  // unmistakable next to a freshly launched one.
-  try {
-    const v = await getVersion();
-    const badge = document.getElementById("version-badge");
-    if (badge) badge.textContent = `FlatUI v${v}`;
-  } catch {
-    /* badge stays empty — cosmetic only */
-  }
+  // (The running-build version badge used to live in the bottom-left
+  // corner of the launcher. It has been removed from the surface — the
+  // backend still reports the version via Tauri APIs if a tool needs it.)
   // NOTE: no focus timer here — the launcher page loads hidden; the show
   // sequence (showLauncherSequence) focuses the search input at the right
   // moment, after the background animation has finished.

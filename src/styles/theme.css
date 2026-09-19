@@ -92,6 +92,44 @@
   --z-taskbar: 1000;
   --z-launcher: 2000;
   --z-flyout: 1500;
+
+  /* ===== Grain + dot-grid texture (replaces all backdrop-filter blur) =====
+     The old backdrop-filter: blur(...) was the single most expensive effect
+     to render — it smeared the desktop under GPU load and dropped the
+     launcher below 30 fps. We now layer three cheap effects instead:
+       1. A flat espresso wash (the caller sets the alpha via --grain-bg).
+       2. A repeating SVG grain tile (fractalNoise, ~13% max alpha) so the
+          transparency reads as "translucent frosted" instead of a flat wash.
+       3. A 22px dot-grid (radial-gradient) — the design grid.
+     Usage:
+       background-color: var(--grain-bg);
+       background-image: var(--grain-image);
+       background-size: var(--grain-size);
+       background-position: var(--grain-position);
+       background-repeat: var(--grain-repeat);
+     Or use the shorthand mixin pattern (see any element that previously
+     had backdrop-filter).
+  */
+  --grain-bg: rgba(58, 42, 26, 0.62);
+  --grain-bg-light: rgba(58, 42, 26, 0.55);
+  --grain-bg-dark: rgba(36, 26, 17, 0.94);
+  --grain-image:
+    radial-gradient(rgba(232, 220, 180, 0.07) 1px, transparent 1.6px),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.91  0 0 0 0 0.86  0 0 0 0 0.71  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --grain-size: 22px 22px, 180px 180px;
+  --grain-position: 0 0, 0 0;
+  --grain-repeat: repeat, repeat;
+
+  /* Line-grid variant — same grain noise but with a line grid instead of
+     dots. Used for icon frames where lines read better than dots at small
+     sizes. The lines are 1px horizontal + vertical at 16px spacing. */
+  --grain-lines-image:
+    linear-gradient(rgba(232, 220, 180, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 220, 180, 0.05) 1px, transparent 1px),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.91  0 0 0 0 0.86  0 0 0 0 0.71  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --grain-lines-size: 16px 16px, 16px 16px, 180px 180px;
+  --grain-lines-position: 0 0, 0 0, 0 0;
+  --grain-lines-repeat: repeat, repeat, repeat;
 }
 
 * {
