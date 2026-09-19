@@ -19,6 +19,8 @@ mod embedded;
 mod persist;
 mod setup;
 #[cfg(windows)]
+mod start_menu_killer;
+#[cfg(windows)]
 mod win32;
 
 use parking_lot::Mutex;
@@ -231,6 +233,17 @@ pub fn run() {
                         toggle_launcher_impl(&app);
                     });
                 }));
+            }
+
+            // Start the Start menu killer monitor. This polls every 100ms
+            // for StartMenuExperienceHost.exe (and SearchHost.exe) and kills
+            // them on sight. This is the race-free way to prevent the Start
+            // menu from appearing when the user taps Win — even if the
+            // keyboard hook misses the Win-down event, the Start menu
+            // process is terminated before it can render.
+            #[cfg(windows)]
+            {
+                start_menu_killer::start();
             }
 
             // Initial icon scan
