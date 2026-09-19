@@ -11,6 +11,7 @@ export default defineConfig({
         taskbar: resolve(__dirname, "src/taskbar/index.html"),
         launcher: resolve(__dirname, "src/launcher/index.html"),
         setup: resolve(__dirname, "src/setup/index.html"),
+        consent: resolve(__dirname, "src/consent/index.html"),
       },
     },
   },

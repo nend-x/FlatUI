@@ -51,17 +51,48 @@ type ToggleFn = Box<dyn Fn() + Send + Sync>;
 static TOGGLER: OnceCell<ToggleFn> = OnceCell::new();
 static WIN_PENDING: AtomicBool = AtomicBool::new(false);
 
+/// Tracks whether the hook thread is alive. The health-check timer
+/// monitors this — if the thread dies (e.g. Windows removed the hook
+/// after a LowLevelHooksTimeout, or the thread panicked), the timer
+/// re-installs the hook on a fresh thread.
+static HOOK_ALIVE: AtomicBool = AtomicBool::new(false);
+
 /// Install the hook. `toggle` is called whenever the user taps Win alone.
-/// Safe to call once at app startup. Installing more than once is a no-op
-/// (the second call logs a warning and returns without re-installing).
+/// Safe to call once at app startup. Also starts a background health-check
+/// timer that re-installs the hook if it ever dies (Windows can silently
+/// remove low-level hooks if the callback takes too long, if the hook
+/// thread's message pump stalls, or if an AV interferes).
 pub fn install(toggle: ToggleFn) {
     if TOGGLER.set(toggle).is_err() {
         log::warn!("win hotkey hook already installed");
         return;
     }
+    spawn_hook_thread();
+
+    // Health-check timer: every 5s, check if the hook thread is alive.
+    // If not, re-install the hook on a fresh thread. This makes the hook
+    // self-healing — if Windows removes it for any reason (timeout, AV
+    // interference, thread panic), it comes back within 5 seconds.
+    std::thread::Builder::new()
+        .name("win-key-hook-health".into())
+        .spawn(|| {
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                if !HOOK_ALIVE.load(Ordering::SeqCst) {
+                    log::warn!("Win key hook thread died — re-installing");
+                    spawn_hook_thread();
+                }
+            }
+        })
+        .ok();
+}
+
+fn spawn_hook_thread() {
     std::thread::Builder::new()
         .name("win-key-hook".into())
         .spawn(|| unsafe {
+            HOOK_ALIVE.store(true, Ordering::SeqCst);
+
             // Per MSDN, WH_KEYBOARD_LL's hMod can be NULL because the hook is
             // not injected into another process — but using the EXE's HMODULE
             // (via GetModuleHandleW(NULL)) is the more robust form that
@@ -75,6 +106,7 @@ pub fn install(toggle: ToggleFn) {
                 Ok(h) => h,
                 Err(e) => {
                     log::error!("SetWindowsHookExW(WH_KEYBOARD_LL) failed: {e}");
+                    HOOK_ALIVE.store(false, Ordering::SeqCst);
                     return;
                 }
             };
@@ -82,6 +114,11 @@ pub fn install(toggle: ToggleFn) {
             let mut msg = MSG::default();
             while GetMessageW(&mut msg, None, 0, 0).as_bool() {}
             let _ = UnhookWindowsHookEx(hook);
+
+            // If we reach here, GetMessageW returned 0 (WM_QUIT) or -1 (error).
+            // Mark the hook as dead so the health-check timer re-installs it.
+            HOOK_ALIVE.store(false, Ordering::SeqCst);
+            log::warn!("Win key hook thread exiting — will be re-installed by health check");
         })
         .ok();
 }

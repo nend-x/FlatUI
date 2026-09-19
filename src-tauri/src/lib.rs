@@ -80,14 +80,32 @@ pub fn run() {
         log::info!("Loaded {} blacklisted window entries from disk", s.blacklisted.len());
     }
 
+    // If already elevated, skip the consent window entirely and go straight
+    // to the setup window. The consent window only appears for non-elevated
+    // instances that need to ask the user for permission to relaunch elevated.
+    let already_elevated = elevation::is_elevated();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(state.clone())
         .setup(move |app| {
+            // If already elevated, hide the consent window and show the
+            // setup window directly. The consent flow is skipped.
+            if already_elevated {
+                if let Some(consent) = app.get_webview_window("consent") {
+                    let _ = consent.hide();
+                }
+                if let Some(setup) = app.get_webview_window("setup") {
+                    let _ = setup.show();
+                }
+            }
+
             // Run setup in background — emits to setup window
             let handle = app.handle().clone();
             std::thread::spawn(move || {
-                // Wait for setup window to load
+                // Wait for setup window to load (it may not be visible yet
+                // if the consent window is showing — that's fine, the events
+                // queue up and fire when the setup window's frontend loads).
                 std::thread::sleep(std::time::Duration::from_millis(500));
 
                 // Helpers were already launched before the builder ran —
@@ -97,46 +115,27 @@ pub fn run() {
                 // Step 1: Welcome (already shown), wait 1s
                 std::thread::sleep(std::time::Duration::from_secs(1));
 
-                // Step 2: Request UAC elevation. The win-key block (low-level
-                // keyboard hook) can't intercept keystrokes destined for
-                // elevated apps unless FlatUI itself runs elevated (UIPI).
-                // We ask the user to elevate here — the setup window is
-                // visible and the Tauri event loop is running, so the UAC
-                // prompt displays correctly.
-                //
-                // If the user ACCEPTS: a new elevated FlatUI process is
-                // launched. This (non-elevated) process shows "UAC accepted"
-                // for 1s, then exits. The elevated process starts fresh with
-                // its own setup window, taskbar, and hooks.
-                //
-                // If the user DECLINES: this process continues with basic
-                // rights. The win-key block still works against non-elevated
-                // windows.
-                //
-                // If ALREADY ELEVATED (e.g. this IS the elevated relaunch, or
-                // the user launched the exe as admin): no prompt, continue.
-                let _ = handle.emit("setup://step", "Requesting elevation...");
-                match elevation::request_elevation() {
-                    elevation::ElevationOutcome::AlreadyElevated => {
-                        let _ = handle.emit("setup://step", "UAC accepted - continuing");
-                        std::thread::sleep(std::time::Duration::from_secs(1));
-                    }
-                    elevation::ElevationOutcome::Accepted => {
-                        let _ = handle.emit("setup://step", "UAC accepted - continuing");
-                        std::thread::sleep(std::time::Duration::from_secs(1));
-                        log::info!(
-                            "Exiting non-elevated instance — elevated relaunch is in flight"
-                        );
-                        std::process::exit(0);
-                    }
-                    elevation::ElevationOutcome::Declined => {
-                        let _ = handle.emit(
-                            "setup://step",
-                            "UAC isn't accepted, continuing with basic rights...",
-                        );
-                        std::thread::sleep(std::time::Duration::from_secs(1));
-                    }
+                // Step 2: Report elevation outcome. The actual elevation
+                // request was handled by the consent window flow (see
+                // consent_proceed / consent_decline commands below). By the
+                // time this thread runs, we are either:
+                //   - already elevated (consent window was skipped)
+                //   - non-elevated, user declined consent (continuing with
+                //     basic rights)
+                //   - non-elevated, user accepted consent but declined UAC
+                //     (continuing with basic rights)
+                //   - non-elevated, user accepted consent AND accepted UAC —
+                //     but in that case this process already exited via
+                //     consent_proceed, so this code never runs.
+                if already_elevated {
+                    let _ = handle.emit("setup://step", "UAC accepted - continuing");
+                } else {
+                    let _ = handle.emit(
+                        "setup://step",
+                        "UAC isn't accepted, continuing with basic rights...",
+                    );
                 }
+                std::thread::sleep(std::time::Duration::from_secs(1));
 
                 // Step 3: Hide the native taskbar (HideTaskbar.exe child).
                 let _ = handle.emit("setup://step", "Hiding taskbar...");
@@ -353,6 +352,8 @@ pub fn run() {
             add_to_startup,
             remove_from_startup,
             close_setup_window,
+            consent_proceed,
+            consent_decline,
             get_active_theme,
             get_all_themes,
             set_active_theme,
@@ -1294,6 +1295,68 @@ fn show_launcher_for_screenshot(app: tauri::AppHandle) {
 fn close_setup_window(app: tauri::AppHandle) {
     if let Some(setup) = app.get_webview_window("setup") {
         let _ = setup.close();
+    }
+}
+
+// ===== Consent window — elevation request flow =====
+//
+// The consent window asks the user "FlatUI needs administrative privileges
+// to work properly, agree?" with Proceed / No thanks buttons.
+//
+// consent_proceed: user clicked Proceed → request UAC elevation via
+//   ShellExecuteW("runas"). If the user accepts the UAC prompt, this
+//   process exits immediately (the elevated process takes over with its
+//   own consent window skipped because is_elevated() is true). If the
+//   user declines the UAC prompt, we close the consent window and show
+//   the setup window with the "UAC not accepted" message.
+//
+// consent_decline: user clicked "No thanks" → close the consent window
+//   and show the setup window with the "UAC not accepted" message.
+#[tauri::command]
+fn consent_proceed(app: tauri::AppHandle) {
+    match elevation::request_elevation() {
+        elevation::ElevationOutcome::Accepted => {
+            // The elevated relaunch is in flight. Exit this process now —
+            // the elevated process will show the setup window.
+            log::info!(
+                "consent_proceed: user accepted UAC, exiting non-elevated instance"
+            );
+            std::process::exit(0);
+        }
+        elevation::ElevationOutcome::AlreadyElevated => {
+            // Already elevated (shouldn't happen — the consent window is
+            // skipped when already elevated — but handle it anyway).
+            log::info!("consent_proceed: already elevated, continuing");
+            if let Some(consent) = app.get_webview_window("consent") {
+                let _ = consent.hide();
+            }
+            if let Some(setup) = app.get_webview_window("setup") {
+                let _ = setup.show();
+            }
+        }
+        elevation::ElevationOutcome::Declined => {
+            // User declined the UAC prompt. Close the consent window and
+            // show the setup window — the setup thread will emit the
+            // "UAC isn't accepted" message.
+            log::info!("consent_proceed: user declined UAC, continuing with basic rights");
+            if let Some(consent) = app.get_webview_window("consent") {
+                let _ = consent.hide();
+            }
+            if let Some(setup) = app.get_webview_window("setup") {
+                let _ = setup.show();
+            }
+        }
+    }
+}
+
+#[tauri::command]
+fn consent_decline(app: tauri::AppHandle) {
+    log::info!("consent_decline: user declined consent, continuing with basic rights");
+    if let Some(consent) = app.get_webview_window("consent") {
+        let _ = consent.hide();
+    }
+    if let Some(setup) = app.get_webview_window("setup") {
+        let _ = setup.show();
     }
 }
 
