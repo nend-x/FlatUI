@@ -338,8 +338,14 @@ async function setupListeners() {
           const rNorm = (r / 255).toFixed(3);
           const gNorm = (g / 255).toFixed(3);
           const bNorm = (b / 255).toFixed(3);
+          // Launcher-level grain (high visibility — 3 octaves, 0.28 alpha)
           const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.28 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
           root.style.setProperty("--grain-noise-svg", noiseSvg);
+          // Taskbar-level grain (LOW visibility — 2 octaves, 0.13 alpha.
+          // The increased grain looks good on the fullscreen launcher but
+          // is too busy on the thin 40px taskbar strip.)
+          const taskbarNoiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+          root.style.setProperty("--taskbar-grain-noise-svg", taskbarNoiseSvg);
         }
       }
       // Set per-theme icon recolor values (must match launcher's THEME_ICON_RECOLOR)
@@ -397,8 +403,12 @@ async function init() {
           const rNorm = (r / 255).toFixed(3);
           const gNorm = (g / 255).toFixed(3);
           const bNorm = (b / 255).toFixed(3);
+          // Launcher-level grain (high visibility)
           const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.28 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
           root.style.setProperty("--grain-noise-svg", noiseSvg);
+          // Taskbar-level grain (low visibility — less busy on the thin strip)
+          const taskbarNoiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+          root.style.setProperty("--taskbar-grain-noise-svg", taskbarNoiseSvg);
         }
       }
       // Set per-theme icon recolor values

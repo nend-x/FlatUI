@@ -9,12 +9,19 @@
   align-items: center;
   justify-content: center;
   height: var(--taskbar-height);
-  /* Grain + dot-grid (replaces backdrop-filter blur) */
+  /* Grain + dot-grid (replaces backdrop-filter blur).
+     The taskbar uses LOWER grain alpha than the launcher — the increased
+     grain that looks good on the fullscreen launcher background is too
+     busy/noisy on the thin 40px taskbar strip. Uses --taskbar-grain-noise-svg
+     which is set at runtime by the theme loader (lower alpha than the
+     launcher's --grain-noise-svg). */
   background-color: var(--bg-espresso-frosted);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
+  background-image:
+    radial-gradient(rgba(var(--sand-cream-rgb), 0.07) 1px, transparent 1.6px),
+    var(--taskbar-grain-noise-svg, var(--grain-noise-svg));
+  background-size: 22px 22px, 180px 180px;
+  background-position: 0 0, 0 0;
+  background-repeat: repeat, repeat;
   border-top: 1px solid var(--border-subtle);
   box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.20);
   font-family: var(--font-ui);
@@ -149,7 +156,7 @@
    get the same 3-layer recolor: opacity 0.5 + grayscale + theme tint. */
 .taskbar-root.icon-recolor .taskbar-icon img,
 .taskbar-root.icon-recolor .taskbar-icon svg {
-  opacity: 0.5;
+  opacity: 0.25;
   filter:
     grayscale(1)
     sepia(1)
@@ -160,7 +167,7 @@
 
 .taskbar-root.icon-recolor .taskbar-icon:hover img,
 .taskbar-root.icon-recolor .taskbar-icon:hover svg {
-  opacity: 0.7;
+  opacity: 0.45;
   filter:
     grayscale(1)
     sepia(1)
