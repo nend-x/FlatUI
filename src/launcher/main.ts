@@ -491,11 +491,11 @@ interface Theme {
 
 // Per-theme icon recolor hue/sat values. These override the defaults in
 // theme.css when a theme is applied, so icon recoloring matches the theme's
-// accent color.
+// accent color. Computed from each theme's accent-terracotta hue/saturation.
 const THEME_ICON_RECOLOR: Record<string, { hue: string; sat: string; brightness: string }> = {
-  "sand-cream": { hue: "-10deg", sat: "1.5", brightness: "0.95" },
-  "earthly-green": { hue: "60deg", sat: "1.3", brightness: "0.90" },
-  "silver-lining": { hue: "0deg", sat: "0.3", brightness: "0.85" },
+  "sand-cream": { hue: "-16deg", sat: "0.8", brightness: "0.95" },
+  "earthly-green": { hue: "108deg", sat: "0.85", brightness: "0.95" },
+  "silver-lining": { hue: "168deg", sat: "0.4", brightness: "0.90" },
 };
 
 function applyTheme(theme: Theme) {
@@ -508,6 +508,20 @@ function applyTheme(theme: Theme) {
   const colors = theme.colors;
   for (const [key, value] of Object.entries(colors)) {
     root.style.setProperty("--" + key, value);
+  }
+
+  // Build the SVG noise tile with the theme's sand-cream RGB values.
+  // CSS data URIs can't reference CSS variables directly, so we inject
+  // the RGB values into the feColorMatrix. The values are "R G B A 0"
+  // where R/G/B are 0-1 floats.
+  const creamRgb = colors["sand-cream-rgb"].split(",").map((s) => parseFloat(s.trim()));
+  if (creamRgb.length === 3) {
+    const [r, g, b] = creamRgb;
+    const rNorm = (r / 255).toFixed(3);
+    const gNorm = (g / 255).toFixed(3);
+    const bNorm = (b / 255).toFixed(3);
+    const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+    root.style.setProperty("--grain-noise-svg", noiseSvg);
   }
 
   // Apply per-theme icon recolor values
