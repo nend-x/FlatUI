@@ -9,12 +9,19 @@
   align-items: center;
   justify-content: center;
   height: var(--taskbar-height);
-  /* Grain + dot-grid (replaces backdrop-filter blur) */
-  background-color: rgba(58, 42, 26, 0.55);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
+  /* Grain + dot-grid (replaces backdrop-filter blur).
+     The taskbar uses LOWER grain alpha than the launcher — the increased
+     grain that looks good on the fullscreen launcher background is too
+     busy/noisy on the thin 40px taskbar strip. Uses --taskbar-grain-noise-svg
+     which is set at runtime by the theme loader (lower alpha than the
+     launcher's --grain-noise-svg). */
+  background-color: var(--bg-espresso-frosted);
+  background-image:
+    radial-gradient(rgba(var(--sand-cream-rgb), 0.07) 1px, transparent 1.6px),
+    var(--taskbar-grain-noise-svg, var(--grain-noise-svg));
+  background-size: 22px 22px, 180px 180px;
+  background-position: 0 0, 0 0;
+  background-repeat: repeat, repeat;
   border-top: 1px solid var(--border-subtle);
   box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.20);
   font-family: var(--font-ui);
@@ -63,13 +70,13 @@
 .volume-icon {
   width: 16px;
   height: 16px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   flex-shrink: 0;
   transition: color 140ms var(--ease-out-soft);
 }
 
 .volume-control:hover .volume-icon {
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 .volume-slider-wrap {
@@ -87,7 +94,7 @@
   height: 4px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(194, 178, 128, 0.15);
+  background: rgba(var(--sand-rgb), 0.15);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -144,6 +151,32 @@
   filter: brightness(1.02) saturate(0.88) sepia(0.12) hue-rotate(-4deg);
 }
 
+/* ===== Icon recoloring (toggled via Settings — same as launcher) =====
+   When the taskbar root has the .icon-recolor class, all taskbar icons
+   get the same 3-layer recolor. opacity 0.85 = 85% visible (15% of the
+   background shows through). */
+.taskbar-root.icon-recolor .taskbar-icon img,
+.taskbar-root.icon-recolor .taskbar-icon svg {
+  opacity: 0.85;
+  filter:
+    grayscale(1)
+    sepia(1)
+    hue-rotate(var(--icon-recolor-hue))
+    saturate(var(--icon-recolor-sat))
+    brightness(var(--icon-recolor-brightness));
+}
+
+.taskbar-root.icon-recolor .taskbar-icon:hover img,
+.taskbar-root.icon-recolor .taskbar-icon:hover svg {
+  opacity: 0.95;
+  filter:
+    grayscale(1)
+    sepia(1)
+    hue-rotate(var(--icon-recolor-hue))
+    saturate(calc(var(--icon-recolor-sat) * 1.2))
+    brightness(1.05);
+}
+
 .taskbar-icon .indicator {
   position: absolute;
   bottom: 2px;
@@ -188,7 +221,7 @@
   align-items: flex-end;
   justify-content: center;
   font-family: var(--font-display);
-  color: var(--sand);
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 4px 10px;
   border-radius: var(--radius-md);
@@ -208,7 +241,7 @@
 
 .taskbar-clock .date {
   font-size: 9px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   letter-spacing: 0.02em;
   line-height: 1.1;
 }
@@ -219,7 +252,7 @@
   left: 50%;
   transform: translateX(-50%) translateY(2px);
   background: var(--bg-espresso-deep);
-  color: var(--sand-cream);
+  color: var(--text-primary);
   padding: 3px 9px;
   border-radius: var(--radius-sm);
   font-size: 10px;
@@ -239,7 +272,7 @@
 .tb-context-menu {
   position: fixed;
   min-width: 140px;
-  background-color: rgba(58, 42, 26, 0.65);
+  background-color: rgba(var(--bg-espresso-deep-rgb), 0.65);
   background-image: var(--grain-image);
   background-size: var(--grain-size);
   background-position: var(--grain-position);
@@ -262,7 +295,7 @@
   font-family: var(--font-ui);
   font-size: 11px;
   letter-spacing: 0.02em;
-  color: var(--sand);
+  color: var(--text-secondary);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background-color 100ms var(--ease-out-soft),
@@ -271,7 +304,7 @@
 
 .tb-context-menu-item:hover {
   background: rgba(255, 255, 255, 0.10);
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
 
 .tb-context-menu-item.danger:hover {
@@ -346,7 +379,7 @@
 
 .win-switcher-label {
   font-size: 10px;
-  color: var(--sand-cream);
+  color: var(--text-primary);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -375,11 +408,10 @@
 .taskbar-screenshot svg {
   width: 16px;
   height: 16px;
-  color: var(--sand-dim);
+  color: var(--text-muted);
   transition: color 140ms var(--ease-out-soft);
 }
 
 .taskbar-screenshot:hover svg {
-  color: var(--sand-cream);
+  color: var(--text-primary);
 }
-

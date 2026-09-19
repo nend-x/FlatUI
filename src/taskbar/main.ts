@@ -14,6 +14,15 @@ interface TaskbarApp {
   is_foreground: boolean;
 }
 
+// Per-theme icon recolor hue/sat values. Must match the launcher's
+// THEME_ICON_RECOLOR map. Used when applying a theme so the taskbar's
+// icon recolor filter matches the launcher's.
+const THEME_ICON_RECOLOR: Record<string, { hue: string; sat: string; brightness: string }> = {
+  "sand-cream": { hue: "-16deg", sat: "0.8", brightness: "0.95" },
+  "earthly-green": { hue: "98deg", sat: "1.0", brightness: "0.95" },
+  "silver-lining": { hue: "168deg", sat: "0.4", brightness: "0.90" },
+};
+
 interface WindowPreview {
   hwnd: number;
   title: string;
@@ -295,6 +304,59 @@ async function setupListeners() {
       maybeRenderIcons();
     })
   );
+
+  // Icon recolor toggle — applies the .icon-recolor class to the taskbar root
+  unlistenFns.push(
+    await listen<boolean>("icon-recolor://changed", (e) => {
+      const taskbarRoot = document.querySelector(".taskbar-root");
+      if (taskbarRoot) {
+        if (e.payload) {
+          taskbarRoot.classList.add("icon-recolor");
+        } else {
+          taskbarRoot.classList.remove("icon-recolor");
+        }
+      }
+    })
+  );
+
+  // Theme change — applies the theme's colors as CSS variables on :root
+  unlistenFns.push(
+    await listen<{ name: string; colors: Record<string, string> }>("theme://changed", (e) => {
+      const root = document.documentElement;
+      const colors = e.payload.colors;
+      // Map the theme colors to CSS variables (keys match the serde-renamed
+      // ThemeColors field names with -- prefix)
+      for (const [key, value] of Object.entries(colors)) {
+        root.style.setProperty("--" + key, value);
+      }
+      // Build the SVG noise tile with the theme's sand-cream RGB values
+      const creamRgb = colors["sand-cream-rgb"];
+      if (creamRgb) {
+        const parts = creamRgb.split(",").map((s) => parseFloat(s.trim()));
+        if (parts.length === 3) {
+          const [r, g, b] = parts;
+          const rNorm = (r / 255).toFixed(3);
+          const gNorm = (g / 255).toFixed(3);
+          const bNorm = (b / 255).toFixed(3);
+          // Launcher-level grain (high visibility — 3 octaves, 0.28 alpha)
+          const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+          root.style.setProperty("--grain-noise-svg", noiseSvg);
+          // Taskbar-level grain (LOW visibility — 2 octaves, 0.13 alpha.
+          // The increased grain looks good on the fullscreen launcher but
+          // is too busy on the thin 40px taskbar strip.)
+          const taskbarNoiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+          root.style.setProperty("--taskbar-grain-noise-svg", taskbarNoiseSvg);
+        }
+      }
+      // Set per-theme icon recolor values (must match launcher's THEME_ICON_RECOLOR)
+      const recolor = THEME_ICON_RECOLOR[e.payload.name];
+      if (recolor) {
+        root.style.setProperty("--icon-recolor-hue", recolor.hue);
+        root.style.setProperty("--icon-recolor-sat", recolor.sat);
+        root.style.setProperty("--icon-recolor-brightness", recolor.brightness);
+      }
+    })
+  );
 }
 
 clockWrap.addEventListener("click", () => invoke("toggle_calendar_flyout"));
@@ -314,6 +376,50 @@ async function init() {
   }
 
   await setupListeners();
+
+  // Load icon recolor state on startup (in case the launcher isn't open yet)
+  try {
+    const iconRecolorEnabled = await invoke<boolean>("load_icon_recolor");
+    const taskbarRoot = document.querySelector(".taskbar-root");
+    if (taskbarRoot && iconRecolorEnabled) {
+      taskbarRoot.classList.add("icon-recolor");
+    }
+  } catch {}
+
+  // Load active theme on startup (in case the launcher isn't open yet)
+  try {
+    const theme = await invoke<{ name: string; colors: Record<string, string> } | null>("get_active_theme");
+    if (theme) {
+      const root = document.documentElement;
+      for (const [key, value] of Object.entries(theme.colors)) {
+        root.style.setProperty("--" + key, value);
+      }
+      // Build the SVG noise tile
+      const creamRgb = theme.colors["sand-cream-rgb"];
+      if (creamRgb) {
+        const parts = creamRgb.split(",").map((s) => parseFloat(s.trim()));
+        if (parts.length === 3) {
+          const [r, g, b] = parts;
+          const rNorm = (r / 255).toFixed(3);
+          const gNorm = (g / 255).toFixed(3);
+          const bNorm = (b / 255).toFixed(3);
+          // Launcher-level grain (high visibility)
+          const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+          root.style.setProperty("--grain-noise-svg", noiseSvg);
+          // Taskbar-level grain (low visibility — less busy on the thin strip)
+          const taskbarNoiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+          root.style.setProperty("--taskbar-grain-noise-svg", taskbarNoiseSvg);
+        }
+      }
+      // Set per-theme icon recolor values
+      const recolor = THEME_ICON_RECOLOR[theme.name];
+      if (recolor) {
+        root.style.setProperty("--icon-recolor-hue", recolor.hue);
+        root.style.setProperty("--icon-recolor-sat", recolor.sat);
+        root.style.setProperty("--icon-recolor-brightness", recolor.brightness);
+      }
+    }
+  } catch {}
 
   setInterval(async () => {
     try {

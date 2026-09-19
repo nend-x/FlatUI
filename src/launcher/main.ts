@@ -78,6 +78,8 @@ const toggleNotesWidget = document.getElementById("toggle-notes-widget") as HTML
 const toggleSysmonWidget = document.getElementById("toggle-sysmon-widget") as HTMLInputElement;
 const toggleAudioWidget = document.getElementById("toggle-audio-widget") as HTMLInputElement;
 const toggleAppsWidget = document.getElementById("toggle-apps-widget") as HTMLInputElement;
+const toggleIconRecolor = document.getElementById("toggle-icon-recolor") as HTMLInputElement;
+const themeSelect = document.getElementById("theme-select") as HTMLSelectElement;
 
 // ===== Clipboard widget =====
 let clipboardItems: string[] = [];
@@ -414,6 +416,145 @@ toggleAudioWidget.addEventListener("change", () => {
 toggleAppsWidget.addEventListener("change", () => {
   applyWidgetVisibility("apps-widget", toggleAppsWidget.checked);
   void saveWidgetVisibility();
+});
+
+// ===== Icon recolor toggle =====
+// Applies the .icon-recolor class to the launcher root and emits an event
+// so the taskbar can apply it too. Saves to config (icon_recolor.json).
+function applyIconRecolor(enabled: boolean) {
+  const launcherRoot = document.getElementById("launcher");
+  if (launcherRoot) {
+    if (enabled) {
+      launcherRoot.classList.add("icon-recolor");
+    } else {
+      launcherRoot.classList.remove("icon-recolor");
+    }
+  }
+  // Emit to the taskbar window so it can apply the same class
+  emit("icon-recolor://changed", enabled);
+}
+
+async function loadIconRecolor() {
+  try {
+    const enabled = await invoke<boolean>("load_icon_recolor");
+    toggleIconRecolor.checked = enabled;
+    applyIconRecolor(enabled);
+  } catch {
+    // Default: off
+  }
+}
+
+toggleIconRecolor.addEventListener("change", () => {
+  applyIconRecolor(toggleIconRecolor.checked);
+  invoke("save_icon_recolor", { enabled: toggleIconRecolor.checked });
+});
+
+// ===== Theme switcher =====
+// Loads the active theme from the backend, applies its colors as CSS
+// variables on :root, and saves when the user picks a different theme.
+// The CSS variable names match the serde-renamed ThemeColors field names
+// (e.g. bg-espresso → --bg-espresso, sand-cream → --sand-cream).
+
+interface ThemeColors {
+  "bg-espresso": string;
+  "bg-espresso-rgb": string;
+  "bg-espresso-deep": string;
+  "bg-espresso-deep-rgb": string;
+  "bg-espresso-raised": string;
+  "bg-espresso-raised-rgb": string;
+  "bg-espresso-frosted": string;
+  "bg-espresso-glass": string;
+  sand: string;
+  "sand-rgb": string;
+  "sand-bright": string;
+  "sand-bright-rgb": string;
+  "sand-dim": string;
+  "sand-dim-rgb": string;
+  "sand-cream": string;
+  "sand-cream-rgb": string;
+  "accent-terracotta": string;
+  "accent-terracotta-rgb": string;
+  "accent-caramel": string;
+  "accent-caramel-rgb": string;
+  "accent-soft": string;
+  "border-subtle": string;
+  "border-strong": string;
+  "status-running": string;
+  "status-pinned": string;
+}
+
+interface Theme {
+  name: string;
+  active: boolean;
+  colors: ThemeColors;
+}
+
+// Per-theme icon recolor hue/sat values. These override the defaults in
+// theme.css when a theme is applied, so icon recoloring matches the theme's
+// accent color. Computed from each theme's accent-terracotta hue/saturation.
+const THEME_ICON_RECOLOR: Record<string, { hue: string; sat: string; brightness: string }> = {
+  "sand-cream": { hue: "-16deg", sat: "0.8", brightness: "0.95" },
+  "earthly-green": { hue: "98deg", sat: "1.0", brightness: "0.95" },
+  "silver-lining": { hue: "168deg", sat: "0.4", brightness: "0.90" },
+};
+
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  // Apply EVERY color from the theme as a CSS variable on :root.
+  // The keys match the serde-renamed ThemeColors field names, so
+  // "bg-espresso" → --bg-espresso, "bg-espresso-rgb" → --bg-espresso-rgb, etc.
+  // This covers all solid colors AND all RGB-channel forms (used for
+  // rgba(var(--xxx-rgb), alpha) compositions in the CSS).
+  const colors = theme.colors;
+  for (const [key, value] of Object.entries(colors)) {
+    root.style.setProperty("--" + key, value);
+  }
+
+  // Build the SVG noise tile with the theme's sand-cream RGB values.
+  // CSS data URIs can't reference CSS variables directly, so we inject
+  // the RGB values into the feColorMatrix. The values are "R G B A 0"
+  // where R/G/B are 0-1 floats.
+  const creamRgb = colors["sand-cream-rgb"].split(",").map((s) => parseFloat(s.trim()));
+  if (creamRgb.length === 3) {
+    const [r, g, b] = creamRgb;
+    const rNorm = (r / 255).toFixed(3);
+    const gNorm = (g / 255).toFixed(3);
+    const bNorm = (b / 255).toFixed(3);
+    const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+    root.style.setProperty("--grain-noise-svg", noiseSvg);
+  }
+
+  // Apply per-theme icon recolor values
+  const recolor = THEME_ICON_RECOLOR[theme.name];
+  if (recolor) {
+    root.style.setProperty("--icon-recolor-hue", recolor.hue);
+    root.style.setProperty("--icon-recolor-sat", recolor.sat);
+    root.style.setProperty("--icon-recolor-brightness", recolor.brightness);
+  }
+
+  // Emit to the taskbar so it can apply the same theme
+  emit("theme://changed", theme);
+}
+
+async function loadActiveTheme() {
+  try {
+    const theme = await invoke<Theme | null>("get_active_theme");
+    if (theme) {
+      themeSelect.value = theme.name;
+      applyTheme(theme);
+    }
+  } catch (err) {
+    console.error("get_active_theme failed:", err);
+  }
+}
+
+themeSelect.addEventListener("change", () => {
+  const themeName = themeSelect.value;
+  invoke("set_active_theme", { name: themeName });
+  // Re-load the full theme to get its colors, then apply
+  invoke<Theme | null>("get_active_theme").then((theme) => {
+    if (theme) applyTheme(theme);
+  });
 });
 
 // ===== Launcher open/close animation state machine =====
@@ -1593,7 +1734,7 @@ async function startScreenshotWithData(dataUrl: string) {
       ctx.drawImage(img, x, y, w, h, x, y, w, h);
       // Draw border (constant on-screen thickness regardless of scale)
       const rect = screenshotCanvas.getBoundingClientRect();
-      ctx.strokeStyle = "rgba(184, 131, 90, 0.8)";
+      ctx.strokeStyle = "rgba(var(--accent-terracotta-rgb), 0.8)";
       ctx.lineWidth = 2 / (img.naturalWidth / rect.width);
       ctx.strokeRect(x, y, w, h);
     };
@@ -1687,6 +1828,8 @@ async function init() {
   initWidgetDragging();
   await loadWidgetPositions();
   await loadWidgetVisibilitySettings();
+  await loadIconRecolor();
+  await loadActiveTheme();
 
   // (The running-build version badge used to live in the bottom-left
   // corner of the launcher. It has been removed from the surface — the

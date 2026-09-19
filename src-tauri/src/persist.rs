@@ -102,6 +102,22 @@ pub fn save_widget_visibility(visibility: &std::collections::HashMap<String, boo
     }
 }
 
+// ===== Icon recolor =====
+pub fn load_icon_recolor() -> bool {
+    let path = data_dir().join("icon_recolor.json");
+    match fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str::<bool>(&s).unwrap_or(false),
+        Err(_) => false,
+    }
+}
+
+pub fn save_icon_recolor(enabled: bool) {
+    let path = data_dir().join("icon_recolor.json");
+    if let Ok(s) = serde_json::to_string_pretty(&enabled) {
+        let _ = fs::write(&path, s);
+    }
+}
+
 // ===== Settings =====
 #[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
 pub struct Settings {
@@ -170,25 +186,43 @@ pub fn save_settings(settings: &Settings) {
 pub struct ThemeColors {
     #[serde(rename = "bg-espresso")]
     pub bg_espresso: String,
+    #[serde(rename = "bg-espresso-rgb")]
+    pub bg_espresso_rgb: String,
     #[serde(rename = "bg-espresso-deep")]
     pub bg_espresso_deep: String,
+    #[serde(rename = "bg-espresso-deep-rgb")]
+    pub bg_espresso_deep_rgb: String,
     #[serde(rename = "bg-espresso-raised")]
     pub bg_espresso_raised: String,
+    #[serde(rename = "bg-espresso-raised-rgb")]
+    pub bg_espresso_raised_rgb: String,
     #[serde(rename = "bg-espresso-frosted")]
     pub bg_espresso_frosted: String,
     #[serde(rename = "bg-espresso-glass")]
     pub bg_espresso_glass: String,
     pub sand: String,
+    #[serde(rename = "sand-rgb")]
+    pub sand_rgb: String,
     #[serde(rename = "sand-bright")]
     pub sand_bright: String,
+    #[serde(rename = "sand-bright-rgb")]
+    pub sand_bright_rgb: String,
     #[serde(rename = "sand-dim")]
     pub sand_dim: String,
+    #[serde(rename = "sand-dim-rgb")]
+    pub sand_dim_rgb: String,
     #[serde(rename = "sand-cream")]
     pub sand_cream: String,
+    #[serde(rename = "sand-cream-rgb")]
+    pub sand_cream_rgb: String,
     #[serde(rename = "accent-terracotta")]
     pub accent_terracotta: String,
+    #[serde(rename = "accent-terracotta-rgb")]
+    pub accent_terracotta_rgb: String,
     #[serde(rename = "accent-caramel")]
     pub accent_caramel: String,
+    #[serde(rename = "accent-caramel-rgb")]
+    pub accent_caramel_rgb: String,
     #[serde(rename = "accent-soft")]
     pub accent_soft: String,
     #[serde(rename = "border-subtle")]
@@ -199,6 +233,22 @@ pub struct ThemeColors {
     pub status_running: String,
     #[serde(rename = "status-pinned")]
     pub status_pinned: String,
+    // Text colors (calibrated per-theme for readability)
+    #[serde(rename = "text-primary")]
+    pub text_primary: String,
+    #[serde(rename = "text-secondary")]
+    pub text_secondary: String,
+    #[serde(rename = "text-muted")]
+    pub text_muted: String,
+    // Shadows (calibrated per-theme — light themes use softer shadows)
+    #[serde(rename = "shadow-window")]
+    pub shadow_window: String,
+    #[serde(rename = "shadow-popup")]
+    pub shadow_popup: String,
+    #[serde(rename = "shadow-icon-hover")]
+    pub shadow_icon_hover: String,
+    #[serde(rename = "shadow-card")]
+    pub shadow_card: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -221,65 +271,122 @@ pub fn default_themes() -> ThemesConfig {
                 active: true,
                 colors: ThemeColors {
                     bg_espresso: "#4B3621".to_string(),
+                    bg_espresso_rgb: "75, 54, 33".to_string(),
                     bg_espresso_deep: "#3A2A1A".to_string(),
+                    bg_espresso_deep_rgb: "58, 42, 26".to_string(),
                     bg_espresso_raised: "#54402D".to_string(),
+                    bg_espresso_raised_rgb: "84, 64, 40".to_string(),
                     bg_espresso_frosted: "rgba(58,42,26,0.55)".to_string(),
                     bg_espresso_glass: "rgba(58,42,26,0.65)".to_string(),
                     sand: "#C2B280".to_string(),
+                    sand_rgb: "194, 178, 128".to_string(),
                     sand_bright: "#D4C19C".to_string(),
+                    sand_bright_rgb: "212, 193, 156".to_string(),
                     sand_dim: "#8A7B5C".to_string(),
+                    sand_dim_rgb: "138, 123, 92".to_string(),
                     sand_cream: "#EDE4D3".to_string(),
+                    sand_cream_rgb: "237, 228, 211".to_string(),
                     accent_terracotta: "#B8835A".to_string(),
+                    accent_terracotta_rgb: "184, 131, 90".to_string(),
                     accent_caramel: "#D4A574".to_string(),
+                    accent_caramel_rgb: "212, 165, 116".to_string(),
                     accent_soft: "rgba(184,131,90,0.18)".to_string(),
                     border_subtle: "rgba(194,178,128,0.08)".to_string(),
                     border_strong: "rgba(194,178,128,0.18)".to_string(),
                     status_running: "#D4A574".to_string(),
                     status_pinned: "#8A7B5C".to_string(),
+                    // Text — sand-cream theme: light text on dark espresso bg
+                    text_primary: "#EDE4D3".to_string(),
+                    text_secondary: "#C2B280".to_string(),
+                    text_muted: "#8A7B5C".to_string(),
+                    // Shadows — warm dark shadows for the espresso theme
+                    shadow_window: "0 1px 4px rgba(0, 0, 0, 0.18)".to_string(),
+                    shadow_popup: "0 2px 12px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22)".to_string(),
+                    shadow_icon_hover: "0 1px 3px rgba(0, 0, 0, 0.14)".to_string(),
+                    shadow_card: "0 14px 44px rgba(0, 0, 0, 0.5)".to_string(),
                 },
             },
             Theme {
                 name: "earthly-green".to_string(),
                 active: false,
                 colors: ThemeColors {
-                    bg_espresso: "#354f52".to_string(),
-                    bg_espresso_deep: "#2f3e46".to_string(),
-                    bg_espresso_raised: "#4a6166".to_string(),
-                    bg_espresso_frosted: "rgba(47,62,70,0.55)".to_string(),
-                    bg_espresso_glass: "rgba(47,62,70,0.65)".to_string(),
-                    sand: "#84a98c".to_string(),
-                    sand_bright: "#9bbfa0".to_string(),
-                    sand_dim: "#52796f".to_string(),
-                    sand_cream: "#cad2c5".to_string(),
-                    accent_terracotta: "#52796f".to_string(),
-                    accent_caramel: "#84a98c".to_string(),
-                    accent_soft: "rgba(82,121,111,0.18)".to_string(),
-                    border_subtle: "rgba(202,210,197,0.08)".to_string(),
-                    border_strong: "rgba(202,210,197,0.18)".to_string(),
-                    status_running: "#84a98c".to_string(),
-                    status_pinned: "#52796f".to_string(),
+                    bg_espresso: "#113B1F".to_string(),
+                    bg_espresso_rgb: "17, 59, 31".to_string(),
+                    bg_espresso_deep: "#0F2D19".to_string(),
+                    bg_espresso_deep_rgb: "15, 45, 25".to_string(),
+                    bg_espresso_raised: "#1E472C".to_string(),
+                    bg_espresso_raised_rgb: "30, 71, 44".to_string(),
+                    bg_espresso_frosted: "rgba(15,45,25,0.55)".to_string(),
+                    bg_espresso_glass: "rgba(15,45,25,0.65)".to_string(),
+                    sand: "#64B47E".to_string(),
+                    sand_rgb: "100, 180, 126".to_string(),
+                    sand_bright: "#7DCD98".to_string(),
+                    sand_bright_rgb: "125, 205, 152".to_string(),
+                    sand_dim: "#4C7F5D".to_string(),
+                    sand_dim_rgb: "76, 127, 93".to_string(),
+                    sand_cream: "#CDE4D4".to_string(),
+                    sand_cream_rgb: "205, 228, 212".to_string(),
+                    accent_terracotta: "#39AC5F".to_string(),
+                    accent_terracotta_rgb: "57, 172, 95".to_string(),
+                    accent_caramel: "#69BE85".to_string(),
+                    accent_caramel_rgb: "105, 190, 133".to_string(),
+                    accent_soft: "rgba(57,172,95,0.18)".to_string(),
+                    border_subtle: "rgba(205,228,212,0.08)".to_string(),
+                    border_strong: "rgba(205,228,212,0.18)".to_string(),
+                    status_running: "#69BE85".to_string(),
+                    status_pinned: "#4C7F5D".to_string(),
+                    // Text — dark forest green theme: light mint text on dark green bg
+                    text_primary: "#CDE4D4".to_string(),
+                    text_secondary: "#64B47E".to_string(),
+                    text_muted: "#4C7F5D".to_string(),
+                    // Shadows — dark forest shadows
+                    shadow_window: "0 1px 4px rgba(0, 0, 0, 0.18)".to_string(),
+                    shadow_popup: "0 2px 12px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22)".to_string(),
+                    shadow_icon_hover: "0 1px 3px rgba(0, 0, 0, 0.14)".to_string(),
+                    shadow_card: "0 14px 44px rgba(0, 0, 0, 0.5)".to_string(),
                 },
             },
             Theme {
                 name: "silver-lining".to_string(),
                 active: false,
                 colors: ThemeColors {
-                    bg_espresso: "#7f7f7f".to_string(),
-                    bg_espresso_deep: "#595959".to_string(),
-                    bg_espresso_raised: "#969696".to_string(),
-                    bg_espresso_frosted: "rgba(89,89,89,0.55)".to_string(),
-                    bg_espresso_glass: "rgba(89,89,89,0.65)".to_string(),
-                    sand: "#a5a5a5".to_string(),
-                    sand_bright: "#cccccc".to_string(),
-                    sand_dim: "#7f7f7f".to_string(),
-                    sand_cream: "#f2f2f2".to_string(),
-                    accent_terracotta: "#a5a5a5".to_string(),
-                    accent_caramel: "#cccccc".to_string(),
-                    accent_soft: "rgba(165,165,165,0.18)".to_string(),
-                    border_subtle: "rgba(242,242,242,0.08)".to_string(),
-                    border_strong: "rgba(242,242,242,0.18)".to_string(),
-                    status_running: "#cccccc".to_string(),
-                    status_pinned: "#a5a5a5".to_string(),
+                    bg_espresso: "#293037".to_string(),
+                    bg_espresso_rgb: "41, 48, 55".to_string(),
+                    bg_espresso_deep: "#23282E".to_string(),
+                    bg_espresso_deep_rgb: "35, 40, 46".to_string(),
+                    bg_espresso_raised: "#393F46".to_string(),
+                    bg_espresso_raised_rgb: "57, 63, 70".to_string(),
+                    bg_espresso_frosted: "rgba(35,40,46,0.55)".to_string(),
+                    bg_espresso_glass: "rgba(35,40,46,0.65)".to_string(),
+                    sand: "#95A0AB".to_string(),
+                    sand_rgb: "149, 160, 171".to_string(),
+                    sand_bright: "#AAB7C4".to_string(),
+                    sand_bright_rgb: "170, 183, 196".to_string(),
+                    sand_dim: "#69727B".to_string(),
+                    sand_dim_rgb: "105, 114, 123".to_string(),
+                    sand_cream: "#D8DDE2".to_string(),
+                    sand_cream_rgb: "216, 221, 226".to_string(),
+                    accent_terracotta: "#74899E".to_string(),
+                    accent_terracotta_rgb: "116, 137, 158".to_string(),
+                    accent_caramel: "#92A5B9".to_string(),
+                    accent_caramel_rgb: "146, 165, 185".to_string(),
+                    accent_soft: "rgba(116,137,158,0.18)".to_string(),
+                    border_subtle: "rgba(216,221,226,0.08)".to_string(),
+                    border_strong: "rgba(216,221,226,0.18)".to_string(),
+                    status_running: "#92A5B9".to_string(),
+                    status_pinned: "#69727B".to_string(),
+                    // Text — silver-lining theme: bright cool-gray text on dark
+                    // gray bg. Brighter than sand-cream to ensure readability.
+                    text_primary: "#F0F4F8".to_string(),
+                    text_secondary: "#B8C4D0".to_string(),
+                    text_muted: "#8A96A4".to_string(),
+                    // Shadows — SOFTER shadows for the light/cool theme.
+                    // Heavy black shadows ruin the silver-lining aesthetic,
+                    // so we use lower opacity and blur.
+                    shadow_window: "0 1px 3px rgba(0, 0, 0, 0.10)".to_string(),
+                    shadow_popup: "0 2px 8px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0.12)".to_string(),
+                    shadow_icon_hover: "0 1px 2px rgba(0, 0, 0, 0.10)".to_string(),
+                    shadow_card: "0 10px 30px rgba(0, 0, 0, 0.30)".to_string(),
                 },
             },
         ],
@@ -289,7 +396,19 @@ pub fn default_themes() -> ThemesConfig {
 pub fn load_themes() -> ThemesConfig {
     let path = data_dir().join("themes.json");
     match fs::read_to_string(&path) {
-        Ok(s) => serde_json::from_str(&s).unwrap_or_else(|_| default_themes()),
+        Ok(s) => match serde_json::from_str::<ThemesConfig>(&s) {
+            Ok(config) => config,
+            Err(_) => {
+                // File exists but is old format or corrupt — overwrite with
+                // the current defaults so future loads succeed.
+                log::warn!("themes.json was old format or corrupt — rewriting with defaults");
+                let defaults = default_themes();
+                if let Ok(s) = serde_json::to_string_pretty(&defaults) {
+                    let _ = fs::write(&path, s);
+                }
+                defaults
+            }
+        },
         Err(_) => {
             // First run — create default themes file
             let defaults = default_themes();
