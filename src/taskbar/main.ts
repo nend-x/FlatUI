@@ -338,7 +338,7 @@ async function setupListeners() {
           const rNorm = (r / 255).toFixed(3);
           const gNorm = (g / 255).toFixed(3);
           const bNorm = (b / 255).toFixed(3);
-          const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+          const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.28 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
           root.style.setProperty("--grain-noise-svg", noiseSvg);
         }
       }
@@ -397,7 +397,7 @@ async function init() {
           const rNorm = (r / 255).toFixed(3);
           const gNorm = (g / 255).toFixed(3);
           const bNorm = (b / 255).toFixed(3);
-          const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.13 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
+          const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.28 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
           root.style.setProperty("--grain-noise-svg", noiseSvg);
         }
       }

@@ -396,7 +396,19 @@ pub fn default_themes() -> ThemesConfig {
 pub fn load_themes() -> ThemesConfig {
     let path = data_dir().join("themes.json");
     match fs::read_to_string(&path) {
-        Ok(s) => serde_json::from_str(&s).unwrap_or_else(|_| default_themes()),
+        Ok(s) => match serde_json::from_str::<ThemesConfig>(&s) {
+            Ok(config) => config,
+            Err(_) => {
+                // File exists but is old format or corrupt — overwrite with
+                // the current defaults so future loads succeed.
+                log::warn!("themes.json was old format or corrupt — rewriting with defaults");
+                let defaults = default_themes();
+                if let Ok(s) = serde_json::to_string_pretty(&defaults) {
+                    let _ = fs::write(&path, s);
+                }
+                defaults
+            }
+        },
         Err(_) => {
             // First run — create default themes file
             let defaults = default_themes();
