@@ -41,9 +41,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VIRTUAL_KEY, VK_LMENU, VK_LWIN, VK_MENU, VK_RMENU, VK_RWIN,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, GetMessageW, SetWindowsHookExW, HC_ACTION, HHOOK, KBDLLHOOKSTRUCT,
-    LLKHF_INJECTED, MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
-    UnhookWindowsHookEx,
+    CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW, TranslateMessage, HC_ACTION,
+    HHOOK, KBDLLHOOKSTRUCT, LLKHF_INJECTED, MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP,
+    WM_SYSKEYDOWN, WM_SYSKEYUP, UnhookWindowsHookEx,
 };
 
 type ToggleFn = Box<dyn Fn() + Send + Sync>;
@@ -118,8 +118,24 @@ fn spawn_hook_thread() {
                 }
             };
             log::info!("Win key hook installed (swallow-down + tap -> launcher, combos -> native)");
+            // CRITICAL: the message loop MUST call TranslateMessage + DispatchMessageW.
+            //
+            // WH_KEYBOARD_LL hooks are delivered via SendMessage to the thread
+            // that installed the hook. The hook callback fires during message
+            // dispatch — without DispatchMessageW, the hook message is
+            // retrieved by GetMessageW but never dispatched to the hook
+            // procedure. This causes the hook to silently stop firing under
+            // message traffic (e.g. when a WebView2 window in the same
+            // process takes focus), which is exactly the bug where the Start
+            // menu opens when tapping Win to close the launcher.
+            //
+            // This matches the standard Microsoft pattern and what the
+            // prevent-alt-win-menu crate does.
             let mut msg = MSG::default();
-            while GetMessageW(&mut msg, None, 0, 0).as_bool() {}
+            while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+                let _ = TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
             let _ = UnhookWindowsHookEx(hook);
 
             // If we reach here, GetMessageW returned 0 (WM_QUIT) or -1 (error).
