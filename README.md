@@ -2,7 +2,7 @@
 
 <img src="assets/banner.png" alt="FlatUI" width="100%"/>
 
-<h1>FlatUI</h1>
+
 
 <p>Windows, but quieter. A custom shell replacement — 40px taskbar, Spotlight-style launcher, three themes, one exe.</p>
 
@@ -29,14 +29,6 @@ Three pastel themes sharing the same tonal structure — only the hue changes.
 
 Switch in Settings. Everything recolors instantly.
 
-## Win key
-
-Two layers keep the Start menu from appearing:
-
-1. A `WH_KEYBOARD_LL` hook swallows Win-down and toggles the launcher on tap.
-2. A background thread kills `StartMenuExperienceHost.exe` every 100ms — race-free backup.
-
-Win combos (Win+D, Win+E) still work — the hook re-injects Win-down for combos.
 
 ## Features
 
@@ -51,22 +43,8 @@ Win combos (Win+D, Win+E) still work — the hook re-injects Win-down for combos
 - **Icon recoloring** — optional CSS filter tint to match theme
 - **Grain texture** — fractal noise + dot grid, no GPU-heavy blur
 
-## Install
-
-1. Download `FlatUI-v0.1.7-x64.exe` from [Releases](https://github.com/nend-x/FlatUI/releases)
-2. Run it (UAC prompt appears — admin required)
-3. Press Win
 
 To exit: Win → click the exit button (top-left).
-
-## Build
-
-```bash
-npm install && npm run build
-cd src-tauri && cargo build --release
-```
-
-Cross-compile from Linux requires `xwin` + `llvm-mingw`. See [BUILD.md](BUILD.md).
 
 ## Config
 
