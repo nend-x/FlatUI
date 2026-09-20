@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flatlight</title>
+  <link rel="stylesheet" href="../styles/theme.css" />
+  <link rel="stylesheet" href="../styles/tables.css" />
+  <link rel="stylesheet" href="../styles/launcher.css" />
+</head>
+<body>
+  <!-- Flatlight — a medium floating search window (no fullscreen overlay).
+       The window itself is centered by the backend; the panel fills it. -->
+  <div class="mt-root flatlight-root" id="fl-root">
+    <div class="fl-search-wrap">
+      <input
+        type="text"
+        class="launcher-search fl-search"
+        id="fl-search"
+        placeholder="Flatlight"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <svg class="launcher-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="m21 21-4.3-4.3"/>
+      </svg>
+    </div>
+    <div class="fl-results hidden" id="fl-results"></div>
+    <div class="fl-hint" id="fl-hint">type to search apps &amp; shortcuts — Enter opens, Shift+Enter as admin, Esc closes</div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Table — Widgets</title>
+  <link rel="stylesheet" href="../styles/theme.css" />
+  <link rel="stylesheet" href="../styles/tables.css" />
+  <link rel="stylesheet" href="../styles/launcher.css" />
+</head>
+<body>
+  <div class="mt-root" id="mt-root">
+    <div class="mt-header" data-tauri-drag-region>
+      <div class="mt-dots"><span></span><span></span><span></span></div>
+      <span class="mt-title" data-tauri-drag-region>Widgets</span>
+      <button class="mt-close" id="mt-close" title="Close">&times;</button>
+    </div>
+
+    <div class="mt-body mt-widgets">
+      <div class="mt-greeting" id="mt-greeting"></div>
+
+      <!-- Same widgets as the flatlight launcher, stacked
+           (the apps widget was removed in 0.2 — tiles duplicate the taskbar) -->
+      <div class="widget sysmon-widget" id="sysmon-widget">
+        <div class="widget-header">System</div>
+        <div class="sysmon-body">
+          <div class="sysmon-row"><span>CPU</span><div class="sysmon-bar"><div class="sysmon-fill" id="cpu-fill"></div></div><span id="cpu-val">0%</span></div>
+          <div class="sysmon-row"><span>RAM</span><div class="sysmon-bar"><div class="sysmon-fill" id="ram-fill"></div></div><span id="ram-val">0%</span></div>
+        </div>
+      </div>
+
+      <div class="widget audio-widget" id="audio-widget">
+        <div class="widget-header">Volume</div>
+        <div class="audio-body">
+          <div class="audio-master-row">
+            <span class="audio-label">Master</span>
+            <input type="range" class="audio-slider" id="audio-master-slider" min="0" max="100" value="50" />
+            <span class="audio-val" id="audio-master-val">50%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="widget clipboard-widget" id="clipboard-widget">
+        <div class="widget-header-row">
+          <span class="widget-header">Clipboard</span>
+          <button class="clipboard-clear" id="clipboard-clear">&times;</button>
+        </div>
+        <div class="clipboard-list" id="clipboard-list"></div>
+      </div>
+
+      <div class="widget notes-widget" id="notes-widget">
+        <div class="widget-header">Notes</div>
+        <textarea class="notes-textarea" id="notes-textarea" placeholder="Write something…" spellcheck="false"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

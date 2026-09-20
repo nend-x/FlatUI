@@ -69,6 +69,11 @@
   --status-running: #D4A574;
   --status-pinned: #8A7B5C;
 
+  /* Danger accent — destructive actions. Overridden per-theme at runtime
+     (persist.rs default_themes) like every other color above. */
+  --danger: #C4664F;
+  --danger-rgb: 196, 102, 79;
+
   /* ===== Text colors (calibrated per-theme for readability) =====
      These are the primary text colors used throughout the app. They're
      separate from --sand/--sand-cream/--sand-dim (which are also used

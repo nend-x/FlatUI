@@ -283,11 +283,38 @@ switcherEl.addEventListener("mouseleave", () => {
 });
 
 // ===== Clock =====
+// 0.2: format honors the settings-table segmented control (24h / 12h),
+// loaded at boot and updated live via settings://changed.
+let clock24h = true;
+
+async function loadClockFormat() {
+  try {
+    const s = await invoke<{ clock_24h?: boolean }>("load_settings");
+    clock24h = s.clock_24h ?? true;
+  } catch {}
+}
+
+listen<{ clock_24h?: boolean }>("settings://changed", (e) => {
+  if (typeof e.payload.clock_24h === "boolean") {
+    clock24h = e.payload.clock_24h;
+    updateClock();
+  }
+});
+
 function updateClock() {
   const now = new Date();
-  const hh = now.getHours().toString().padStart(2, "0");
+  let hh: number;
+  let suffix = "";
+  if (clock24h) {
+    hh = now.getHours();
+  } else {
+    hh = now.getHours() % 12;
+    if (hh === 0) hh = 12;
+    suffix = now.getHours() < 12 ? " AM" : " PM";
+  }
   const mm = now.getMinutes().toString().padStart(2, "0");
-  clockTime.textContent = `${hh}:${mm}`;
+  const hhStr = clock24h ? hh.toString().padStart(2, "0") : String(hh);
+  clockTime.textContent = `${hhStr}:${mm}${suffix}`;
   const dayShort = now.toLocaleDateString("ru-RU", { weekday: "short" });
   const dayNum = now.getDate().toString().padStart(2, "0");
   const monthShort = now.toLocaleDateString("ru-RU", { month: "short" });
@@ -365,6 +392,7 @@ clockWrap.addEventListener("click", () => invoke("toggle_calendar_flyout"));
 async function init() {
   updateClock();
   setInterval(updateClock, 1000);
+  void loadClockFormat();
   updateLanguage();
   setInterval(updateLanguage, 500);
 

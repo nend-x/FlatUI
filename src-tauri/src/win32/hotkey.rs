@@ -1,17 +1,29 @@
-// Win-key tap-vs-combo interception.
+// Win-key tap-vs-combo-vs-hold interception.
 //
-// Behavior (Lightshot/Spotlight-style):
-//   - Win pressed and released ALONE (a "tap")  -> toggle the FlatUI launcher
+// Behavior (FlatUI Hush tables update):
+//   - Win TAP (down + up alone, quick)          -> toggle the launcher
+//   - Win HOLD (held for HOLD_MS)               -> radial table picker appears
+//       - around the mouse cursor, or centered on the screen when Ctrl is
+//         also down (Ctrl+Win)
+//       - hovering a picker button and RELEASING Win opens that table
 //   - Win held with ANY other key (Win+D, Win+E, Win+Tab, ...) -> the combo
-//     works exactly like on stock Windows.
+//     works exactly like on stock Windows (and dismisses the picker if it
+//     was already showing)
 //
 // How it works:
 //   A low-level keyboard hook (WH_KEYBOARD_LL) SWALLOWS the native Win-down
 //   and remembers it is "pending". The moment any other key is pressed while
-//   Win is pending, the tap is cancelled and the suppressed Win-down is
-//   re-injected (marked injected so this hook ignores it) — from then on the
-//   rest of the combo flows through Windows untouched. If Win is RELEASED
-//   while still pending, it was a tap and we fire the launcher toggle.
+//   Win is pending, the tap AND the hold are cancelled, an open picker is
+//   dismissed, and the suppressed Win-down is re-injected (marked injected so
+//   this hook ignores it) — from then on the rest of the combo flows through
+//   Windows untouched. On Win-up the pending flag decides: tables open →
+//   release handler (open hovered table); still pending → it was a tap →
+//   toggle handler.
+//
+//   The HOLD detection does NOT run on the hook thread: Win-down spawns a
+//   one-shot detector thread that sleeps HOLD_MS, then (only if Win is still
+//   pending and no other key arrived) flips TABLES_OPEN and fires on_hold.
+//   The hook callback itself never blocks — SendInput-free fast path.
 //
 // Swallowing Win-down (vs the `prevent-alt-win-menu` crate's approach of
 // injecting a dummy key-up AFTER Win-up) is what makes the Start menu
@@ -28,17 +40,17 @@
 // only handles Alt (menu bar suppression on Alt release).
 //
 // The hook runs on its own thread with a standard message pump (required for
-// low-level hooks). The toggle callback is invoked from a short-lived worker
-// thread so the hook never blocks input processing.
+// low-level hooks). All handler callbacks are invoked from short-lived
+// worker threads so the hook never blocks input processing.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use once_cell::sync::OnceCell;
 use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP,
-    VIRTUAL_KEY, VK_LMENU, VK_LWIN, VK_MENU, VK_RMENU, VK_RWIN,
+    GetAsyncKeyState, SendInput, INPUT, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY,
+    KEYEVENTF_KEYUP, VIRTUAL_KEY, VK_CONTROL, VK_LMENU, VK_LWIN, VK_MENU, VK_RMENU, VK_RWIN,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW, TranslateMessage, HC_ACTION,
@@ -46,10 +58,40 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WM_SYSKEYDOWN, WM_SYSKEYUP, UnhookWindowsHookEx,
 };
 
-type ToggleFn = Box<dyn Fn() + Send + Sync>;
+/// Win-key behavior for the FlatUI Hush tables update.
+///
+/// Three user-visible gestures share one swallowed Win-down:
+///   - TAP    (Win down → up with no other key in between, released before
+///             HOLD_MS elapses)                 → `on_tap`    (toggle launcher)
+///   - HOLD   (Win held for >= HOLD_MS)        → `on_hold(ctrl)` — shows the
+///             radial table picker, around the cursor, or centered on the
+///             screen when Ctrl is also held (Ctrl+Win)
+///   - RELEASE while the picker is open        → `on_tables_release` — the
+///             backend opens whichever table button is under the cursor
+///             (hover state is tracked backend-side via set_tables_hover)
+///
+/// Combos are untouched: any other key while Win is held cancels the tap AND
+/// the pending hold, hides an already-open picker, and re-injects the
+/// swallowed Win-down so Win+D / Win+E / Win+Ctrl+… resolve natively.
+pub struct HotkeyHandlers {
+    pub on_tap: Box<dyn Fn() + Send + Sync>,
+    /// `ctrl` = show the picker centered on the screen instead of at the cursor.
+    pub on_hold: Box<dyn Fn(bool) + Send + Sync>,
+    pub on_tables_release: Box<dyn Fn() + Send + Sync>,
+    pub on_tables_cancel: Box<dyn Fn() + Send + Sync>,
+}
 
-static TOGGLER: OnceCell<ToggleFn> = OnceCell::new();
+type Handlers = OnceCell<HotkeyHandlers>;
+
+static HANDLERS: Handlers = Handlers::new();
 static WIN_PENDING: AtomicBool = AtomicBool::new(false);
+static TABLES_OPEN: AtomicBool = AtomicBool::new(false);
+
+/// How long Win must be held before the table picker appears. Mirrors
+/// `settings.tables_hold_ms` — updated by lib.rs on startup and whenever
+/// settings are saved. Kept here so the hold-detector never touches the
+/// config file from the hook thread.
+pub static HOLD_MS: AtomicU64 = AtomicU64::new(220);
 
 // Alt menu suppression state — replaces the prevent-alt-win-menu crate.
 // ALT_PENDING is set on Alt-down and cleared when any OTHER key is pressed
@@ -64,13 +106,14 @@ static ALT_PENDING: AtomicBool = AtomicBool::new(false);
 /// re-installs the hook on a fresh thread.
 static HOOK_ALIVE: AtomicBool = AtomicBool::new(false);
 
-/// Install the hook. `toggle` is called whenever the user taps Win alone.
-/// Safe to call once at app startup. Also starts a background health-check
-/// timer that re-installs the hook if it ever dies (Windows can silently
-/// remove low-level hooks if the callback takes too long, if the hook
-/// thread's message pump stalls, or if an AV interferes).
-pub fn install(toggle: ToggleFn) {
-    if TOGGLER.set(toggle).is_err() {
+/// Install the hook. `handlers` receives the three Win gestures (tap, hold,
+/// release-while-picker-open) plus combo dismissal. Safe to call once at app
+/// startup. Also starts a background health-check timer that re-installs the
+/// hook if it ever dies (Windows can silently remove low-level hooks if the
+/// callback takes too long, if the hook thread's message pump stalls, or if
+/// an AV interferes).
+pub fn install(handlers: HotkeyHandlers) {
+    if HANDLERS.set(handlers).is_err() {
         log::warn!("win hotkey hook already installed");
         return;
     }
@@ -117,7 +160,7 @@ fn spawn_hook_thread() {
                     return;
                 }
             };
-            log::info!("Win key hook installed (swallow-down + tap -> launcher, combos -> native)");
+            log::info!("Win key hook installed (tap -> launcher, hold -> tables, combos -> native)");
             // CRITICAL: the message loop MUST call TranslateMessage + DispatchMessageW.
             //
             // WH_KEYBOARD_LL hooks are delivered via SendMessage to the thread
@@ -165,22 +208,40 @@ unsafe extern "system" fn ll_keyboard_proc(
         if !injected {
             if vk == VK_LWIN || vk == VK_RWIN {
                 if is_down {
-                    // Begin a potential tap; swallow the native down for now
-                    // so the OS shell can't start its "Win chord" detection
-                    // (which is what opens the Start menu).
+                    // Begin a potential tap AND a potential hold; swallow the
+                    // native down for now so the OS shell can't start its
+                    // "Win chord" detection (which is what opens the Start
+                    // menu). The hold detector below decides if this becomes
+                    // the radial table picker.
                     WIN_PENDING.store(true, Ordering::SeqCst);
+                    spawn_hold_detector();
                     return SUPPRESS;
                 }
                 if is_up {
+                    if TABLES_OPEN.swap(false, Ordering::SeqCst) {
+                        // The picker is open: this release means "open the
+                        // table under the cursor" (backend reads the hover
+                        // state) or "dismiss" when nothing is hovered.
+                        WIN_PENDING.store(false, Ordering::SeqCst);
+                        if let Some(h) = HANDLERS.get() {
+                            let f = &h.on_tables_release;
+                            std::thread::spawn(f);
+                        }
+                        // Swallow the Win-up so the OS shell never sees a
+                        // standalone Win release (Start-menu trigger).
+                        return SUPPRESS;
+                    }
                     if WIN_PENDING.swap(false, Ordering::SeqCst) {
                         // Tap: Win went down and up with no other key in
-                        // between. Fire the toggle on a worker thread so
-                        // the hook never blocks input processing, and
-                        // swallow this Win-up so the OS shell definitely
-                        // doesn't see a "Win release alone" event (which
-                        // would otherwise re-trigger the Start menu).
-                        if let Some(toggle) = TOGGLER.get() {
-                            std::thread::spawn(toggle);
+                        // between and before the hold threshold. Fire the
+                        // toggle on a worker thread so the hook never blocks
+                        // input processing, and swallow this Win-up so the
+                        // OS shell definitely doesn't see a "Win release
+                        // alone" event (which would otherwise re-trigger
+                        // the Start menu).
+                        if let Some(h) = HANDLERS.get() {
+                            let f = &h.on_tap;
+                            std::thread::spawn(f);
                         }
                         return SUPPRESS;
                     }
@@ -209,10 +270,17 @@ unsafe extern "system" fn ll_keyboard_proc(
                 // Let Alt through normally — we don't suppress it, we just
                 // add a dummy key-up after the release.
             } else if is_down && WIN_PENDING.load(Ordering::SeqCst) {
-                // Combo detected (Win+D, Win+E, ...): cancel the tap and
-                // put the Win modifier back so Windows sees the real
+                // Combo detected (Win+D, Win+E, ...): cancel the tap AND the
+                // pending hold, dismiss the picker if it already appeared,
+                // and put the Win modifier back so Windows sees the real
                 // shortcut.
                 WIN_PENDING.store(false, Ordering::SeqCst);
+                if TABLES_OPEN.swap(false, Ordering::SeqCst) {
+                    if let Some(h) = HANDLERS.get() {
+                        let f = &h.on_tables_cancel;
+                        std::thread::spawn(f);
+                    }
+                }
                 re_inject_win_down();
             } else if is_down {
                 // Any non-Win, non-Alt key pressed — cancel any pending
@@ -223,6 +291,34 @@ unsafe extern "system" fn ll_keyboard_proc(
     }
 
     CallNextHookEx(None, n_code, w_param, l_param)
+}
+
+/// One-shot hold detector, spawned on every non-injected Win-down.
+///
+/// Sleeps HOLD_MS; if Win is STILL pending (no other key arrived, not yet
+/// released, no combo re-inject) it turns the pending tap into the radial
+/// table picker. Ctrl is sampled at the moment the picker appears — holding
+/// Ctrl first or pressing it during the hold both land in center mode.
+///
+/// The hook thread itself never sleeps: a detector thread per Win-down is
+/// cheap (lives for HOLD_MS at most, ~220 ms) and keeps input latency at zero.
+fn spawn_hold_detector() {
+    let hold_ms = HOLD_MS.load(Ordering::SeqCst).clamp(80, 1000);
+    std::thread::Builder::new()
+        .name("win-hold-detector".into())
+        .spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(hold_ms));
+            if !WIN_PENDING.load(Ordering::SeqCst) || TABLES_OPEN.load(Ordering::SeqCst) {
+                return; // released early, or a combo re-injected the Win-down
+            }
+            TABLES_OPEN.store(true, Ordering::SeqCst);
+            let ctrl = unsafe { GetAsyncKeyState(VK_CONTROL.0 as i32) < 0 };
+            if let Some(h) = HANDLERS.get() {
+                let f = &h.on_hold;
+                std::thread::spawn(move || f(ctrl));
+            }
+        })
+        .ok();
 }
 
 /// Re-send the Win-down we swallowed so an in-flight combo resolves natively.

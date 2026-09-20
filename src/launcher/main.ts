@@ -944,19 +944,19 @@ async function applyFilter() {
   const q = searchInput.value.trim().toLowerCase();
 
   if (q === "") {
-    // Empty: show desktop grid, hide spotlight results
-    // Cancel any pending search_programs call
+    // Empty: the desktop grid is gone from flatlight (0.2 split — desktop
+    // icons live in the desktop table now), so idle state shows nothing
+    // but the centered search bar.
     if (spotlightSearchTimer) {
       window.clearTimeout(spotlightSearchTimer);
       spotlightSearchTimer = null;
     }
-    filteredItems = [...allItems];
+    filteredItems = [];
     selectedIdx = 0;
-    grid.classList.remove("hidden");
+    grid.classList.add("hidden");
     spotlightResultsEl.classList.add("hidden");
     spotlightResultsEl.innerHTML = "";
     spotlightResults = [];
-    renderGrid();
     return;
   }
 
@@ -1182,8 +1182,13 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// Right-click → context menu (desktop grid only)
+// Right-click → context menu (desktop grid only — flatlight is search-only
+// since the 0.2 split, so it never shows the New Folder / Refresh menu).
 root.addEventListener("contextmenu", (e) => {
+  if (root.classList.contains("flatlight-mode")) {
+    e.preventDefault();
+    return;
+  }
   if (e.target === root || e.target === grid) {
     e.preventDefault();
     showBackgroundContextMenu(e.clientX, e.clientY);

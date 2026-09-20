@@ -1,28 +1,32 @@
-# prereqs-check.ps1 — verify the three build prerequisites are installed.
+# prereqs-check.ps1 - verify the three build prerequisites are installed.
 # Exits with a non-zero code (and a friendly message) if anything is missing.
 #
 # Usage:
 #   .\prereqs-check.ps1
 #
-# This script does NOT modify anything — it only checks.
+# This script does NOT modify anything - it only checks.
+#
+# NOTE: keep this file pure ASCII. Windows PowerShell 5.1 reads .ps1 files
+# without a BOM in the system's legacy codepage, and a UTF-8 em-dash inside
+# a string literal decodes to a quote byte that breaks the parser entirely.
 
 $ErrorActionPreference = "Stop"
 
 $missing = @()
 
-# --- 1. Node.js ≥ 18 ---
+# --- 1. Node.js >= 18 ---
 try {
     $nodeVersion = (node --version 2>$null)
     if (-not $nodeVersion) { throw "not installed" }
     $nodeMajor = [int]($nodeVersion -replace '^v(\d+).*', '$1')
     if ($nodeMajor -lt 18) {
-        Write-Host "FAIL  Node.js $nodeVersion is too old (need ≥ 18)" -ForegroundColor Red
+        Write-Host "FAIL  Node.js $nodeVersion is too old (need >= 18)" -ForegroundColor Red
         $missing += "node"
     } else {
         Write-Host "OK    Node.js $nodeVersion" -ForegroundColor Green
     }
 } catch {
-    Write-Host "FAIL  Node.js is not installed (need ≥ 18; get it from https://nodejs.org)" -ForegroundColor Red
+    Write-Host "FAIL  Node.js is not installed (need >= 18; get it from https://nodejs.org)" -ForegroundColor Red
     $missing += "node"
 }
 
@@ -36,14 +40,14 @@ try {
     $missing += "npm"
 }
 
-# --- 3. Rust (stable, ≥ 1.85) with the x86_64-pc-windows-msvc target ---
+# --- 3. Rust (stable, >= 1.85) with the x86_64-pc-windows-msvc target ---
 try {
     $rustcVersion = (rustc --version 2>$null)
     if (-not $rustcVersion) { throw "not installed" }
     $rustcVer = [version]($rustcVersion -replace '^rustc (\d+\.\d+\.\d+).*', '$1')
     $minRustc = [version]"1.85.0"
     if ($rustcVer -lt $minRustc) {
-        Write-Host "FAIL  rustc $rustcVer is too old (need ≥ 1.85.0 — prevent-alt-win-menu uses edition 2024). Run: rustup update stable" -ForegroundColor Red
+        Write-Host "FAIL  rustc $rustcVer is too old (need >= 1.85.0 - prevent-alt-win-menu uses edition 2024). Run: rustup update stable" -ForegroundColor Red
         $missing += "rustc"
     } else {
         Write-Host "OK    rustc $rustcVer" -ForegroundColor Green
@@ -79,7 +83,7 @@ if (Test-Path $vswhere) {
         $missing += "msvc-tools"
     }
 } else {
-    # vswhere not present — fall back to a cl.exe / link.exe search on PATH.
+    # vswhere not present - fall back to a cl.exe / link.exe search on PATH.
     $cl = (Get-Command cl.exe -ErrorAction SilentlyContinue)
     if ($cl) {
         Write-Host "OK    cl.exe on PATH at $($cl.Source)" -ForegroundColor Green

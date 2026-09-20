@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Table — Taskbar</title>
+  <link rel="stylesheet" href="../styles/theme.css" />
+  <link rel="stylesheet" href="../styles/tables.css" />
+  <link rel="stylesheet" href="../styles/launcher.css" />
+</head>
+<body>
+  <div class="tt-root" id="tt-root">
+    <div class="tt-rail">
+      <div class="tt-line"></div>
+      <div class="tt-scroll" id="tt-scroll"><!-- icons injected here --></div>
+    </div>
+    <!-- Outside the clipping rail; JS positions it next to the hovered icon -->
+    <div class="tt-tooltip" id="tt-tooltip"></div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
