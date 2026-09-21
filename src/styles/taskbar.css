@@ -272,7 +272,7 @@
 .tb-context-menu {
   position: fixed;
   min-width: 140px;
-  background-color: rgba(var(--bg-espresso-deep-rgb), 0.65);
+  background-color: var(--bg-espresso-deep);
   background-image: var(--grain-image);
   background-size: var(--grain-size);
   background-position: var(--grain-position);

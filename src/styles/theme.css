@@ -47,9 +47,9 @@
   --bg-espresso-deep-rgb: 19, 19, 22;
   --bg-espresso-raised: #2B2930;
   --bg-espresso-raised-rgb: 43, 41, 48;
-  /* Opaque washes — this theme has NO blur/frosting */
-  --bg-espresso-frosted: rgba(28, 27, 31, 0.92);
-  --bg-espresso-glass: rgba(28, 27, 31, 0.96);
+  /* Opaque washes — fully solid, this theme has NO blur/frosting */
+  --bg-espresso-frosted: var(--bg-espresso);
+  --bg-espresso-glass: var(--bg-espresso);
 
   /* Neutral ramp — outline / variant / on-surface */
   --sand: #938F99;
@@ -132,13 +132,14 @@
      The old themes layered a dot-grid + SVG grain tile (a cheap stand-in
      for backdrop-filter blur). Material 3 surfaces are FLAT — opaque
      M3 neutral panels with elevation shadows, no grain, no blur.
-     --grain-bg stays as the flat wash color consumers layer underneath.
+     The --grain-bg washes are FULLY OPAQUE now — a translucent panel over
+     the desktop reads as "frosted", which this theme must not have.
      (The --grain-noise-svg runtime injection in applyTheme() is now a
      no-op: nothing composes it into a background anymore.)
   */
-  --grain-bg: rgba(var(--bg-espresso-deep-rgb), 0.62);
-  --grain-bg-light: rgba(var(--bg-espresso-deep-rgb), 0.55);
-  --grain-bg-dark: rgba(var(--bg-espresso-deep-rgb), 0.94);
+  --grain-bg: var(--bg-espresso-deep);
+  --grain-bg-light: var(--bg-espresso);
+  --grain-bg-dark: var(--bg-espresso-deep);
   --grain-image: none;
   --grain-size: auto;
   --grain-position: 0 0;

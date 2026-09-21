@@ -354,8 +354,8 @@ pub fn default_themes() -> ThemesConfig {
                     bg_espresso_raised: "#2B2930".to_string(),
                     bg_espresso_raised_rgb: "43, 41, 48".to_string(),
                     // Opaque washes — this theme has NO blur/frosting
-                    bg_espresso_frosted: "rgba(28,27,31,0.92)".to_string(),
-                    bg_espresso_glass: "rgba(28,27,31,0.96)".to_string(),
+                    bg_espresso_frosted: "#1C1B1F".to_string(),
+                    bg_espresso_glass: "#1C1B1F".to_string(),
                     // Neutral ramp — outline / variant / on-surface
                     sand: "#938F99".to_string(),
                     sand_rgb: "147, 143, 153".to_string(),

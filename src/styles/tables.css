@@ -38,7 +38,7 @@
 .pie-slice { cursor: pointer; }
 
 .pie-wedge {
-  fill: rgba(var(--bg-espresso-deep-rgb), 0.80);
+  fill: var(--bg-espresso-deep);
   fill-opacity: 0;
   stroke: var(--border-strong);
   stroke-width: 1;
@@ -72,7 +72,7 @@
 }
 
 .pie-hub {
-  fill: rgba(var(--bg-espresso-deep-rgb), 0.78);
+  fill: var(--bg-espresso-deep);
   fill-opacity: 0;
   stroke: var(--border-strong);
   stroke-opacity: 0;
@@ -90,7 +90,7 @@
 
 /* Hovered slice: raised fill, terracotta border, brightened content. */
 .pie-slice.hover .pie-wedge {
-  fill: rgba(var(--bg-espresso-raised-rgb), 0.94);
+  fill: var(--bg-espresso-raised);
   stroke: var(--accent-terracotta);
   stroke-opacity: 1;
   stroke-width: 1.5;
@@ -140,8 +140,7 @@
   bottom: 7px;
   width: 62px;
   border-radius: 31px;
-  background-color: rgba(var(--bg-espresso-deep-rgb), 0.80);
-  background-image: var(--grain-image);
+  background-color: var(--bg-espresso-deep);
   background-size: var(--grain-size);
   background-position: var(--grain-position);
   background-repeat: var(--grain-repeat);
@@ -223,7 +222,7 @@
 /* macOS-dock magnification: ONLY the hovered icon grows (per feedback —
    neighbors stay at rest). JS sets --mag on the hovered icon. */
 .tt-icon.hover .tt-icon-box {
-  background: rgba(var(--bg-espresso-raised-rgb), 0.9);
+  background: var(--bg-espresso-raised);
   border-color: var(--accent-terracotta);
   transform: scale(var(--mag, 1.45));
 }
@@ -267,7 +266,7 @@
   font-family: var(--font-display);
   font-size: 10px;
   color: var(--text-primary);
-  background-color: rgba(var(--bg-espresso-deep-rgb), 0.92);
+  background-color: var(--bg-espresso-deep);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-popup);
@@ -347,7 +346,7 @@
   flex-direction: column;
   border-radius: var(--radius-xl);
   overflow: hidden;
-  background-color: rgba(var(--bg-espresso-deep-rgb), 0.88);
+  background-color: var(--bg-espresso-deep);
   background-image: var(--grain-image);
   background-size: var(--grain-size);
   background-position: var(--grain-position);
@@ -613,7 +612,7 @@
   z-index: 50;
   min-width: 120px;
   padding: 4px;
-  background-color: rgba(var(--bg-espresso-deep-rgb), 0.95);
+  background-color: var(--bg-espresso-deep);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-popup);
