@@ -1,7 +1,7 @@
 /* =========================================================================
-   TABLES picker — the radial menu that appears while the Win key is held.
+   TABLES picker — the PIE menu that appears while the Win key is held.
    The backend shows this window on a Win hold and reads our hover report
-   (set_tables_hover) when the user releases Win over a button.
+   (set_tables_hover) when the user releases Win over a slice.
    ========================================================================= */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -18,19 +18,23 @@ interface ShowPayload {
 // — the picker must follow the active theme (startup load AND live events).
 
 const root = document.getElementById("tables-root")!;
-const buttons = Array.from(document.querySelectorAll<HTMLElement>(".table-btn"));
+const pie = document.getElementById("pie")! as unknown as SVGSVGElement;
+const slices = Array.from(document.querySelectorAll<SVGGElement>(".pie-slice"));
 
 let hoverTask: number | null = null;
 
-// Buttons sit on a pentagon around the anchor point (radius 84px,
-// clockwise from the top). Offsets in px.
-const OFFSETS: Record<string, [number, number]> = {
-  flatlight: [0, -84],   // top
-  desktop: [80, -26],    // top-right
-  taskbar: [49, 68],     // bottom-right
-  widgets: [-49, 68],    // bottom-left
-  settings: [-80, -26],  // top-left
-};
+// ===== Pie geometry ======================================================
+// Five equal 72° wedges radiating from the anchor point, clockwise from
+// the top: flatlight, desktop, taskbar, widgets, settings. A small gap
+// between wedges reads as slice borders and keeps the center hub visible.
+
+const SLICE_ORDER = ["flatlight", "desktop", "taskbar", "widgets", "settings"];
+const RADIUS = 138;      // outer wedge radius (px)
+const GAP_DEG = 3;       // angular gap between wedges
+const SLICE_DEG = 360 / SLICE_ORDER.length;
+const ICON_R = 86;       // icon center distance from anchor
+const LABEL_R = 118;     // label distance from anchor
+const HUB_R = 26;        // center hub radius
 
 const TABLE_IDS: Record<string, number> = {
   taskbar: 1,
@@ -40,9 +44,48 @@ const TABLE_IDS: Record<string, number> = {
   desktop: 5,
 };
 
+const polar = (cx: number, cy: number, r: number, deg: number): [number, number] => {
+  const rad = (deg * Math.PI) / 180;
+  return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+};
+
+// Lay out every wedge (and its icon/label) around one anchor point.
+function layoutPie(x: number, y: number) {
+  const hub = document.getElementById("pie-hub")! as unknown as SVGCircleElement;
+  hub.setAttribute("cx", `${x}`);
+  hub.setAttribute("cy", `${y}`);
+  hub.setAttribute("r", `${HUB_R}`);
+
+  for (const slice of slices) {
+    const i = SLICE_ORDER.indexOf(slice.dataset.table!);
+    const mid = -90 + i * SLICE_DEG; // slice i's mid-angle, clockwise from up
+    const a0 = mid - SLICE_DEG / 2 + GAP_DEG / 2;
+    const a1 = mid + SLICE_DEG / 2 - GAP_DEG / 2;
+    const [x0, y0] = polar(x, y, RADIUS, a0);
+    const [x1, y1] = polar(x, y, RADIUS, a1);
+
+    const wedge = slice.querySelector<SVGPathElement>(".pie-wedge")!;
+    wedge.setAttribute("d",
+      `M ${x} ${y} L ${x0.toFixed(2)} ${y0.toFixed(2)} ` +
+      `A ${RADIUS} ${RADIUS} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`);
+
+    const [ix, iy] = polar(x, y, ICON_R, mid);
+    const icon = slice.querySelector<SVGElement>(".pie-icon")!;
+    icon.setAttribute("x", `${(ix - 12).toFixed(2)}`);
+    icon.setAttribute("y", `${(iy - 12).toFixed(2)}`);
+    icon.setAttribute("width", "24");
+    icon.setAttribute("height", "24");
+
+    const [lx, ly] = polar(x, y, LABEL_R, mid);
+    const label = slice.querySelector<SVGTextElement>(".pie-label")!;
+    label.setAttribute("x", `${lx.toFixed(2)}`);
+    label.setAttribute("y", `${ly.toFixed(2)}`);
+  }
+}
+
 function reportHover(id: number) {
   if (hoverTask) window.clearTimeout(hoverTask);
-  // Micro-defer: a quick pass over a button between two neighbors should
+  // Micro-defer: a quick pass over a slice between two neighbors should
   // never leave a stale hover report racing the hook's Win-up read.
   hoverTask = window.setTimeout(() => {
     invoke("set_tables_hover", { id });
@@ -50,27 +93,26 @@ function reportHover(id: number) {
 }
 
 function clearHover() {
-  buttons.forEach((b) => b.classList.remove("hover"));
+  slices.forEach((s) => s.classList.remove("hover"));
   reportHover(0);
 }
 
 // Hover tracking — the whole release gesture depends on this staying fresh.
-for (const btn of buttons) {
-  btn.addEventListener("mouseenter", () => {
-    buttons.forEach((b) => b.classList.remove("hover"));
-    btn.classList.add("hover");
-    const table = btn.dataset.table!;
-    reportHover(TABLE_IDS[table] ?? 0);
+for (const slice of slices) {
+  slice.addEventListener("mouseenter", () => {
+    slices.forEach((s) => s.classList.remove("hover"));
+    slice.classList.add("hover");
+    reportHover(TABLE_IDS[slice.dataset.table!] ?? 0);
   });
-  btn.addEventListener("mouseleave", () => {
-    btn.classList.remove("hover");
+  slice.addEventListener("mouseleave", () => {
+    slice.classList.remove("hover");
     reportHover(0);
   });
   // Click fallback (the primary gesture is hover + release Win) — e.g. a
   // user who holds Win forever and just clicks instead.
-  btn.addEventListener("click", (e) => {
+  slice.addEventListener("click", (e) => {
     e.stopPropagation();
-    invoke("open_table", { name: btn.dataset.table });
+    invoke("open_table", { name: slice.dataset.table });
   });
 }
 
@@ -81,14 +123,10 @@ root.addEventListener("mousedown", () => {
 
 listen<ShowPayload>("tables://show", (e) => {
   const { x, y } = e.payload;
-  // Anchor point → CSS vars for the vignette + per-button placement.
+  // Anchor point → CSS vars for the vignette + the pie layout.
   root.style.setProperty("--pick-x", `${x}px`);
   root.style.setProperty("--pick-y", `${y}px`);
-  for (const btn of buttons) {
-    const [dx, dy] = OFFSETS[btn.dataset.table!] ?? [0, 0];
-    btn.style.left = `${x + dx}px`;
-    btn.style.top = `${y + dy}px`;
-  }
+  layoutPie(x, y);
   root.classList.remove("shown");
   // Force a reflow so the pop-in transition replays every open.
   void root.offsetWidth;
@@ -104,7 +142,7 @@ listen<boolean>("icon-recolor://changed", (e) => {
 
 listen("tables://hide", () => {
   root.classList.remove("shown");
-  buttons.forEach((b) => b.classList.remove("hover"));
+  slices.forEach((s) => s.classList.remove("hover"));
 });
 
 // Apply the active theme + recolor state at startup (the picker loads

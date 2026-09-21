@@ -46,7 +46,7 @@ use app_state::AppState;
 static LAUNCHER_OPEN: AtomicBool = AtomicBool::new(false);
 static CLOSE_SEQ: AtomicU64 = AtomicU64::new(0);
 
-// ===== Tables state (radial Win-key picker) =====
+// ===== Tables state (pie Win-key picker) =====
 //
 // TABLES_HOVERED mirrors the button the picker webview currently has under
 // the mouse. The low-level hook reads it on Win-up (hold-release gesture) —
@@ -173,7 +173,7 @@ pub fn run() {
                 let _ = launcher.hide();
             }
 
-            // Tables (radial Win-key picker) + the transient taskbar table
+            // Tables (pie Win-key picker) + the transient taskbar table
             // strip are mouse-only overlays: NOACTIVATE + TOOLWINDOW so they
             // can never steal focus from the app the user was in while
             // holding Win. The settings/widgets tables are interactive
@@ -252,7 +252,7 @@ pub fn run() {
 
                 // (2) Install our own Win-key hook. It handles:
                 //   - Win tap (press + release alone, quick) → toggle launcher
-                //   - Win hold (tables_hold_ms) → radial table picker:
+                //   - Win hold (tables_hold_ms) → pie table picker:
                 //       around the cursor, or centered on screen for Ctrl+Win
                 //   - Win release while picker is open → open the hovered
                 //     table (or dismiss when nothing is hovered)
@@ -670,11 +670,11 @@ fn close_launcher(app: tauri::AppHandle) {
     hide_launcher_animated(&app);
 }
 
-// ===== Tables (radial Win-key picker + its four tables) =====
+// ===== Tables (pie Win-key picker + its four tables) =====
 //
-// Holding Win (tables_hold_ms) opens the "tables" overlay: four buttons
-// arranged around the mouse cursor (Ctrl+Win → centered on the screen).
-// Hovering a button and releasing Win opens that table:
+// Holding Win (tables_hold_ms) opens the "tables" overlay: a pie menu of
+// five wedges radiating from the mouse cursor (Ctrl+Win → screen center).
+// Hovering a slice and releasing Win opens that table:
 //
 //   1 taskbar   — the taskbar icons on a small vertical line strip
 //                 (max 5 visible, wheel-scrollable, macOS-style magnify)
@@ -699,7 +699,7 @@ fn table_name_from_id(id: i32) -> &'static str {
     }
 }
 
-/// Show the radial picker. `center` = Ctrl+Win → center of the primary
+/// Show the pie picker. `center` = Ctrl+Win → center of the primary
 /// monitor instead of around the cursor.
 #[cfg(windows)]
 fn show_tables_impl(app: &tauri::AppHandle, center: bool) {

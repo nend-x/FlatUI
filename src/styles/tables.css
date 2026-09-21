@@ -1,17 +1,12 @@
-/* =========================================================================
-   TABLES styles — shared by the radial picker and the table windows
-   Built on the launcher theme tokens (theme.css): same grain, colors,
-   radii and easing as the flatlight launcher.
-   ========================================================================= */
+/* ===== TABLES styles — shared by the pie picker and the table windows ===== */
 
-/* ===== Radial picker (transient overlay while Win is held) ===== */
 .tables-root {
   position: fixed;
   inset: 0;
   z-index: 7000;
   overflow: hidden;
   /* Fully transparent until shown — the window itself is hidden anyway;
-     the faint vignette only fades in WITH the buttons (transition, so it
+     the faint vignette only fades in WITH the pie (transition, so it
      also fades back out on dismiss) and the desktop stays fully visible
      while picking. */
 }
@@ -20,8 +15,8 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle 190px at var(--pick-x) var(--pick-y),
-          rgba(var(--bg-espresso-deep-rgb), 0.28), transparent 75%);
+  background: radial-gradient(circle 170px at var(--pick-x) var(--pick-y),
+          rgba(var(--bg-espresso-deep-rgb), 0.24), transparent 75%);
   opacity: 0;
   transition: opacity 180ms var(--ease-out-soft);
   pointer-events: none;
@@ -29,69 +24,92 @@
 
 .tables-root.shown::after { opacity: 1; }
 
-.table-btn {
+/* ===== Pie picker (transient overlay while Win is held) =====
+   Five full wedges radiate from the anchor point — the slice under the
+   cursor is the hovered table; release Win to open it. */
+.pie {
   position: absolute;
-  width: 58px;
-  height: 58px;
-  margin: -29px 0 0 -29px; /* center on the emitted anchor point */
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 2px;
-  z-index: 1; /* above the ::after vignette */
-  background-color: rgba(var(--bg-espresso-deep-rgb), 0.78);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
-  border: 1px solid var(--border-strong);
-  box-shadow: var(--shadow-popup);
-  color: var(--text-secondary);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pie-slice { cursor: pointer; }
+
+.pie-wedge {
+  fill: rgba(var(--bg-espresso-deep-rgb), 0.80);
+  fill-opacity: 0;
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-opacity: 0;
+  transition: fill-opacity 140ms var(--ease-out-soft),
+              stroke-opacity 140ms var(--ease-out-soft);
+}
+
+.pie-slice .pie-icon {
+  stroke: var(--text-secondary);
   opacity: 0;
   transform: scale(0.6);
-  cursor: pointer;
-  transition: opacity 140ms var(--ease-out-soft),
-              transform 180ms var(--ease-spring),
-              border-color 140ms var(--ease-out-soft),
-              background-color 140ms var(--ease-out-soft);
-}
-
-.tables-root.shown .table-btn { opacity: 1; transform: scale(1); }
-
-.table-btn svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
+  transform-box: fill-box;
+  transform-origin: center;
   pointer-events: none;
+  transition: opacity 140ms var(--ease-out-soft),
+              transform 180ms var(--ease-spring);
 }
 
-.table-btn .table-btn-label {
+.pie-slice .pie-label {
   font-family: var(--font-display);
-  font-size: 7px;
+  font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  fill: var(--text-secondary);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 140ms var(--ease-out-soft);
 }
 
-.table-btn.hover {
-  background-color: rgba(var(--bg-espresso-raised-rgb), 0.92);
-  border-color: var(--accent-terracotta);
-  color: var(--text-primary);
+.pie-hub {
+  fill: rgba(var(--bg-espresso-deep-rgb), 0.78);
+  fill-opacity: 0;
+  stroke: var(--border-strong);
+  stroke-opacity: 0;
+  pointer-events: none;
+  transition: fill-opacity 140ms var(--ease-out-soft),
+              stroke-opacity 140ms var(--ease-out-soft);
+}
+
+/* Pop-in: everything fades/scales in WITH the overlay (the window itself
+   is hidden on dismiss, so the reverse transition is just polish). */
+.tables-root.shown .pie-wedge { fill-opacity: 1; stroke-opacity: 1; }
+.tables-root.shown .pie-icon  { opacity: 1; transform: scale(1); }
+.tables-root.shown .pie-label { opacity: 1; }
+.tables-root.shown .pie-hub   { fill-opacity: 1; stroke-opacity: 1; }
+
+/* Hovered slice: raised fill, terracotta border, brightened content. */
+.pie-slice.hover .pie-wedge {
+  fill: rgba(var(--bg-espresso-raised-rgb), 0.94);
+  stroke: var(--accent-terracotta);
+  stroke-opacity: 1;
+  stroke-width: 1.5;
+}
+.pie-slice.hover .pie-icon {
+  stroke: var(--text-primary);
   transform: scale(1.18);
-  box-shadow: var(--shadow-popup);
 }
+.pie-slice.hover .pie-label { fill: var(--text-primary); }
 
-.table-btn:active { transform: scale(1.05); }
+.pie-slice:active .pie-wedge { fill: rgba(var(--sand-rgb), 0.10); }
 
-/* Bloom-out stagger by DOM order (pentagon: flatlight, desktop, taskbar,
-   widgets, settings) — plays forward on open and in reverse on dismiss. */
-.tables-root.shown .table-btn:nth-of-type(1) { transition-delay: 0ms; }
-.tables-root.shown .table-btn:nth-of-type(2) { transition-delay: 20ms; }
-.tables-root.shown .table-btn:nth-of-type(3) { transition-delay: 40ms; }
-.tables-root.shown .table-btn:nth-of-type(4) { transition-delay: 60ms; }
-.tables-root.shown .table-btn:nth-of-type(5) { transition-delay: 80ms; }
+/* Bloom-out stagger by DOM order (flatlight, desktop, taskbar,
+   widgets, settings) — plays forward on open, in reverse on dismiss. */
+.pie-slice:nth-of-type(1) .pie-wedge, .pie-slice:nth-of-type(1) .pie-icon, .pie-slice:nth-of-type(1) .pie-label { transition-delay: 0ms; }
+.pie-slice:nth-of-type(2) .pie-wedge, .pie-slice:nth-of-type(2) .pie-icon, .pie-slice:nth-of-type(2) .pie-label { transition-delay: 20ms; }
+.pie-slice:nth-of-type(3) .pie-wedge, .pie-slice:nth-of-type(3) .pie-icon, .pie-slice:nth-of-type(3) .pie-label { transition-delay: 40ms; }
+.pie-slice:nth-of-type(4) .pie-wedge, .pie-slice:nth-of-type(4) .pie-icon, .pie-slice:nth-of-type(4) .pie-label { transition-delay: 60ms; }
+.pie-slice:nth-of-type(5) .pie-wedge, .pie-slice:nth-of-type(5) .pie-icon, .pie-slice:nth-of-type(5) .pie-label { transition-delay: 80ms; }
 
 /* ===== Vertical taskbar strip (table 1) =====
    The window is wider than the visible rail (260px) — transparent chrome to
@@ -575,9 +593,9 @@
     brightness(1.05);
 }
 
-/* Picker buttons are stroke-based SVGs on currentColor — they already
+/* Picker icons are stroke-based SVGs — they already
    follow the themed text color; recoloring shifts their hue like icons. */
-.icon-recolor .table-btn svg {
+.icon-recolor .pie-slice .pie-icon {
   opacity: 0.9;
   filter:
     grayscale(1)

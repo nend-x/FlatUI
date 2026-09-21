@@ -2,7 +2,7 @@
 //
 // Behavior (FlatUI Hush tables update):
 //   - Win TAP (down + up alone, quick)          -> toggle the launcher
-//   - Win HOLD (held for HOLD_MS)               -> radial table picker appears
+//   - Win HOLD (held for HOLD_MS)               -> pie table picker appears
 //       - around the mouse cursor, or centered on the screen when Ctrl is
 //         also down (Ctrl+Win)
 //       - hovering a picker button and RELEASING Win opens that table
@@ -64,7 +64,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 ///   - TAP    (Win down → up with no other key in between, released before
 ///             HOLD_MS elapses)                 → `on_tap`    (toggle launcher)
 ///   - HOLD   (Win held for >= HOLD_MS)        → `on_hold(ctrl)` — shows the
-///             radial table picker, around the cursor, or centered on the
+///             pie table picker, around the cursor, or centered on the
 ///             screen when Ctrl is also held (Ctrl+Win)
 ///   - RELEASE while the picker is open        → `on_tables_release` — the
 ///             backend opens whichever table button is under the cursor
@@ -212,7 +212,7 @@ unsafe extern "system" fn ll_keyboard_proc(
                     // native down for now so the OS shell can't start its
                     // "Win chord" detection (which is what opens the Start
                     // menu). The hold detector below decides if this becomes
-                    // the radial table picker.
+                    // the pie table picker.
                     WIN_PENDING.store(true, Ordering::SeqCst);
                     spawn_hold_detector();
                     return SUPPRESS;

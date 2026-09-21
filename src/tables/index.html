@@ -8,56 +8,66 @@
   <link rel="stylesheet" href="../styles/tables.css" />
 </head>
 <body>
-  <!-- Radial table picker — five buttons around the anchor point
-       (cursor, or screen center for Ctrl+Win), pentagon layout.
-       Positions are set by JS from the tables://show payload. -->
+  <!-- Pie table picker — five full wedges radiating from the anchor point
+       (cursor, or screen center for Ctrl+Win). Wedge geometry is computed
+       by JS from the tables://show payload; the icon + label markup below
+       is static and gets positioned onto each slice's mid-angle. -->
   <div class="tables-root" id="tables-root">
-    <!-- Table 4 — flatlight (top) -->
-    <div class="table-btn" id="btn-flatlight" data-table="flatlight" title="Flatlight">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"/>
-        <path d="m21 21-4.3-4.3"/>
-      </svg>
-      <span class="table-btn-label">Flatlight</span>
-    </div>
-    <!-- Table 5 — desktop (top-right) -->
-    <div class="table-btn" id="btn-desktop" data-table="desktop" title="Desktop">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="13" rx="2"/>
-        <line x1="8" y1="21" x2="16" y2="21"/>
-        <line x1="12" y1="17" x2="12" y2="21"/>
-      </svg>
-      <span class="table-btn-label">Desktop</span>
-    </div>
-    <!-- Table 1 — taskbar line (bottom-right) -->
-    <div class="table-btn" id="btn-taskbar" data-table="taskbar" title="Taskbar line">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="14" width="18" height="7" rx="2"/>
-        <line x1="8" y1="17.5" x2="8" y2="17.5"/>
-        <line x1="12" y1="17.5" x2="12" y2="17.5"/>
-        <line x1="16" y1="17.5" x2="16" y2="17.5"/>
-        <line x1="12" y1="10" x2="12" y2="3"/>
-      </svg>
-      <span class="table-btn-label">Taskbar</span>
-    </div>
-    <!-- Table 3 — widgets (bottom-left) -->
-    <div class="table-btn" id="btn-widgets" data-table="widgets" title="Widgets">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
-      </svg>
-      <span class="table-btn-label">Widgets</span>
-    </div>
-    <!-- Table 2 — settings (top-left) -->
-    <div class="table-btn" id="btn-settings" data-table="settings" title="Settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-      <span class="table-btn-label">Settings</span>
-    </div>
+    <svg class="pie" id="pie">
+      <!-- Table 4 — flatlight (top slice) -->
+      <g class="pie-slice" id="btn-flatlight" data-table="flatlight">
+        <path class="pie-wedge" title="Flatlight"/>
+        <svg class="pie-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.3-4.3"/>
+        </svg>
+        <text class="pie-label">Flatlight</text>
+      </g>
+      <!-- Table 5 — desktop (top-right slice) -->
+      <g class="pie-slice" id="btn-desktop" data-table="desktop">
+        <path class="pie-wedge" title="Desktop"/>
+        <svg class="pie-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="13" rx="2"/>
+          <line x1="8" y1="21" x2="16" y2="21"/>
+          <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        <text class="pie-label">Desktop</text>
+      </g>
+      <!-- Table 1 — taskbar (bottom-right slice) -->
+      <g class="pie-slice" id="btn-taskbar" data-table="taskbar">
+        <path class="pie-wedge" title="Taskbar line"/>
+        <svg class="pie-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="14" width="18" height="7" rx="2"/>
+          <line x1="8" y1="17.5" x2="8" y2="17.5"/>
+          <line x1="12" y1="17.5" x2="12" y2="17.5"/>
+          <line x1="16" y1="17.5" x2="16" y2="17.5"/>
+          <line x1="12" y1="10" x2="12" y2="3"/>
+        </svg>
+        <text class="pie-label">Taskbar</text>
+      </g>
+      <!-- Table 3 — widgets (bottom-left slice) -->
+      <g class="pie-slice" id="btn-widgets" data-table="widgets">
+        <path class="pie-wedge" title="Widgets"/>
+        <svg class="pie-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+        <text class="pie-label">Widgets</text>
+      </g>
+      <!-- Table 2 — settings (top-left slice) -->
+      <g class="pie-slice" id="btn-settings" data-table="settings">
+        <path class="pie-wedge" title="Settings"/>
+        <svg class="pie-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <text class="pie-label">Settings</text>
+      </g>
+      <!-- Center hub — shows what the gesture is waiting on -->
+      <circle class="pie-hub" id="pie-hub"/>
+    </svg>
   </div>
 
   <script type="module" src="./main.ts"></script>
