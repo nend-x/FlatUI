@@ -81,12 +81,6 @@ function buildIcon(app: TaskbarApp): HTMLElement {
   slot.className = "tt-icon";
   slot.dataset.appId = app.id;
 
-  // Permanent horizontal name bar LEFT of the icon — always visible.
-  const name = document.createElement("div");
-  name.className = "tt-name";
-  name.textContent = app.name || "?";
-  slot.appendChild(name);
-
   const box = document.createElement("div");
   box.className = "tt-icon-box";
   slot.appendChild(box);
@@ -132,9 +126,6 @@ function updateIconContent(slot: HTMLElement, app: TaskbarApp) {
   slot.classList.toggle("running", app.running);
   slot.classList.toggle("pinned", app.pinned);
   slot.classList.toggle("foreground", app.is_foreground);
-
-  const name = slot.querySelector(".tt-name") as HTMLElement;
-  if (name && name.textContent !== (app.name || "?")) name.textContent = app.name || "?";
 
   const box = slot.querySelector(".tt-icon-box") as HTMLElement;
   const img = box.querySelector("img");
@@ -215,9 +206,10 @@ function rebuildNames() {
     if (app.is_foreground) bar.classList.add("foreground");
     bar.textContent = app.name;
     bar.dataset.appId = app.id;
-    // Vertical position matches the icon slot (offset is handled by the
-    // shared scroll transform on the container).
-    bar.style.top = `${el.offsetTop}px`;
+    // Vertical position: center of the icon slot (offsetTop + 31), the
+    // pill then centers itself with translateY(-50%). The container's
+    // shared scroll transform keeps it glued to the icon while scrolling.
+    bar.style.top = `${el.offsetTop + 31}px`;
     bar.addEventListener("click", () => {
       invoke("activate_app", { appId: app.id });
       closeStrip();

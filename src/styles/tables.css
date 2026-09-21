@@ -578,6 +578,59 @@
     brightness(var(--icon-recolor-brightness));
 }
 
+/* ===== Permanent name bars =====
+   The old hover-tooltip look — one bar per icon, ALWAYS visible. The
+   container lives OUTSIDE the clipping rail in the transparent right-hand
+   zone; JS mirrors the rail's scroll transform onto it so bars stay glued
+   to their icons (including while wheel-scrolling). Each bar is
+   translateY(-50%) centered on its slot's vertical middle.
+   Icon slot i starts at 14px from the window top: rail top 7 + scroll
+   inset 7. el.offsetTop (i * 62) is measured relative to tt-scroll. */
+.tt-names {
+  position: absolute;
+  left: 76px;   /* rail right edge (4 + 62) + 10px gap */
+  top: 14px;    /* rail top (7) + scroll inset (7) */
+  will-change: transform;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.tt-name-bar {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  max-width: 176px; /* window is 260 wide; 76 left + 8px right margin */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 5px 9px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--text-secondary);
+  background-color: var(--bg-espresso-deep);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-popup);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 140ms var(--ease-out-soft),
+              border-color 140ms var(--ease-out-soft),
+              background-color 140ms var(--ease-out-soft);
+}
+
+.tt-root.shown .tt-name-bar { opacity: 1; }
+
+.tt-name-bar:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.tt-name-bar.foreground {
+  color: var(--text-primary);
+  border-color: var(--accent-terracotta);
+}
+
 /* Taskbar context menu (End task) inside the strip — same look as the
    taskbar's .tb-context-menu. Lives in the transparent right-hand zone of
    the strip window. */
