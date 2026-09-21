@@ -167,6 +167,13 @@ pub fn run() {
                     // style alone is enough.
                     let _ = win32::window::register_appbar(&taskbar, 40);
                 }
+                // The "original Windows taskbar" setting decides which bar
+                // owns the bottom edge: native shown => custom hidden.
+                #[cfg(windows)]
+                if persist::load_settings().show_native_taskbar {
+                    hide_taskbar::set_show_native(true);
+                    let _ = taskbar.hide();
+                }
             }
 
             if let Some(launcher) = app.get_webview_window("launcher") {
@@ -364,6 +371,13 @@ pub fn run() {
                                 if fs {
                                     let _ = taskbar.hide();
                                 } else {
+                                    // When the native (og) taskbar is shown the
+                                    // custom bar stays hidden.
+                                    #[cfg(windows)]
+                                    if !hide_taskbar::is_native_visible() {
+                                        let _ = taskbar.show();
+                                    }
+                                    #[cfg(not(windows))]
                                     let _ = taskbar.show();
                                 }
                             }
@@ -1557,12 +1571,30 @@ fn save_settings(settings: serde_json::Value, app: tauri::AppHandle) {
     if let Some(v) = settings.get("show_desktop_grid").and_then(|v| v.as_bool()) {
         current.show_desktop_grid = v;
     }
+    if let Some(v) = settings.get("show_native_taskbar").and_then(|v| v.as_bool()) {
+        current.show_native_taskbar = v;
+    }
     persist::save_settings(&current);
 
     // The hold threshold lives in the keyboard hook — keep it in sync.
     #[cfg(windows)]
     win32::hotkey::HOLD_MS
         .store(current.tables_hold_ms.clamp(80, 1000), Ordering::SeqCst);
+
+    // Switch between the FlatUI taskbar and the original Windows taskbar
+    // immediately — no restart needed.
+    #[cfg(windows)]
+    {
+        hide_taskbar::set_show_native(current.show_native_taskbar);
+        if let Some(t) = app.get_webview_window("taskbar") {
+            if current.show_native_taskbar {
+                // The two bars would stack on the same edge — custom goes away.
+                let _ = t.hide();
+            } else if !win32::fullscreen::is_foreground_fullscreen() {
+                let _ = t.show();
+            }
+        }
+    }
 
     // Taskbar clock and the launcher react to format/behavior changes live.
     let _ = app.emit(

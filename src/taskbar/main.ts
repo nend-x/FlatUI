@@ -163,6 +163,13 @@ function renderIcons() {
     if (app.is_foreground) el.classList.add("foreground");
     el.dataset.appId = app.id;
 
+    // Permanent horizontal name bar on the LEFT of the icon — every app's
+    // name is always visible (no hover needed). Truncates when long.
+    const nameBar = document.createElement("div");
+    nameBar.className = "taskbar-app-name";
+    nameBar.textContent = app.name || "?";
+    el.appendChild(nameBar);
+
     if (app.icon_data_url) {
       const img = document.createElement("img");
       img.src = app.icon_data_url;

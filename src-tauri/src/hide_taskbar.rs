@@ -40,6 +40,41 @@ use windows::Win32::UI::WindowsAndMessaging::{
 #[cfg(windows)]
 static RUNNING: AtomicBool = AtomicBool::new(false);
 
+/// Whether the user asked for the ORIGINAL (native) Windows taskbar to be
+/// visible (settings toggle). When true the hide monitor is stopped and
+/// the custom FlatUI taskbar stays hidden; when false the monitor runs
+/// and the custom bar is the only one.
+#[cfg(windows)]
+static SHOW_NATIVE: AtomicBool = AtomicBool::new(false);
+
+/// Switch between the FlatUI taskbar (native hidden, monitor running) and
+/// the original Windows taskbar (monitor stopped, native visible). Safe to
+/// call from any thread; repeated calls with the same value are no-ops.
+#[cfg(windows)]
+pub fn set_show_native(show: bool) {
+    if SHOW_NATIVE.swap(show, Ordering::SeqCst) == show {
+        return;
+    }
+    if show {
+        stop(); // stops the monitor AND unhides Shell_TrayWnd
+        log::info!("Native Windows taskbar shown (custom taskbar hidden)");
+    } else {
+        start(); // restarts the monitor (re-hides native every second)
+        log::info!("Native Windows taskbar hidden again (custom taskbar restored)");
+    }
+}
+
+/// Is the native Windows taskbar currently meant to be visible?
+#[cfg(windows)]
+pub fn is_native_visible() -> bool {
+    SHOW_NATIVE.load(Ordering::SeqCst)
+}
+
+#[cfg(not(windows))]
+pub fn set_show_native(_show: bool) {}
+#[cfg(not(windows))]
+pub fn is_native_visible() -> bool { false }
+
 /// Start the background thread that keeps the taskbar hidden.
 /// Safe to call once at app startup. Calling again is a no-op.
 #[cfg(windows)]
