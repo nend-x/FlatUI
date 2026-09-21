@@ -30,8 +30,7 @@ let hoverTask: number | null = null;
 
 const SLICE_ORDER = ["flatlight", "desktop", "taskbar", "widgets", "settings"];
 const RADIUS = 138;      // outer wedge radius (px)
-const GAP_DEG = 3;       // angular gap between wedges
-const SLICE_DEG = 360 / SLICE_ORDER.length;
+const SLICE_DEG = 360 / SLICE_ORDER.length; // no angular gap — wedges share edges like a real pie
 const ICON_R = 86;       // icon center distance from anchor
 const LABEL_R = 118;     // label distance from anchor
 const HUB_R = 26;        // center hub radius
@@ -59,8 +58,8 @@ function layoutPie(x: number, y: number) {
   for (const slice of slices) {
     const i = SLICE_ORDER.indexOf(slice.dataset.table!);
     const mid = -90 + i * SLICE_DEG; // slice i's mid-angle, clockwise from up
-    const a0 = mid - SLICE_DEG / 2 + GAP_DEG / 2;
-    const a1 = mid + SLICE_DEG / 2 - GAP_DEG / 2;
+    const a0 = mid - SLICE_DEG / 2;
+    const a1 = mid + SLICE_DEG / 2;
     const [x0, y0] = polar(x, y, RADIUS, a0);
     const [x1, y1] = polar(x, y, RADIUS, a1);
 
@@ -69,10 +68,16 @@ function layoutPie(x: number, y: number) {
       `M ${x} ${y} L ${x0.toFixed(2)} ${y0.toFixed(2)} ` +
       `A ${RADIUS} ${RADIUS} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`);
 
+    // The icon sits in a translated <g>; the scale animation lives on the
+    // nested <g>/<svg> INSIDE it, so the scale origin is the icon center —
+    // CSS transform-box: fill-box is unreliable on nested <svg> in WebView2
+    // and made icons fly from the SVG's top-left corner.
     const [ix, iy] = polar(x, y, ICON_R, mid);
-    const icon = slice.querySelector<SVGElement>(".pie-icon")!;
-    icon.setAttribute("x", `${(ix - 12).toFixed(2)}`);
-    icon.setAttribute("y", `${(iy - 12).toFixed(2)}`);
+    const anchor = slice.querySelector<SVGGElement>(".pie-icon")!;
+    anchor.setAttribute("transform", `translate(${ix.toFixed(2)} ${iy.toFixed(2)})`);
+    const icon = anchor.querySelector<SVGSVGElement>("svg")!;
+    icon.setAttribute("x", "-12");
+    icon.setAttribute("y", "-12");
     icon.setAttribute("width", "24");
     icon.setAttribute("height", "24");
 

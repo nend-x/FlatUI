@@ -44,16 +44,29 @@
   stroke-width: 1;
   stroke-opacity: 0;
   transition: fill-opacity 140ms var(--ease-out-soft),
-              stroke-opacity 140ms var(--ease-out-soft);
+              stroke-opacity 140ms var(--ease-out-soft),
+              stroke-width 140ms var(--ease-out-soft),
+              stroke 140ms var(--ease-out-soft);
 }
 
-.pie-slice .pie-icon {
+/* Positioning anchor — transform set by JS (translate to icon point).
+   NEVER put a CSS transform on this element: it would clobber the
+   attribute transform and the icon would fly to the SVG origin. */
+.pie-icon { pointer-events: none; }
+
+/* Animated wrapper — scale origin is the anchor's local 0,0, which is the
+   icon center after the anchor's translate. transform-box: fill-box is
+   deliberately avoided (unreliable on nested SVG in WebView2 — icons used
+   to fly out from the top-left corner). */
+.pie-icon-inner svg {
   stroke: var(--text-secondary);
+  overflow: visible;
+}
+
+.pie-icon-inner {
   opacity: 0;
   transform: scale(0.6);
-  transform-box: fill-box;
-  transform-origin: center;
-  pointer-events: none;
+  transform-origin: 0 0;
   transition: opacity 140ms var(--ease-out-soft),
               transform 180ms var(--ease-spring);
 }
@@ -78,13 +91,14 @@
   stroke-opacity: 0;
   pointer-events: none;
   transition: fill-opacity 140ms var(--ease-out-soft),
-              stroke-opacity 140ms var(--ease-out-soft);
+              stroke-opacity 140ms var(--ease-out-soft),
+              stroke 140ms var(--ease-out-soft);
 }
 
 /* Pop-in: everything fades/scales in WITH the overlay (the window itself
    is hidden on dismiss, so the reverse transition is just polish). */
 .tables-root.shown .pie-wedge { fill-opacity: 1; stroke-opacity: 1; }
-.tables-root.shown .pie-icon  { opacity: 1; transform: scale(1); }
+.tables-root.shown .pie-icon-inner { opacity: 1; transform: scale(1); }
 .tables-root.shown .pie-label { opacity: 1; }
 .tables-root.shown .pie-hub   { fill-opacity: 1; stroke-opacity: 1; }
 
@@ -95,21 +109,21 @@
   stroke-opacity: 1;
   stroke-width: 1.5;
 }
-.pie-slice.hover .pie-icon {
-  stroke: var(--text-primary);
+.pie-slice.hover .pie-icon-inner {
   transform: scale(1.18);
 }
+.pie-slice.hover .pie-icon-inner svg { stroke: var(--text-primary); }
 .pie-slice.hover .pie-label { fill: var(--text-primary); }
 
 .pie-slice:active .pie-wedge { fill: rgba(var(--sand-rgb), 0.10); }
 
 /* Bloom-out stagger by DOM order (flatlight, desktop, taskbar,
    widgets, settings) — plays forward on open, in reverse on dismiss. */
-.pie-slice:nth-of-type(1) .pie-wedge, .pie-slice:nth-of-type(1) .pie-icon, .pie-slice:nth-of-type(1) .pie-label { transition-delay: 0ms; }
-.pie-slice:nth-of-type(2) .pie-wedge, .pie-slice:nth-of-type(2) .pie-icon, .pie-slice:nth-of-type(2) .pie-label { transition-delay: 20ms; }
-.pie-slice:nth-of-type(3) .pie-wedge, .pie-slice:nth-of-type(3) .pie-icon, .pie-slice:nth-of-type(3) .pie-label { transition-delay: 40ms; }
-.pie-slice:nth-of-type(4) .pie-wedge, .pie-slice:nth-of-type(4) .pie-icon, .pie-slice:nth-of-type(4) .pie-label { transition-delay: 60ms; }
-.pie-slice:nth-of-type(5) .pie-wedge, .pie-slice:nth-of-type(5) .pie-icon, .pie-slice:nth-of-type(5) .pie-label { transition-delay: 80ms; }
+.pie-slice:nth-of-type(1) .pie-wedge, .pie-slice:nth-of-type(1) .pie-icon-inner, .pie-slice:nth-of-type(1) .pie-label { transition-delay: 0ms; }
+.pie-slice:nth-of-type(2) .pie-wedge, .pie-slice:nth-of-type(2) .pie-icon-inner, .pie-slice:nth-of-type(2) .pie-label { transition-delay: 20ms; }
+.pie-slice:nth-of-type(3) .pie-wedge, .pie-slice:nth-of-type(3) .pie-icon-inner, .pie-slice:nth-of-type(3) .pie-label { transition-delay: 40ms; }
+.pie-slice:nth-of-type(4) .pie-wedge, .pie-slice:nth-of-type(4) .pie-icon-inner, .pie-slice:nth-of-type(4) .pie-label { transition-delay: 60ms; }
+.pie-slice:nth-of-type(5) .pie-wedge, .pie-slice:nth-of-type(5) .pie-icon-inner, .pie-slice:nth-of-type(5) .pie-label { transition-delay: 80ms; }
 
 /* ===== Vertical taskbar strip (table 1) =====
    The window is wider than the visible rail (260px) — transparent chrome to
@@ -595,7 +609,7 @@
 
 /* Picker icons are stroke-based SVGs — they already
    follow the themed text color; recoloring shifts their hue like icons. */
-.icon-recolor .pie-slice .pie-icon {
+.icon-recolor .pie-slice .pie-icon-inner svg {
   opacity: 0.9;
   filter:
     grayscale(1)
