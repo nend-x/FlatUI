@@ -11,7 +11,9 @@
   <!-- Expand animation overlay -->
   <div class="expand-overlay" id="expand-overlay"></div>
 
-  <div class="launcher-root hidden" id="launcher">
+  <!-- flatlight-mode: the desktop icons moved to the desktop table and the
+       widgets to the widgets table — flatlight is searchbar-only now. -->
+  <div class="launcher-root hidden flatlight-mode" id="launcher">
     <!-- Top-left Apps widget — replaces the old winselect action button.
          Shows a compact preview of running windows; click any preview to
          focus that window, click the widget chrome to open the full
@@ -26,7 +28,7 @@
     <!-- Left side: action buttons. Exit button at the top (reverts everything
          and quits), then settings, minimize-all, run, blacklist. -->
     <div class="launcher-actions">
-      <button class="action-btn exit-btn" id="exit-btn" title="Exit FlatUI (restore Windows shell)">
+      <button class="action-btn exit-btn" id="exit-btn" title="Exit FlatUI Hush (restore Windows shell)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
           <polyline points="16 17 21 12 16 7"/>

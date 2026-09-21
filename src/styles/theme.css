@@ -1,6 +1,6 @@
 /* =========================================================================
-   FLATUI THEME — Anthropic-inspired, Sand+Espresso palette
-   Mat/frosted aesthetic, minimal glow, premium feel
+   FLATUI THEME — Material 3 dark, pure neutral gray
+   Flat neutral surfaces, zero hue tint, no blur, baseline M3 accent
    ========================================================================= */
 
 @font-face {
@@ -33,58 +33,68 @@
 }
 
 :root {
-  /* ===== Palette: Sand + Espresso — desaturated, premium =====
+  /* ===== Palette: Material 3 dark — soft neutral gray =====
      Each color has both a solid form (--bg-espresso) and an RGB-channel
      form (--bg-espresso-rgb) so we can compose rgba(var(--bg-espresso-rgb), 0.45)
      at any alpha. The RGB form is what makes theme switching work — every
-     hardcoded rgba() in the CSS has been replaced with rgba(var(--xxx-rgb), alpha). */
-  --bg-espresso: #4B3621;
-  --bg-espresso-rgb: 75, 54, 33;
-  --bg-espresso-deep: #3A2A1A;
-  --bg-espresso-deep-rgb: 58, 42, 26;
-  --bg-espresso-raised: #54402D;
-  --bg-espresso-raised-rgb: 84, 64, 40;
-  /* Frosted glass — espresso-based with strong backdrop blur */
-  --bg-espresso-frosted: rgba(58, 42, 26, 0.55);
-  --bg-espresso-glass: rgba(58, 42, 26, 0.65);
+     hardcoded rgba() in the CSS has been replaced with rgba(var(--xxx-rgb), alpha).
+     Defaults match the material3-dark theme in persist.rs; runtime theme
+     application overrides every one of these. */
+  /* Surfaces — pure neutral gray, no hue tint */
+  --bg-espresso: #1C1C1C;
+  --bg-espresso-rgb: 28, 28, 28;
+  --bg-espresso-deep: #131313;
+  --bg-espresso-deep-rgb: 19, 19, 19;
+  --bg-espresso-raised: #2A2A2A;
+  --bg-espresso-raised-rgb: 42, 42, 42;
+  /* Opaque washes — fully solid, this theme has NO blur/frosting */
+  --bg-espresso-frosted: var(--bg-espresso);
+  --bg-espresso-glass: var(--bg-espresso);
 
-  --sand: #C2B280;
-  --sand-rgb: 194, 178, 128;
-  --sand-bright: #D4C19C;
-  --sand-bright-rgb: 212, 193, 156;
-  --sand-dim: #8A7B5C;
-  --sand-dim-rgb: 138, 123, 92;
-  --sand-cream: #EDE4D3;
-  --sand-cream-rgb: 237, 228, 211;
+  /* Gray ramp — outline / variant / on-surface */
+  --sand: #8A8A8A;
+  --sand-rgb: 138, 138, 138;
+  --sand-bright: #C6C6C6;
+  --sand-bright-rgb: 198, 198, 198;
+  --sand-dim: #4A4A4A;
+  --sand-dim-rgb: 74, 74, 74;
+  --sand-cream: #E8E8E8;
+  --sand-cream-rgb: 232, 232, 232;
 
-  --accent-terracotta: #B8835A;
-  --accent-terracotta-rgb: 184, 131, 90;
-  --accent-caramel: #D4A574;
-  --accent-caramel-rgb: 212, 165, 116;
-  --accent-soft: rgba(184, 131, 90, 0.10);
+  /* Neutral gray accents (hover/selection states) */
+  --accent-terracotta: #ABABAB;
+  --accent-terracotta-rgb: 171, 171, 171;
+  --accent-caramel: #C4C4C4;
+  --accent-caramel-rgb: 196, 196, 196;
+  --accent-soft: rgba(171, 171, 171, 0.10);
 
-  --border-subtle: rgba(194, 178, 128, 0.08);
-  --border-strong: rgba(194, 178, 128, 0.18);
+  --border-subtle: rgba(232, 232, 232, 0.06);
+  --border-strong: rgba(232, 232, 232, 0.16);
 
-  --status-running: #D4A574;
-  --status-pinned: #8A7B5C;
+  --status-running: #C4C4C4;
+  --status-pinned: #6E6E6E;
+
+  /* Danger accent — M3 error color. Overridden per-theme at runtime
+     (persist.rs default_themes) like every other color above. */
+  --danger: #9C9C9C;
+  --danger-rgb: 156, 156, 156;
 
   /* ===== Text colors (calibrated per-theme for readability) =====
      These are the primary text colors used throughout the app. They're
      separate from --sand/--sand-cream/--sand-dim (which are also used
      for non-text purposes like borders and backgrounds) so we can tune
      text contrast independently per theme. */
-  --text-primary: var(--sand-cream);
-  --text-secondary: var(--sand);
-  --text-muted: var(--sand-dim);
+  --text-primary: #E8E8E8;
+  --text-secondary: #C0C0C0;
+  --text-muted: #8A8A8A;
 
-  /* ===== Shadows (calibrated per-theme) =====
-     Dark themes use stronger black shadows; light themes (silver-lining)
+  /* ===== Shadows — M3 elevation (soft, tight) =====
+     Dark themes use stronger black shadows; light themes
      use softer, lower-opacity shadows so they don't ruin the aesthetic. */
-  --shadow-window: 0 1px 4px rgba(0, 0, 0, 0.18);
-  --shadow-popup: 0 2px 12px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22);
-  --shadow-icon-hover: 0 1px 3px rgba(0, 0, 0, 0.14);
-  --shadow-card: 0 14px 44px rgba(0, 0, 0, 0.5);
+  --shadow-window: 0 1px 3px rgba(0, 0, 0, 0.24);
+  --shadow-popup: 0 1px 3px rgba(0, 0, 0, 0.30), 0 4px 10px rgba(0, 0, 0, 0.25);
+  --shadow-icon-hover: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.45);
 
   /* ===== Typography ===== */
   --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Mono", monospace;
@@ -118,43 +128,32 @@
   --z-launcher: 2000;
   --z-flyout: 1500;
 
-  /* ===== Grain + dot-grid texture (replaces all backdrop-filter blur) =====
-     The old backdrop-filter: blur(...) was the single most expensive effect
-     to render — it smeared the desktop under GPU load and dropped the
-     launcher below 30 fps. We now layer three cheap effects instead:
-       1. A flat espresso wash (the caller sets the alpha via --grain-bg).
-       2. A repeating SVG grain tile (fractalNoise, ~13% max alpha) so the
-          transparency reads as "translucent frosted" instead of a flat wash.
-       3. A 22px dot-grid (radial-gradient) — the design grid.
-     All colors use CSS variables so the grain tracks the active theme.
-     The SVG noise tile's feColorMatrix is set at runtime by applyTheme()
-     in launcher/main.ts (CSS data URIs can't reference CSS variables
-     directly, so we inject the --sand-cream-rgb value into the SVG).
+  /* ===== Texture: NONE for material3-dark =====
+     The old themes layered a dot-grid + SVG grain tile (a cheap stand-in
+     for backdrop-filter blur). Material 3 surfaces are FLAT — opaque
+     M3 neutral panels with elevation shadows, no grain, no blur.
+     The --grain-bg washes are FULLY OPAQUE now — a translucent panel over
+     the desktop reads as "frosted", which this theme must not have.
+     (The --grain-noise-svg runtime injection in applyTheme() is now a
+     no-op: nothing composes it into a background anymore.)
   */
-  --grain-bg: rgba(var(--bg-espresso-deep-rgb), 0.62);
-  --grain-bg-light: rgba(var(--bg-espresso-deep-rgb), 0.55);
-  --grain-bg-dark: rgba(var(--bg-espresso-deep-rgb), 0.94);
-  --grain-image:
-    radial-gradient(rgba(var(--sand-cream-rgb), 0.10) 1px, transparent 1.6px),
-    var(--grain-noise-svg);
-  --grain-size: 22px 22px, 180px 180px;
-  --grain-position: 0 0, 0 0;
-  --grain-repeat: repeat, repeat;
+  --grain-bg: var(--bg-espresso-deep);
+  --grain-bg-light: var(--bg-espresso);
+  --grain-bg-dark: var(--bg-espresso-deep);
+  --grain-image: none;
+  --grain-size: auto;
+  --grain-position: 0 0;
+  --grain-repeat: repeat;
 
   /* The SVG noise tile — set at runtime by applyTheme() with the theme's
      sand-cream RGB values. Default is sand-cream (237, 228, 211). */
   --grain-noise-svg: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.929  0 0 0 0 0.894  0 0 0 0 0.827  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 
-  /* Line-grid variant — same grain noise but with a line grid instead of
-     dots. Used for icon frames where lines read better than dots at small
-     sizes. The lines are 1px horizontal + vertical at 16px spacing. */
-  --grain-lines-image:
-    linear-gradient(rgba(var(--sand-cream-rgb), 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(var(--sand-cream-rgb), 0.07) 1px, transparent 1px),
-    var(--grain-noise-svg);
-  --grain-lines-size: 16px 16px, 16px 16px, 180px 180px;
-  --grain-lines-position: 0 0, 0 0, 0 0;
-  --grain-lines-repeat: repeat, repeat, repeat;
+  /* Line-grid variant — retired with the grain (flat M3 surfaces). */
+  --grain-lines-image: none;
+  --grain-lines-size: auto;
+  --grain-lines-position: 0 0;
+  --grain-lines-repeat: repeat;
 
   /* ===== Icon recolor filter values (per-theme) =====
      When icon recoloring is enabled, icons get:
@@ -164,8 +163,8 @@
      The hue-rotate and saturate values are computed per-theme to match
      the --accent-terracotta color. Default (sand-cream): terracotta #B8835A.
      These are overridden at runtime by applyTheme() in launcher/main.ts. */
-  --icon-recolor-hue: -16deg;
-  --icon-recolor-sat: 0.8;
+  --icon-recolor-hue: 0deg;
+  --icon-recolor-sat: 0.0;
   --icon-recolor-brightness: 0.95;
 }
 

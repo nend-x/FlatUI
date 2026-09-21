@@ -1,0 +1,158 @@
+/* =========================================================================
+   TABLES picker — the PIE menu that appears while the Win key is held.
+   The backend shows this window on a Win hold and reads our hover report
+   (set_tables_hover) when the user releases Win over a slice.
+   ========================================================================= */
+
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { applyTheme, type ThemePayload } from "../shared/theme";
+
+interface ShowPayload {
+  x: number;
+  y: number;
+  center: boolean;
+}
+
+// Theme + icon-recolor values are applied together by the shared applyTheme
+// — the picker must follow the active theme (startup load AND live events).
+
+const root = document.getElementById("tables-root")!;
+const pie = document.getElementById("pie")! as unknown as SVGSVGElement;
+const slices = Array.from(document.querySelectorAll<SVGGElement>(".pie-slice"));
+
+let hoverTask: number | null = null;
+
+// ===== Pie geometry ======================================================
+// Five equal 72° wedges radiating from the anchor point, clockwise from
+// the top: flatlight, desktop, taskbar, widgets, settings. A small gap
+// between wedges reads as slice borders and keeps the center hub visible.
+
+const SLICE_ORDER = ["flatlight", "desktop", "taskbar", "widgets", "settings"];
+const RADIUS = 138;      // outer wedge radius (px)
+const SLICE_DEG = 360 / SLICE_ORDER.length; // no angular gap — wedges share edges like a real pie
+const ICON_R = 86;       // icon center distance from anchor
+const HUB_R = 26;        // center hub radius
+
+const TABLE_IDS: Record<string, number> = {
+  taskbar: 1,
+  settings: 2,
+  widgets: 3,
+  flatlight: 4,
+  desktop: 5,
+};
+
+const polar = (cx: number, cy: number, r: number, deg: number): [number, number] => {
+  const rad = (deg * Math.PI) / 180;
+  return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+};
+
+// Lay out every wedge (and its icon/label) around one anchor point.
+function layoutPie(x: number, y: number) {
+  const hub = document.getElementById("pie-hub")! as unknown as SVGCircleElement;
+  hub.setAttribute("cx", `${x}`);
+  hub.setAttribute("cy", `${y}`);
+  hub.setAttribute("r", `${HUB_R}`);
+
+  for (const slice of slices) {
+    const i = SLICE_ORDER.indexOf(slice.dataset.table!);
+    const mid = -90 + i * SLICE_DEG; // slice i's mid-angle, clockwise from up
+    const a0 = mid - SLICE_DEG / 2;
+    const a1 = mid + SLICE_DEG / 2;
+    const [x0, y0] = polar(x, y, RADIUS, a0);
+    const [x1, y1] = polar(x, y, RADIUS, a1);
+
+    const wedge = slice.querySelector<SVGPathElement>(".pie-wedge")!;
+    wedge.setAttribute("d",
+      `M ${x} ${y} L ${x0.toFixed(2)} ${y0.toFixed(2)} ` +
+      `A ${RADIUS} ${RADIUS} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`);
+
+    // The icon sits in a translated <g>; the scale animation lives on the
+    // nested <g>/<svg> INSIDE it, so the scale origin is the icon center —
+    // CSS transform-box: fill-box is unreliable on nested <svg> in WebView2
+    // and made icons fly from the SVG's top-left corner.
+    const [ix, iy] = polar(x, y, ICON_R, mid);
+    const anchor = slice.querySelector<SVGGElement>(".pie-icon")!;
+    anchor.setAttribute("transform", `translate(${ix.toFixed(2)} ${iy.toFixed(2)})`);
+    const icon = anchor.querySelector<SVGSVGElement>("svg")!;
+    icon.setAttribute("x", "-12");
+    icon.setAttribute("y", "-12");
+    icon.setAttribute("width", "24");
+    icon.setAttribute("height", "24");
+
+  }
+}
+
+function reportHover(id: number) {
+  if (hoverTask) window.clearTimeout(hoverTask);
+  // Micro-defer: a quick pass over a slice between two neighbors should
+  // never leave a stale hover report racing the hook's Win-up read.
+  hoverTask = window.setTimeout(() => {
+    invoke("set_tables_hover", { id });
+  }, 8);
+}
+
+function clearHover() {
+  slices.forEach((s) => s.classList.remove("hover"));
+  reportHover(0);
+}
+
+// Hover tracking — the whole release gesture depends on this staying fresh.
+for (const slice of slices) {
+  slice.addEventListener("mouseenter", () => {
+    slices.forEach((s) => s.classList.remove("hover"));
+    slice.classList.add("hover");
+    reportHover(TABLE_IDS[slice.dataset.table!] ?? 0);
+  });
+  slice.addEventListener("mouseleave", () => {
+    slice.classList.remove("hover");
+    reportHover(0);
+  });
+  // Click fallback (the primary gesture is hover + release Win) — e.g. a
+  // user who holds Win forever and just clicks instead.
+  slice.addEventListener("click", (e) => {
+    e.stopPropagation();
+    invoke("open_table", { name: slice.dataset.table });
+  });
+}
+
+// Click anywhere else on the overlay → dismiss.
+root.addEventListener("mousedown", () => {
+  invoke("close_table", { name: "tables" });
+});
+
+listen<ShowPayload>("tables://show", (e) => {
+  const { x, y } = e.payload;
+  // Anchor point → CSS vars for the vignette + the pie layout.
+  root.style.setProperty("--pick-x", `${x}px`);
+  root.style.setProperty("--pick-y", `${y}px`);
+  layoutPie(x, y);
+  root.classList.remove("shown");
+  // Force a reflow so the pop-in transition replays every open.
+  void root.offsetWidth;
+  root.classList.add("shown");
+});
+
+listen<ThemePayload>("theme://changed", (e) => {
+  applyTheme(e.payload);
+});
+listen<boolean>("icon-recolor://changed", (e) => {
+  document.documentElement.classList.toggle("icon-recolor", e.payload);
+});
+
+listen("tables://hide", () => {
+  root.classList.remove("shown");
+  slices.forEach((s) => s.classList.remove("hover"));
+});
+
+// Apply the active theme + recolor state at startup (the picker loads
+// hidden; by the time it's first shown the vars are already set).
+(async function init() {
+  try {
+    const theme = await invoke<ThemePayload | null>("get_active_theme");
+    if (theme) applyTheme(theme);
+    if (await invoke<boolean>("load_icon_recolor").catch(() => false)) {
+      document.documentElement.classList.add("icon-recolor");
+    }
+  } catch {}
+})();

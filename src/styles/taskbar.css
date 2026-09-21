@@ -9,19 +9,9 @@
   align-items: center;
   justify-content: center;
   height: var(--taskbar-height);
-  /* Grain + dot-grid (replaces backdrop-filter blur).
-     The taskbar uses LOWER grain alpha than the launcher — the increased
-     grain that looks good on the fullscreen launcher background is too
-     busy/noisy on the thin 40px taskbar strip. Uses --taskbar-grain-noise-svg
-     which is set at runtime by the theme loader (lower alpha than the
-     launcher's --grain-noise-svg). */
+  /* Flat opaque surface — no grain, no dot-grid, no blur (material3-dark
+     is flat gray; the old texture layers are retired). */
   background-color: var(--bg-espresso-frosted);
-  background-image:
-    radial-gradient(rgba(var(--sand-cream-rgb), 0.07) 1px, transparent 1.6px),
-    var(--taskbar-grain-noise-svg, var(--grain-noise-svg));
-  background-size: 22px 22px, 180px 180px;
-  background-position: 0 0, 0 0;
-  background-repeat: repeat, repeat;
   border-top: 1px solid var(--border-subtle);
   box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.20);
   font-family: var(--font-ui);
@@ -121,7 +111,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
+  /* LESS rounded — 4px instead of the 8px theme radius */
+  border-radius: 4px;
   cursor: pointer;
   position: relative;
   transition: transform 180ms var(--ease-spring),
@@ -202,7 +193,7 @@
   opacity: 1;
   width: 18px;
   background: var(--sand-cream);
-  box-shadow: 0 0 4px rgba(237, 228, 211, 0.4);
+  box-shadow: 0 0 4px rgba(var(--sand-cream-rgb), 0.4);
 }
 
 .taskbar-icon.foreground.running:hover .indicator {
@@ -272,7 +263,7 @@
 .tb-context-menu {
   position: fixed;
   min-width: 140px;
-  background-color: rgba(var(--bg-espresso-deep-rgb), 0.65);
+  background-color: var(--bg-espresso-deep);
   background-image: var(--grain-image);
   background-size: var(--grain-size);
   background-position: var(--grain-position);
@@ -308,8 +299,8 @@
 }
 
 .tb-context-menu-item.danger:hover {
-  background: rgba(220, 100, 90, 0.20);
-  color: #F0B0A8;
+  background: rgba(var(--danger-rgb), 0.20);
+  color: var(--danger);
 }
 
 /* ===== Window switcher flyout ===== */

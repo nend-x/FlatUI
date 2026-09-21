@@ -12,5 +12,14 @@
 # finishes within the timeout, so the DONE marker is never written. The
 # standalone `xwin splat` is run once up front (see scripts/cross_compile_flatui.sh)
 # and plain `cargo build` is used instead — same result, no re-splat loop.
-[target.x86_64-pc-windows-msvc]
-linker = "lld-link"
+# Native Windows builds use the MSVC linker (link.exe) that ships with
+# Visual Studio / Build Tools — rustc auto-detects it via vswhere, so no
+# override is needed. The lld-link override below is only relevant when
+# cross-compiling from Linux with cargo-xwin, and breaks native builds
+# when LLVM isn't installed, so it's commented out here.
+#
+# To restore Linux cross-compilation, uncomment the two lines below and
+# make sure `lld-link` (from an LLVM distribution) is on PATH:
+#
+# [target.x86_64-pc-windows-msvc]
+# linker = "lld-link"

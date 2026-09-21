@@ -1,0 +1,708 @@
+/* ===== TABLES styles — shared by the pie picker and the table windows ===== */
+
+.tables-root {
+  position: fixed;
+  inset: 0;
+  z-index: 7000;
+  overflow: hidden;
+  /* Fully transparent until shown — the window itself is hidden anyway;
+     the faint vignette only fades in WITH the pie (transition, so it
+     also fades back out on dismiss) and the desktop stays fully visible
+     while picking. */
+}
+
+.tables-root::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle 170px at var(--pick-x) var(--pick-y),
+          rgba(var(--bg-espresso-deep-rgb), 0.24), transparent 75%);
+  opacity: 0;
+  transition: opacity 180ms var(--ease-out-soft);
+  pointer-events: none;
+}
+
+.tables-root.shown::after { opacity: 1; }
+
+/* ===== Pie picker (transient overlay while Win is held) =====
+   Five full wedges radiate from the anchor point — the slice under the
+   cursor is the hovered table; release Win to open it. */
+.pie {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pie-slice { cursor: pointer; }
+
+.pie-wedge {
+  fill: var(--bg-espresso-deep);
+  fill-opacity: 0;
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-opacity: 0;
+  transition: fill-opacity 140ms var(--ease-out-soft),
+              stroke-opacity 140ms var(--ease-out-soft),
+              stroke-width 140ms var(--ease-out-soft),
+              stroke 140ms var(--ease-out-soft);
+}
+
+/* Positioning anchor — transform set by JS (translate to icon point).
+   NEVER put a CSS transform on this element: it would clobber the
+   attribute transform and the icon would fly to the SVG origin. */
+.pie-icon { pointer-events: none; }
+
+/* Animated wrapper — scale origin is the anchor's local 0,0, which is the
+   icon center after the anchor's translate. transform-box: fill-box is
+   deliberately avoided (unreliable on nested SVG in WebView2 — icons used
+   to fly out from the top-left corner). */
+.pie-icon-inner svg {
+  stroke: var(--text-secondary);
+  overflow: visible;
+}
+
+.pie-icon-inner {
+  opacity: 0;
+  transform: scale(0.6);
+  transform-origin: 0 0;
+  transition: opacity 140ms var(--ease-out-soft),
+              transform 180ms var(--ease-spring);
+}
+
+.pie-hub {
+  fill: var(--bg-espresso-deep);
+  fill-opacity: 0;
+  stroke: var(--border-strong);
+  stroke-opacity: 0;
+  pointer-events: none;
+  transition: fill-opacity 140ms var(--ease-out-soft),
+              stroke-opacity 140ms var(--ease-out-soft),
+              stroke 140ms var(--ease-out-soft);
+}
+
+/* Pop-in: everything fades/scales in WITH the overlay (the window itself
+   is hidden on dismiss, so the reverse transition is just polish). */
+.tables-root.shown .pie-wedge { fill-opacity: 1; stroke-opacity: 1; }
+.tables-root.shown .pie-icon-inner { opacity: 1; transform: scale(1); }
+.tables-root.shown .pie-hub   { fill-opacity: 1; stroke-opacity: 1; }
+
+/* Hovered slice: raised fill, terracotta border, brightened content. */
+.pie-slice.hover .pie-wedge {
+  fill: var(--bg-espresso-raised);
+  stroke: var(--accent-terracotta);
+  stroke-opacity: 1;
+  stroke-width: 1.5;
+}
+.pie-slice.hover .pie-icon-inner {
+  transform: scale(1.18);
+}
+.pie-slice.hover .pie-icon-inner svg { stroke: var(--text-primary); }
+
+.pie-slice:active .pie-wedge { fill: rgba(var(--sand-rgb), 0.10); }
+
+/* Bloom-out stagger by DOM order (flatlight, desktop, taskbar,
+   widgets, settings) — plays forward on open, in reverse on dismiss. */
+.pie-slice:nth-of-type(1) .pie-wedge, .pie-slice:nth-of-type(1) .pie-icon-inner { transition-delay: 0ms; }
+.pie-slice:nth-of-type(2) .pie-wedge, .pie-slice:nth-of-type(2) .pie-icon-inner { transition-delay: 20ms; }
+.pie-slice:nth-of-type(3) .pie-wedge, .pie-slice:nth-of-type(3) .pie-icon-inner { transition-delay: 40ms; }
+.pie-slice:nth-of-type(4) .pie-wedge, .pie-slice:nth-of-type(4) .pie-icon-inner { transition-delay: 60ms; }
+.pie-slice:nth-of-type(5) .pie-wedge, .pie-slice:nth-of-type(5) .pie-icon-inner { transition-delay: 80ms; }
+
+/* ===== Vertical taskbar strip (table 1) =====
+   The window is wider than the visible rail (260px) — transparent chrome to
+   the right hosts the tooltip and the right-click context menu without
+   clipping. The rail itself sits flush left. */
+.tt-root {
+  position: fixed;
+  inset: 0;
+  padding: 7px 0;
+  opacity: 0;
+  transform: scale(0.88) translateX(-14px);
+  transition: opacity 150ms var(--ease-out-soft),
+              transform 220ms var(--ease-spring);
+  /* Only the rail + menu capture the mouse — the transparent right side
+     stays click-through to whatever is underneath. */
+  pointer-events: none;
+}
+
+.tt-root.shown {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* The "line" — a thin vertical rail the icons sit on */
+.tt-rail {
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  bottom: 7px;
+  width: 62px;
+  border-radius: 31px;
+  background-color: var(--bg-espresso-deep);
+  background-size: var(--grain-size);
+  background-position: var(--grain-position);
+  background-repeat: var(--grain-repeat);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-popup);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+/* Mask so icons fade at the scroll edges instead of clipping hard */
+.tt-rail::before,
+.tt-rail::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  height: 14px;
+  z-index: 2;
+  pointer-events: none;
+}
+.tt-rail::before {
+  top: 0;
+  background: linear-gradient(rgba(var(--bg-espresso-deep-rgb), 0.85), transparent);
+}
+.tt-rail::after {
+  bottom: 0;
+  background: linear-gradient(transparent, rgba(var(--bg-espresso-deep-rgb), 0.85));
+}
+
+.tt-line {
+  position: absolute;
+  left: 50%;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  transform: translateX(-50%);
+  background: rgba(var(--sand-rgb), 0.18);
+}
+
+.tt-scroll {
+  position: absolute;
+  inset: 7px 4px;
+  will-change: transform;
+}
+
+.tt-icon {
+  position: relative;
+  width: 100%;
+  height: 62px; /* one "slot" on the line */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.tt-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--sand-rgb), 0.05);
+  border: 1px solid transparent;
+  transform: scale(1);
+  transition: transform 190ms var(--ease-spring),
+              background-color 140ms var(--ease-out-soft),
+              border-color 140ms var(--ease-out-soft);
+}
+
+.tt-icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  pointer-events: none;
+  transform-origin: center;
+  transition: transform 190ms var(--ease-spring);
+}
+
+/* macOS-dock magnification: ONLY the hovered icon grows (per feedback —
+   neighbors stay at rest). JS sets --mag on the hovered icon. */
+.tt-icon.hover .tt-icon-box {
+  background: var(--bg-espresso-raised);
+  border-color: var(--accent-terracotta);
+  transform: scale(var(--mag, 1.45));
+}
+
+.tt-icon .fallback {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--text-primary);
+  pointer-events: none;
+}
+
+/* Running / pinned / foreground indicators — same semantics as the taskbar */
+.tt-icon .indicator {
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--status-pinned);
+  opacity: 0;
+  transition: opacity 140ms, background-color 140ms;
+}
+.tt-icon.running .indicator { opacity: 1; background: var(--status-running); }
+.tt-icon.pinned .indicator { opacity: 1; background: var(--status-pinned); }
+.tt-icon.running.pinned .indicator { background: var(--status-running); }
+.tt-icon.foreground .indicator {
+  opacity: 1;
+  background: var(--accent-terracotta);
+  width: 18px;
+}
+
+
+/* ===== Flatlight — medium floating search window (0.2 split) ===== */
+.flatlight-root {
+  inset: 10px;
+  justify-content: flex-start;
+}
+
+.fl-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 18px 18px 12px;
+}
+
+.fl-search {
+  width: 100%;
+  height: 44px;
+  font-size: 15px;
+  /* Icon sits inside on the left (same layout as the fullscreen launcher
+     search) — left padding clears the 18px icon + gap. */
+  padding: 0 16px 0 46px;
+}
+
+.fl-search-wrap .launcher-search-icon {
+  left: 34px; /* 18px panel padding + 16px inset */
+  right: auto;
+  width: 18px;
+  height: 18px;
+}
+
+.fl-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 14px 14px;
+}
+.fl-results::-webkit-scrollbar { width: 4px; }
+.fl-results::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+.fl-results.hidden { display: none; }
+
+.fl-empty {
+  text-align: center;
+  padding: 32px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.fl-hint {
+  padding: 8px 18px 14px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-align: center;
+}
+.fl-hint.hidden { visibility: hidden; }
+
+/* ===== Movable tables (settings / widgets) — shared window chrome ===== */
+.mt-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background-color: var(--bg-espresso-deep);
+  background-image: var(--grain-image);
+  background-size: var(--grain-size);
+  background-position: var(--grain-position);
+  background-repeat: var(--grain-repeat);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: scale(0.96) translateY(6px);
+  transition: opacity 160ms var(--ease-out-soft),
+              transform 220ms var(--ease-spring);
+}
+
+.mt-root.shown {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.mt-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: move;
+  user-select: none;
+}
+
+.mt-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.mt-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+.mt-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-terracotta);
+  opacity: 0.7;
+}
+
+.mt-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  transition: color 140ms, background-color 140ms;
+}
+.mt-close:hover {
+  color: var(--text-primary);
+  background: rgba(var(--sand-cream-rgb), 0.08);
+}
+
+.mt-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px 14px;
+}
+.mt-body::-webkit-scrollbar { width: 4px; }
+.mt-body::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+/* ===== Settings table rows =====
+   Reuses the launcher's .settings-* vocabulary (toggles, selects) —
+   table-settings/index.html links theme.css + launcher.css too, so the
+   toggle/select/segmented styles below only add the NEW control types:
+   slider, segmented control, text input (launcher already ships the rest). */
+
+.tset-hint {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 2px 0 6px;
+}
+
+.settings-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 10px;
+}
+
+.settings-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(var(--sand-rgb), 0.15);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-terracotta);
+  cursor: pointer;
+  transition: transform 120ms var(--ease-spring);
+}
+
+.settings-slider::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+.settings-slider-val {
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--text-secondary);
+  width: 44px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* NEW setting type: segmented control (clock 24h / 12h) */
+.settings-seg {
+  display: flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.settings-seg button {
+  padding: 5px 12px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 140ms var(--ease-out-soft), color 140ms;
+}
+
+.settings-seg button:hover { color: var(--text-secondary); }
+
+.settings-seg button.active {
+  background: var(--accent-terracotta);
+  color: var(--bg-espresso-deep);
+  font-weight: 500;
+}
+
+/* NEW setting type: text input */
+.settings-text {
+  height: 30px;
+  padding: 0 10px;
+  width: 170px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--text-primary);
+  background: rgba(var(--bg-espresso-deep-rgb), 0.60);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 160ms var(--ease-out-soft);
+}
+.settings-text:focus { border-color: var(--accent-terracotta); }
+.settings-text::placeholder { color: var(--text-muted); }
+
+/* ===== Widgets table — launcher widgets stacked in a small window =====
+   .widget in launcher.css is position:absolute with per-widget default
+   placement — inside the table we stack them statically instead. */
+.mt-widgets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+}
+.mt-widgets::-webkit-scrollbar { width: 4px; }
+.mt-widgets::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+.mt-widgets .widget {
+  position: static;
+  width: 100%;
+  max-height: none;
+  box-shadow: none;
+  border-radius: var(--radius-lg);
+}
+
+.mt-widgets .clipboard-list { max-height: 130px; }
+.mt-widgets .notes-widget { height: 180px; }
+.mt-widgets .audio-widget {
+  position: static;
+  transform: none;
+  left: auto;
+  bottom: auto;
+  width: 100%;
+}
+.mt-widgets .apps-widget {
+  position: static;
+  left: auto;
+  top: auto;
+  width: 100%;
+  max-width: none;
+}
+
+.mt-greeting {
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  padding: 0 2px 4px;
+}
+.mt-greeting b { color: var(--text-secondary); font-weight: 500; }
+
+/* ===== Icon recoloring inside the table windows =====
+   Table pages put .icon-recolor on <html> (documentElement), so the
+   selectors here are html-scoped — unlike the launcher (which scopes by
+   .launcher-root) and the taskbar (which scopes by .taskbar-root). */
+.icon-recolor .tt-icon img,
+.icon-recolor .launcher-item .icon-box img {
+  opacity: 0.85;
+  filter:
+    grayscale(1)
+    sepia(1)
+    hue-rotate(var(--icon-recolor-hue))
+    saturate(var(--icon-recolor-sat))
+    brightness(var(--icon-recolor-brightness));
+}
+
+.icon-recolor .tt-icon.hover img,
+.icon-recolor .launcher-item:hover .icon-box img {
+  opacity: 0.95;
+  filter:
+    grayscale(1)
+    sepia(1)
+    hue-rotate(var(--icon-recolor-hue))
+    saturate(calc(var(--icon-recolor-sat) * 1.2))
+    brightness(1.05);
+}
+
+/* Picker icons are stroke-based SVGs — they already
+   follow the themed text color; recoloring shifts their hue like icons. */
+.icon-recolor .pie-slice .pie-icon-inner svg {
+  opacity: 0.9;
+  filter:
+    grayscale(1)
+    sepia(1)
+    hue-rotate(var(--icon-recolor-hue))
+    saturate(var(--icon-recolor-sat))
+    brightness(var(--icon-recolor-brightness));
+}
+
+/* ===== Permanent name bars =====
+   The old hover-tooltip look — one bar per icon, ALWAYS visible. The
+   container lives OUTSIDE the clipping rail in the transparent right-hand
+   zone; JS mirrors the rail's scroll transform onto it so bars stay glued
+   to their icons (including while wheel-scrolling). Each bar is
+   translateY(-50%) centered on its slot's vertical middle.
+   Icon slot i starts at 14px from the window top: rail top 7 + scroll
+   inset 7. el.offsetTop (i * 62) is measured relative to tt-scroll. */
+.tt-names {
+  position: absolute;
+  left: 76px;   /* rail right edge (4 + 62) + 10px gap */
+  top: 14px;    /* rail top (7) + scroll inset (7) */
+  will-change: transform;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.tt-name-bar {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  max-width: 176px; /* window is 260 wide; 76 left + 8px right margin */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 5px 9px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--text-secondary);
+  background-color: var(--bg-espresso-deep);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-popup);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 140ms var(--ease-out-soft),
+              border-color 140ms var(--ease-out-soft),
+              background-color 140ms var(--ease-out-soft);
+}
+
+.tt-root.shown .tt-name-bar { opacity: 1; }
+
+.tt-name-bar:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.tt-name-bar.foreground {
+  color: var(--text-primary);
+  border-color: var(--accent-terracotta);
+}
+
+/* Taskbar context menu (End task) inside the strip — same look as the
+   taskbar's .tb-context-menu. Lives in the transparent right-hand zone of
+   the strip window. */
+.tt-context-menu {
+  position: fixed;
+  left: 74px;
+  z-index: 50;
+  min-width: 120px;
+  padding: 4px;
+  background-color: var(--bg-espresso-deep);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popup);
+  pointer-events: auto;
+}
+.tt-context-menu-item {
+  padding: 6px 10px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.tt-context-menu-item:hover { background: rgba(var(--sand-cream-rgb), 0.08); color: var(--text-primary); }
+.tt-context-menu-item.danger { color: var(--danger); }
+.tt-context-menu-item.danger:hover { background: rgba(var(--danger-rgb), 0.15); color: var(--danger); }
+
+/* ===== Desktop table (table 5) — desktop icons in a movable window =====
+   Reuses the launcher's .launcher-item vocabulary; the grid is static
+   inside the table chrome and scrolls when there are many icons. */
+.td-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  align-content: start;
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px 2px 8px;
+}
+.td-grid::-webkit-scrollbar { width: 4px; }
+.td-grid::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+.td-grid .launcher-item {
+  position: static;
+  width: auto;
+  animation: none;
+}
+
+.td-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Exit button (danger) — lives in the settings table since flatlight is
+   search-only now and no longer hosts the action buttons. */
+.mt-exit {
+  margin-top: 10px;
+  padding: 8px 16px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--danger);
+  background: rgba(var(--danger-rgb), 0.10);
+  border: 1px solid rgba(var(--danger-rgb), 0.35);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 160ms var(--ease-out-soft), border-color 160ms;
+}
+.mt-exit:hover {
+  background: rgba(var(--danger-rgb), 0.22);
+  border-color: var(--danger);
+}

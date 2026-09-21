@@ -10,7 +10,13 @@ export default defineConfig({
       input: {
         taskbar: resolve(__dirname, "src/taskbar/index.html"),
         launcher: resolve(__dirname, "src/launcher/index.html"),
+        flatlight: resolve(__dirname, "src/flatlight/index.html"),
         setup: resolve(__dirname, "src/setup/index.html"),
+        tables: resolve(__dirname, "src/tables/index.html"),
+        "table-taskbar": resolve(__dirname, "src/table-taskbar/index.html"),
+        "table-settings": resolve(__dirname, "src/table-settings/index.html"),
+        "table-widgets": resolve(__dirname, "src/table-widgets/index.html"),
+        "table-desktop": resolve(__dirname, "src/table-desktop/index.html"),
       },
     },
   },

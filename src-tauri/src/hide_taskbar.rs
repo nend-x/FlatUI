@@ -40,6 +40,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 #[cfg(windows)]
 static RUNNING: AtomicBool = AtomicBool::new(false);
 
+
 /// Start the background thread that keeps the taskbar hidden.
 /// Safe to call once at app startup. Calling again is a no-op.
 #[cfg(windows)]

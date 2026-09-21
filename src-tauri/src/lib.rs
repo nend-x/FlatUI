@@ -23,7 +23,7 @@ mod start_menu_killer;
 mod win32;
 
 use parking_lot::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager, WindowEvent};
 
@@ -45,6 +45,26 @@ use app_state::AppState;
 // glitch-free: every request cleanly cancels whatever is in flight.
 static LAUNCHER_OPEN: AtomicBool = AtomicBool::new(false);
 static CLOSE_SEQ: AtomicU64 = AtomicU64::new(0);
+
+// ===== Tables state (pie Win-key picker) =====
+//
+// TABLES_HOVERED mirrors the button the picker webview currently has under
+// the mouse. The low-level hook reads it on Win-up (hold-release gesture) —
+// the picker frontend keeps it fresh via the `set_tables_hover` command:
+//   0 = nothing hovered (release dismisses the picker)
+//   1 = taskbar table   2 = settings table
+//   3 = widgets table   4 = flatlight table   5 = desktop table
+// The cursor can move between hover and Win-up by a few px; the frontend
+// re-reports on every mouseenter/leave, so the race window is tiny and a
+// missed report degrades gracefully to "dismiss".
+static TABLES_HOVERED: AtomicI32 = AtomicI32::new(0);
+
+// Monotonic picker generation — guards the animated dismiss delay.
+static TABLES_SEQ: AtomicU64 = AtomicU64::new(0);
+
+// Logical cursor position (primary-monitor-relative, CSS px) captured when
+// the picker opened — the taskbar table spawns next to it.
+static TABLES_CURSOR: Mutex<(f64, f64)> = Mutex::new((0.0, 0.0));
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -147,10 +167,46 @@ pub fn run() {
                     // style alone is enough.
                     let _ = win32::window::register_appbar(&taskbar, 40);
                 }
+                // The disable-shell-taskbar setting can leave only the
+                // taskbar TABLE (Win-hold pie -> strip) — no bottom bar,
+                // and no reserved edge space either.
+                #[cfg(windows)]
+                if persist::load_settings().disable_shell_taskbar {
+                    win32::window::unregister_appbar(&taskbar);
+                    let _ = taskbar.hide();
+                }
             }
 
             if let Some(launcher) = app.get_webview_window("launcher") {
                 let _ = launcher.hide();
+            }
+
+            // Tables (pie Win-key picker) + the transient taskbar table
+            // strip are mouse-only overlays: NOACTIVATE + TOOLWINDOW so they
+            // can never steal focus from the app the user was in while
+            // holding Win. The settings/widgets tables are interactive
+            // (text inputs, drag-to-move) and stay focusable.
+            #[cfg(windows)]
+            {
+                if let Some(tables) = app.get_webview_window("tables") {
+                    let _ = tables.hide();
+                    let _ = win32::window::apply_no_activate(&tables);
+                }
+                if let Some(strip) = app.get_webview_window("table-taskbar") {
+                    let _ = strip.hide();
+                    let _ = win32::window::apply_no_activate(&strip);
+                }
+            }
+
+            // Load tables settings that live outside the Tauri state:
+            // the hook's hold threshold and the saved window positions
+            // for the movable tables.
+            #[cfg(windows)]
+            {
+                let s = persist::load_settings();
+                win32::hotkey::HOLD_MS
+                    .store(s.tables_hold_ms.clamp(80, 1000), Ordering::SeqCst);
+                restore_table_positions(&app.handle());
             }
 
             // Install the Win-key + Alt-key hooks. Two LL keyboard hooks
@@ -203,24 +259,76 @@ pub fn run() {
                 // start().
 
                 // (2) Install our own Win-key hook. It handles:
-                //   - Win tap (press + release alone) → toggle launcher
-                //   - Win combo (Win+D, Win+E, ...) → re-inject Win, let
-                //     the combo resolve natively
+                //   - Win tap (press + release alone, quick) → toggle launcher
+                //   - Win hold (tables_hold_ms) → pie table picker:
+                //       around the cursor, or centered on screen for Ctrl+Win
+                //   - Win release while picker is open → open the hovered
+                //     table (or dismiss when nothing is hovered)
+                //   - Win combo (Win+D, Win+E, ...) → dismiss picker, re-inject
+                //     Win, let the combo resolve natively
                 //   - Alt release alone → inject VK__none_ to suppress
-                //     the focused window's menu bar (same as the crate
-                //     used to do, but in our own hook — no second thread,
-                //     no second message pump, no interference).
+                //     the focused window's menu bar (see hotkey.rs)
                 let app_handle = app.handle().clone();
-                win32::hotkey::install(Box::new(move || {
-                    let app = app_handle.clone();
-                    // Run on a worker thread so the hook never blocks
-                    // input processing — same pattern the old HTTP server
-                    // used.
-                    std::thread::spawn(move || {
-                        log::info!("Win key tap (hotkey.rs) — toggling launcher");
-                        toggle_launcher_impl(&app);
-                    });
-                }));
+                win32::hotkey::install(win32::hotkey::HotkeyHandlers {
+                    on_tap: {
+                        let app = app_handle.clone();
+                        Box::new(move || {
+                            let app = app.clone();
+                            // Run on a worker thread so the hook never blocks
+                            // input processing — same pattern the old HTTP
+                            // server used.
+                            std::thread::spawn(move || {
+                                log::info!("Win key tap (hotkey.rs) — toggling launcher");
+                                toggle_launcher_impl(&app);
+                            });
+                        })
+                    },
+                    on_hold: {
+                        let app = app_handle.clone();
+                        Box::new(move |center| {
+                            let app = app.clone();
+                            std::thread::spawn(move || {
+                                log::info!(
+                                    "Win key hold (hotkey.rs) — showing table picker{}",
+                                    if center { " (centered)" } else { "" }
+                                );
+                                show_tables_impl(&app, center);
+                            });
+                        })
+                    },
+                    on_tables_release: {
+                        let app = app_handle.clone();
+                        Box::new(move || {
+                            let app = app.clone();
+                            std::thread::spawn(move || {
+                                let hovered = TABLES_HOVERED.swap(0, Ordering::SeqCst);
+                                log::info!("Win released on table picker — hovered={hovered}");
+                                if hovered >= 1 && hovered <= 5 {
+                                    open_table_impl(&app, table_name_from_id(hovered));
+                                } else {
+                                    hide_tables_impl(&app);
+                                }
+                                // The picker closed (table opened or nothing
+                                // hovered): clear any latched Win state in the
+                                // OS with a synthetic Win-up. Our own hook
+                                // ignores injected input, so this can't
+                                // re-trigger the tap/hold/release logic.
+                                win32::hotkey::inject_win_keyup();
+                            });
+                        })
+                    },
+                    on_tables_cancel: {
+                        let app = app_handle.clone();
+                        Box::new(move || {
+                            let app = app.clone();
+                            std::thread::spawn(move || {
+                                log::info!("Win combo while table picker open — dismissing picker");
+                                TABLES_HOVERED.store(0, Ordering::SeqCst);
+                                hide_tables_impl(&app);
+                            });
+                        })
+                    },
+                });
             }
 
             // Start the Start menu killer monitor. This polls every 100ms
@@ -264,6 +372,13 @@ pub fn run() {
                                 if fs {
                                     let _ = taskbar.hide();
                                 } else {
+                                    // Respect the disable-shell-taskbar setting:
+                                    // when it's on, only the taskbar TABLE exists.
+                                    #[cfg(windows)]
+                                    if !persist::load_settings().disable_shell_taskbar {
+                                        let _ = taskbar.show();
+                                    }
+                                    #[cfg(not(windows))]
                                     let _ = taskbar.show();
                                 }
                             }
@@ -342,6 +457,10 @@ pub fn run() {
             load_icon_recolor,
             save_settings,
             load_settings,
+            set_tables_hover,
+            open_table,
+            close_table,
+            save_table_pos,
             get_language,
             take_screenshot,
             save_clipboard_image,
@@ -360,10 +479,30 @@ pub fn run() {
             set_active_theme,
         ])
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "taskbar" {
-                    api.prevent_close();
+            match event {
+                WindowEvent::CloseRequested { api, .. } => {
+                    if window.label() == "taskbar" {
+                        api.prevent_close();
+                    }
                 }
+                // Movable tables: persist their position while being dragged
+                // (throttled — Moved fires for every px of the drag). Only
+                // visible windows save, so the startup clamp/restore passes
+                // don't overwrite a good position with a stale one.
+                WindowEvent::Moved(pos) => {
+                    let label = window.label();
+                    if matches!(label, "table-settings" | "table-widgets" | "table-desktop")
+                        && window.is_visible().unwrap_or(false)
+                    {
+                        let key = match label {
+                            "table-settings" => "settings",
+                            "table-widgets" => "widgets",
+                            _ => "desktop",
+                        };
+                        moved_save::schedule(key.to_string(), pos.x, pos.y);
+                    }
+                }
+                _ => {}
             }
         })
         .run(tauri::generate_context!())
@@ -437,16 +576,15 @@ pub(crate) fn toggle_launcher_impl(app: &tauri::AppHandle) {
     }
 }
 
-/// Show the launcher: window FIRST, event AFTER.
+/// Show the flatlight: window FIRST, event AFTER.
 ///
-/// The frontend gates its open animation on real visibility + painted
-/// frames, so the cube always starts together with the first presented
-/// frame. (The old code emitted `force-shown` before showing the window —
-/// the animation clock then ran ahead of presentation under GPU load and
-/// the cube appeared speeded-up or fully skipped, e.g. while gaming.)
+/// 0.2: flatlight is no longer a fullscreen overlay — it is a medium
+/// centered window with just the search bar (desktop icons moved to the
+/// desktop table, widgets to the widgets table). The old fullscreen
+/// "launcher" window now only hosts the screenshot region-select flow.
 fn show_launcher(app: &tauri::AppHandle) {
-    let Some(launcher) = app.get_webview_window("launcher") else {
-        log::error!("show_launcher: launcher window not found");
+    let Some(flatlight) = app.get_webview_window("flatlight") else {
+        log::error!("show_launcher: flatlight window not found");
         return;
     };
 
@@ -454,64 +592,68 @@ fn show_launcher(app: &tauri::AppHandle) {
     CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
     LAUNCHER_OPEN.store(true, Ordering::SeqCst);
 
-    fit_launcher_to_screen(app);
-    // Show-desktop effect: minimize every open window so the launcher
-    // sits on a clean desktop instead of on top of other windows.
+    // Center on the primary monitor (physical px).
+    if let Ok(Some(monitor)) = flatlight.primary_monitor() {
+        let pos = monitor.position();
+        let size = monitor.size();
+        let win = flatlight.outer_size().unwrap_or_default();
+        let x = pos.x + (size.width as i32 - win.width as i32) / 2;
+        let y = pos.y + (size.height as i32 - win.height as i32) / 3;
+        let _ = flatlight.set_position(tauri::PhysicalPosition::new(x, y));
+    }
+
+    // Show-desktop effect (configurable): minimize every open window so the
+    // search experience starts quiet.
     #[cfg(windows)]
-    {
+    if persist::load_settings().minimize_on_launcher {
         win32::window::minimize_all_windows();
     }
 
-    let _ = launcher.set_always_on_top(true);
-    let _ = launcher.show();
-    let _ = launcher.set_focus();
-    // Emit AFTER the window is on screen — the frontend's animation gate
-    // then passes immediately instead of polling.
-    let _ = app.emit("launcher://force-shown", ());
-
-    let handle = app.clone();
-    std::thread::spawn(move || refresh_desktop_items(&handle));
+    let _ = flatlight.set_always_on_top(true);
+    let _ = flatlight.show();
+    let _ = flatlight.set_focus();
+    // Emit AFTER the window is on screen — the frontend's pop-in then starts
+    // from a presented frame.
+    let _ = app.emit("flatlight://shown", ());
 }
 
-/// Hide the launcher with the close animation.
+/// Hide flatlight with its pop-out animation.
 ///
-/// Emits `force-hidden` (the frontend FIRST fades the elements out, THEN
-/// collapses the cube, then reports back via `launcher_close_finished`, at
-/// which point we hide the window). A fallback thread hides the window
-/// after 2.4 s in case that report is ever lost — the full two-phase close
-/// runs ~1.4 s (element cascade ~0.6 s + cube collapse 0.8 s), so the
-/// fallback must sit comfortably above it — superseded by any new show via
-/// CLOSE_SEQ.
+/// Emits `flatlight://hidden` (the frontend plays its pop-out, THEN reports
+/// back via `launcher_close_finished`, at which point we hide the window).
+/// A fallback thread hides the window after 1.2 s in case that report is
+/// ever lost — superseded by any new show via CLOSE_SEQ.
 fn hide_launcher_animated(app: &tauri::AppHandle) {
     if !LAUNCHER_OPEN.swap(false, Ordering::SeqCst) {
         return; // already closing or closed — nothing to animate
     }
     let seq = CLOSE_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
-    let _ = app.emit("launcher://force-hidden", ());
+    let _ = app.emit("flatlight://hidden", ());
 
     let handle = app.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_millis(2400));
+        std::thread::sleep(std::time::Duration::from_millis(1200));
         if CLOSE_SEQ.load(Ordering::SeqCst) == seq {
-            if let Some(launcher) = handle.get_webview_window("launcher") {
-                let _ = launcher.hide();
+            if let Some(flatlight) = handle.get_webview_window("flatlight") {
+                let _ = flatlight.hide();
             }
-            log::info!("launcher hidden via fallback timer");
+            log::info!("flatlight hidden via fallback timer");
         }
     });
 }
 
-/// Called by the frontend the moment its close animation finished — hide
-/// the window at exactly the right time instead of a wall-clock guess.
-/// Guarded so a late report can never hide a freshly re-opened launcher.
+/// Called by the flatlight frontend the moment its pop-out animation
+/// finished — hide the window at exactly the right time instead of a
+/// wall-clock guess. Guarded so a late report can never hide a freshly
+/// re-opened flatlight.
 #[tauri::command]
 fn launcher_close_finished(app: tauri::AppHandle) {
     if LAUNCHER_OPEN.load(Ordering::SeqCst) {
         return; // a new show superseded the close while the report was in flight
     }
     CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
-    if let Some(launcher) = app.get_webview_window("launcher") {
-        let _ = launcher.hide();
+    if let Some(flatlight) = app.get_webview_window("flatlight") {
+        let _ = flatlight.hide();
     }
 }
 
@@ -535,7 +677,354 @@ fn fit_launcher_to_screen(app: &tauri::AppHandle) {
 
 #[tauri::command]
 fn close_launcher(app: tauri::AppHandle) {
+    // Two close paths share this command: the flatlight state machine and
+    // the screenshot flow (which shows the fullscreen "launcher" window for
+    // region-select and closes it when done). If the screenshot window is
+    // the one visible, close THAT directly without touching flatlight state.
+    if let Some(launcher) = app.get_webview_window("launcher") {
+        if launcher.is_visible().unwrap_or(false) && !LAUNCHER_OPEN.load(Ordering::SeqCst) {
+            CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
+            let _ = launcher.hide();
+            return;
+        }
+    }
     hide_launcher_animated(&app);
+}
+
+// ===== Tables (pie Win-key picker + its four tables) =====
+//
+// Holding Win (tables_hold_ms) opens the "tables" overlay: a pie menu of
+// five wedges radiating from the mouse cursor (Ctrl+Win → screen center).
+// Hovering a slice and releasing Win opens that table:
+//
+//   1 taskbar   — the taskbar icons on a small vertical line strip
+//                 (max 5 visible, wheel-scrollable, macOS-style magnify)
+//   2 settings  — the settings panel as a movable window (pos → tables.json)
+//   3 widgets   — the launcher widgets in a small movable window
+//                 (pos → tables.json)
+//   4 flatlight — the flatlight launcher itself (searchbar-only overlay)
+//   5 desktop   — the desktop icons in a medium movable window
+//                 (pos → tables.json)
+//
+// The picker overlay is transient: it exists only while Win is held.
+
+/// Map the picker's table id (set by `set_tables_hover`) to its window name.
+fn table_name_from_id(id: i32) -> &'static str {
+    match id {
+        1 => "taskbar",
+        2 => "settings",
+        3 => "widgets",
+        4 => "flatlight",
+        5 => "desktop",
+        _ => "",
+    }
+}
+
+/// Show the pie picker. `center` = Ctrl+Win → center of the primary
+/// monitor instead of around the cursor.
+#[cfg(windows)]
+fn show_tables_impl(app: &tauri::AppHandle, center: bool) {
+    let Some(tables) = app.get_webview_window("tables") else {
+        log::error!("show_tables: tables window not found");
+        return;
+    };
+
+    // Fit to the primary monitor and compute the anchor point in logical
+    // (CSS) px relative to the window client area.
+    let Some(monitor) = tables.primary_monitor().ok().flatten() else {
+        return;
+    };
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
+    let scale = monitor.scale_factor();
+    let _ = tables.set_position(tauri::PhysicalPosition::new(mon_pos.x, mon_pos.y));
+    let _ = tables.set_size(tauri::PhysicalSize::new(mon_size.width, mon_size.height));
+
+    let (ax, ay) = if center {
+        (
+            mon_size.width as f64 / 2.0,
+            mon_size.height as f64 / 2.0,
+        )
+    } else {
+        // Physical cursor pos → monitor-relative logical px.
+        let mut pt = windows::Win32::Foundation::POINT::default();
+        unsafe {
+            let _ = windows::Win32::UI::WindowsAndMessaging::GetCursorPos(&mut pt);
+        }
+        let phys_x = pt.x as f64 - mon_pos.x as f64;
+        let phys_y = pt.y as f64 - mon_pos.y as f64;
+        (phys_x / scale, phys_y / scale)
+    };
+
+    *TABLES_CURSOR.lock() = (ax, ay);
+    TABLES_HOVERED.store(0, Ordering::SeqCst);
+    // Bump the picker generation — cancels any in-flight animated hide so a
+    // rapid hold → release → hold never races the dismiss delay.
+    TABLES_SEQ.fetch_add(1, Ordering::SeqCst);
+
+    let _ = tables.set_always_on_top(true);
+    let _ = tables.show(); // window is NOACTIVATE — focus is untouched
+    // Emit AFTER the window is on screen so the picker animates from a
+    // presented frame instead of racing the show.
+    let _ = app.emit(
+        "tables://show",
+        serde_json::json!({ "x": ax, "y": ay, "center": center }),
+    );
+}
+
+#[cfg(not(windows))]
+fn show_tables_impl(_app: &tauri::AppHandle, _center: bool) {}
+
+/// Dismiss the picker with its pop-out animation: emit `tables://hide` (the
+/// frontend scales the buttons back down), then hide the window once the
+/// transition had time to play. Generation-guarded against a re-open
+/// landing inside the delay.
+#[cfg(windows)]
+fn hide_tables_impl(app: &tauri::AppHandle) {
+    if let Some(tables) = app.get_webview_window("tables") {
+        let seq = TABLES_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
+        let _ = app.emit("tables://hide", ());
+        let handle = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(280));
+            if TABLES_SEQ.load(Ordering::SeqCst) == seq {
+                let _ = handle.get_webview_window("tables").map(|w| w.hide());
+            }
+        });
+    }
+}
+
+#[cfg(not(windows))]
+fn hide_tables_impl(_app: &tauri::AppHandle) {}
+
+/// Instantly dismiss the picker (used when a table is opening right away —
+/// the new table provides the visual transition).
+#[cfg(windows)]
+fn hide_tables_now(app: &tauri::AppHandle) {
+    TABLES_SEQ.fetch_add(1, Ordering::SeqCst);
+    if let Some(tables) = app.get_webview_window("tables") {
+        let _ = app.emit("tables://hide", ());
+        let _ = tables.hide();
+    }
+}
+
+/// Open one of the four tables and dismiss the picker.
+#[cfg(windows)]
+fn open_table_impl(app: &tauri::AppHandle, name: &str) {
+    hide_tables_now(app);
+    log::info!("open_table: {name}");
+    match name {
+        "taskbar" => open_taskbar_table(app),
+        "settings" => show_movable_table(app, "table-settings", "settings", None),
+        "widgets" => show_movable_table(app, "table-widgets", "widgets", None),
+        "desktop" => show_movable_table(app, "table-desktop", "desktop", None),
+        "flatlight" => {
+            // Table 4 IS the flatlight — show the search window itself. If
+            // it's already open, leave it alone.
+            if !LAUNCHER_OPEN.load(Ordering::SeqCst) {
+                show_launcher(app);
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(windows))]
+fn open_table_impl(_app: &tauri::AppHandle, _name: &str) {}
+
+/// Spawn the vertical taskbar strip next to the cursor position captured
+/// when the picker opened. Always cursor-anchored (this table is transient —
+/// its position is intentionally NOT persisted).
+#[cfg(windows)]
+fn open_taskbar_table(app: &tauri::AppHandle) {
+    // The window is 260px wide but only the 62px rail is visible; clamp
+    // against the VISIBLE rail so it can hug the screen edge (the invisible
+    // right-hand zone may hang off-screen — it's fully transparent).
+    const RAIL_W: f64 = 66.0;
+    const STRIP_H: f64 = 5.0 * 62.0 + 14.0; // 5 icon slots + rail padding
+
+    let Some(strip) = app.get_webview_window("table-taskbar") else {
+        log::error!("open_taskbar_table: table-taskbar window not found");
+        return;
+    };
+    let Some(monitor) = strip.primary_monitor().ok().flatten() else {
+        return;
+    };
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
+    let scale = monitor.scale_factor();
+
+    // Anchor: picker cursor position (logical) → physical px, then offset so
+    // the strip's vertical center sits next to the cursor, clamped on-screen.
+    let (cx, cy) = *TABLES_CURSOR.lock();
+    let mut x = mon_pos.x as f64 + (cx + 26.0) * scale;
+    let mut y = mon_pos.y as f64 + (cy - STRIP_H / 2.0) * scale;
+    x = x.clamp(
+        mon_pos.x as f64 + 8.0,
+        mon_pos.x as f64 + mon_size.width as f64 - (RAIL_W + 8.0) * scale,
+    );
+    y = y.clamp(
+        mon_pos.y as f64 + 8.0,
+        mon_pos.y as f64 + mon_size.height as f64 - (STRIP_H + 8.0) * scale,
+    );
+
+    let _ = strip.set_size(tauri::LogicalSize::new(260.0, STRIP_H));
+    let _ = strip.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
+    let _ = strip.set_always_on_top(true);
+    let _ = strip.show();
+    let _ = app.emit("table://taskbar-shown", ());
+
+    // While the strip is open, any click outside its rect closes it with
+    // the pop-out animation (the click itself passes through to whatever is
+    // under the cursor). The frontend plays the animation and calls
+    // close_table, which stops this watcher.
+    if let Ok(hwnd) = strip.hwnd() {
+        let app2 = app.clone();
+        win32::table_mouse::start(
+            hwnd.0 as isize,
+            Arc::new(move || {
+                let app3 = app2.clone();
+                std::thread::spawn(move || {
+                    let _ = app3.emit("table://taskbar-outside", ());
+                });
+            }),
+        );
+    }
+}
+
+/// Show a movable table (settings / widgets) at its persisted position,
+/// defaulting to a gentle cascade from the picker anchor when it has never
+/// been placed. Physical coords round-trip through tables.json.
+#[cfg(windows)]
+fn show_movable_table(
+    app: &tauri::AppHandle,
+    label: &str,
+    key: &str,
+    fallback: Option<(f64, f64)>,
+) {
+    let Some(win) = app.get_webview_window(label) else {
+        log::error!("show_movable_table: {label} window not found");
+        return;
+    };
+    let Some(monitor) = win.primary_monitor().ok().flatten() else {
+        return;
+    };
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
+
+    let saved = persist::load_table_positions().remove(key);
+    let (x, y) = match saved {
+        Some((sx, sy)) => (sx as f64, sy as f64),
+        None => {
+            let (cx, cy) = *TABLES_CURSOR.lock();
+            let (fx, fy) = fallback.unwrap_or((0.0, 0.0));
+            (
+                mon_pos.x as f64 + (cx - 120.0) + fx,
+                mon_pos.y as f64 + (cy - 80.0) + fy,
+            )
+        }
+    };
+    // Clamp fully on-screen (10px margin).
+    let size = win.outer_size().unwrap_or_default();
+    let x = x.clamp(
+        mon_pos.x as f64 + 10.0,
+        (mon_pos.x + mon_size.width as i32) as f64 - size.width as f64 - 10.0,
+    );
+    let y = y.clamp(
+        mon_pos.y as f64 + 10.0,
+        (mon_pos.y + mon_size.height as i32) as f64 - size.height as f64 - 10.0,
+    );
+
+    let _ = win.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
+    let _ = win.set_always_on_top(true);
+    let _ = win.show();
+    let _ = win.set_focus();
+    let _ = app.emit(&format!("table://{key}-shown"), ());
+}
+
+/// Restore persisted positions for the movable tables at startup (pure
+/// sizing pass — windows stay hidden until opened).
+#[cfg(windows)]
+fn restore_table_positions(app: &tauri::AppHandle) {
+    let positions = persist::load_table_positions();
+    for (key, label) in [
+        ("settings", "table-settings"),
+        ("widgets", "table-widgets"),
+        ("desktop", "table-desktop"),
+    ] {
+        if let (Some(win), Some(&(x, y))) =
+            (app.get_webview_window(label), positions.get(key))
+        {
+            let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+        }
+    }
+}
+
+// ===== Table commands (called by the table webviews) =====
+
+/// The picker frontend reports hover changes; the keyboard hook reads this
+/// on Win-up to decide which table to open. id: 0=none 1=taskbar 2=settings
+/// 3=widgets 4=flatlight.
+#[tauri::command]
+fn set_tables_hover(id: i32) {
+    TABLES_HOVERED.store(id.clamp(0, 5), Ordering::SeqCst);
+}
+
+/// Open a table by name from the picker (click fallback — the primary
+/// gesture is hover + release Win).
+#[tauri::command]
+fn open_table(app: tauri::AppHandle, name: String) {
+    #[cfg(windows)]
+    open_table_impl(&app, &name);
+    #[cfg(not(windows))]
+    let _ = (&app, &name);
+}
+
+/// Hide one table window (close buttons / Esc inside the tables). The
+/// taskbar strip also tears down its outside-click watcher here — this is
+/// the single funnel every strip-close path goes through (frontend Esc,
+/// icon click, outside click, End task).
+#[tauri::command]
+fn close_table(app: tauri::AppHandle, name: String) {
+    let label = match name.as_str() {
+        "taskbar" => "table-taskbar",
+        "settings" => "table-settings",
+        "widgets" => "table-widgets",
+        "desktop" => "table-desktop",
+        "tables" => "tables",
+        _ => return,
+    };
+    if name == "taskbar" {
+        win32::table_mouse::stop();
+    }
+    if let Some(win) = app.get_webview_window(label) {
+        let _ = win.hide();
+    }
+    // The pie picker itself was closed from the frontend (click dismiss /
+    // Esc) rather than by a Win release — recover the Win-key latch the same
+    // way the release path does. NO-OP for the other table windows.
+    #[cfg(windows)]
+    if name == "tables" {
+        win32::hotkey::tables_closed_recover();
+    }
+}
+
+/// Persist a movable table's position (physical px). Also called by the
+/// WindowEvent::Moved throttle below — this command exists so a drag that
+/// ends without a final Moved event still saves.
+#[tauri::command]
+fn save_table_pos(name: String, x: i32, y: i32) {
+    #[cfg(windows)]
+    persist_table_position(&name, x, y);
+    #[cfg(not(windows))]
+    let _ = (name, x, y);
+}
+
+#[cfg(windows)]
+fn persist_table_position(name: &str, x: i32, y: i32) {
+    let mut positions = persist::load_table_positions();
+    positions.insert(name.to_string(), (x, y));
+    persist::save_table_positions(&positions);
 }
 
 #[tauri::command]
@@ -675,15 +1164,16 @@ fn minimize_all_windows(app: tauri::AppHandle) {
     log::info!("minimize_all_windows");
     #[cfg(windows)]
     {
-        // First hide the launcher window so it doesn't get minimized or
-        // block. This is an INSTANT hide (everything minimizes right now,
-        // so there is nothing pretty to animate over) — fix the state
-        // machine accordingly: cancel any pending animated close.
-        if let Some(launcher) = app.get_webview_window("launcher") {
+        // Close flatlight first so it doesn't get minimized or block. This
+        // is an INSTANT hide (everything minimizes right now, so there is
+        // nothing pretty to animate over) — fix the state machine
+        // accordingly: cancel any pending animated close.
+        if LAUNCHER_OPEN.swap(false, Ordering::SeqCst) {
             CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
-            LAUNCHER_OPEN.store(false, Ordering::SeqCst);
-            let _ = launcher.hide();
-            let _ = app.emit("launcher://force-hidden", ());
+            if let Some(flatlight) = app.get_webview_window("flatlight") {
+                let _ = flatlight.hide();
+            }
+            let _ = app.emit("flatlight://hidden", ());
         }
 
         // Approach: enumerate all top-level windows and call ShowWindow(SW_MINIMIZE)
@@ -695,14 +1185,12 @@ fn minimize_all_windows(app: tauri::AppHandle) {
             GetWindowLongPtrW, GWL_EXSTYLE, WS_EX_TOOLWINDOW, ShowWindowAsync, SW_MINIMIZE,
             IsIconic,
         };
-        use std::ffi::c_void;
 
         struct State { skip_pid: u32 }
         let mut state = State { skip_pid: 0 };
-        // Find our own PID (flatui) so we skip our windows
-        // We can compare against the launcher/taskbar HWNDs which we know.
-        if let Some(launcher) = app.get_webview_window("launcher") {
-            if let Ok(hwnd) = launcher.hwnd() {
+        // Find our own PID (flatuihush) so we skip our windows.
+        if let Some(flatlight) = app.get_webview_window("flatlight") {
+            if let Ok(hwnd) = flatlight.hwnd() {
                 let mut pid: u32 = 0;
                 unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)); }
                 state.skip_pid = pid;
@@ -1049,7 +1537,7 @@ fn load_icon_recolor() -> bool {
 
 // ===== Settings =====
 #[tauri::command]
-fn save_settings(settings: serde_json::Value) {
+fn save_settings(settings: serde_json::Value, app: tauri::AppHandle) {
     let mut current = persist::load_settings();
 
     // Update fields from the JSON
@@ -1065,7 +1553,63 @@ fn save_settings(settings: serde_json::Value) {
     if let Some(cube) = settings.get("cube_animation").and_then(|v| v.as_bool()) {
         current.cube_animation = cube;
     }
+    // --- Tables update (0.2) ---
+    if let Some(v) = settings.get("tables_hold_ms").and_then(|v| v.as_u64()) {
+        current.tables_hold_ms = v.clamp(80, 1000);
+    }
+    if let Some(v) = settings.get("table_icon_magnify").and_then(|v| v.as_f64()) {
+        current.table_icon_magnify = v.clamp(1.0, 2.0);
+    }
+    if let Some(v) = settings.get("clock_24h").and_then(|v| v.as_bool()) {
+        current.clock_24h = v;
+    }
+    if let Some(v) = settings.get("minimize_on_launcher").and_then(|v| v.as_bool()) {
+        current.minimize_on_launcher = v;
+    }
+    if let Some(v) = settings.get("user_name").and_then(|v| v.as_str()) {
+        current.user_name = v.chars().take(32).collect();
+    }
+    if let Some(v) = settings.get("show_desktop_grid").and_then(|v| v.as_bool()) {
+        current.show_desktop_grid = v;
+    }
+    if let Some(v) = settings.get("disable_shell_taskbar").and_then(|v| v.as_bool()) {
+        current.disable_shell_taskbar = v;
+    }
     persist::save_settings(&current);
+
+    // The hold threshold lives in the keyboard hook — keep it in sync.
+    #[cfg(windows)]
+    win32::hotkey::HOLD_MS
+        .store(current.tables_hold_ms.clamp(80, 1000), Ordering::SeqCst);
+
+    // Shell-taskbar disable applies immediately — the taskbar TABLE
+    // (Win-hold pie -> strip) always stays available. The AppBar edge
+    // reservation is released/reclaimed with the toggle, otherwise a
+    // hidden bar would keep reserving 40px of screen edge via WinAPI.
+    #[cfg(windows)]
+    if let Some(t) = app.get_webview_window("taskbar") {
+        if current.disable_shell_taskbar {
+            win32::window::unregister_appbar(&t);
+            let _ = t.hide();
+        } else {
+            let _ = win32::window::register_appbar(&t, 40);
+            if !win32::fullscreen::is_foreground_fullscreen() {
+                let _ = t.show();
+            }
+        }
+    }
+
+    // Taskbar clock and the launcher react to format/behavior changes live.
+    let _ = app.emit(
+        "settings://changed",
+        serde_json::json!({
+            "clock_24h": current.clock_24h,
+            "minimize_on_launcher": current.minimize_on_launcher,
+            "table_icon_magnify": current.table_icon_magnify,
+            "user_name": current.user_name,
+            "show_desktop_grid": current.show_desktop_grid,
+        }),
+    );
     log::info!("Settings saved — theme: {}", current.theme);
 }
 
@@ -1330,16 +1874,20 @@ fn set_clipboard_image(data_url: String) {
     }
 }
 
-// ===== Show launcher for screenshot (instant, no cube animation) =====
+// ===== Show launcher for screenshot (instant, no animations) =====
+// Uses the fullscreen "launcher" window (NOT flatlight — that one is the
+// medium search window now). The screenshot overlay needs the whole screen.
 #[tauri::command]
 fn show_launcher_for_screenshot(app: tauri::AppHandle) {
-    if let Some(launcher) = app.get_webview_window("launcher") {
-        // Screenshot mode reuses the launcher window without the launcher
-        // UI. Mark it logically open so a later close_launcher (which the
-        // screenshot flow invokes) goes through the proper state machine
-        // and actually hides the window.
+    // If flatlight is open, close it instantly — the screenshot overlay
+    // replaces it on screen.
+    if LAUNCHER_OPEN.swap(false, Ordering::SeqCst) {
         CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
-        LAUNCHER_OPEN.store(true, Ordering::SeqCst);
+        if let Some(flatlight) = app.get_webview_window("flatlight") {
+            let _ = flatlight.hide();
+        }
+    }
+    if let Some(launcher) = app.get_webview_window("launcher") {
         fit_launcher_to_screen(&app);
         let _ = launcher.show();
         let _ = launcher.set_focus();
@@ -1431,7 +1979,7 @@ fn add_to_startup() -> bool {
 
             if let Ok(exe_path) = std::env::current_exe() {
                 // Create a .lnk shortcut using PowerShell (reliable, no COM dependency)
-                let lnk_path = startup_dir.join("FlatUI.lnk");
+                let lnk_path = startup_dir.join("FlatUI Hush.lnk");
                 let exe_dir = exe_path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
                 let ps_script = format!(
                     "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('{}'); $s.TargetPath = '{}'; $s.WorkingDirectory = '{}'; $s.Save()",
@@ -1445,7 +1993,7 @@ fn add_to_startup() -> bool {
                 {
                     Ok(output) => {
                         if output.status.success() {
-                            log::info!("Created FlatUI.lnk shortcut in startup");
+                            log::info!("Created FlatUI Hush.lnk shortcut in startup");
                             return true;
                         } else {
                             log::error!("PowerShell shortcut creation failed: {}", String::from_utf8_lossy(&output.stderr));
@@ -1455,7 +2003,7 @@ fn add_to_startup() -> bool {
                 }
 
                 // Fallback: .bat file
-                let bat_path = startup_dir.join("FlatUI.bat");
+                let bat_path = startup_dir.join("FlatUI Hush.bat");
                 let exe_dir = exe_path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
                 let bat_content = format!(
                     "@echo off\ncd /d \"{}\"\nstart \"\" \"{}\"",
@@ -1463,7 +2011,7 @@ fn add_to_startup() -> bool {
                     exe_path.display()
                 );
                 if std::fs::write(&bat_path, bat_content).is_ok() {
-                    log::info!("Created FlatUI.bat fallback in startup");
+                    log::info!("Created FlatUI Hush.bat fallback in startup");
                     return true;
                 }
             }
@@ -1476,22 +2024,23 @@ fn add_to_startup() -> bool {
 
 #[tauri::command]
 fn remove_from_startup() -> bool {
-    log::info!("Removing FlatUI from startup...");
+    log::info!("Removing FlatUI Hush from startup...");
     #[cfg(windows)]
     {
         if let Ok(appdata) = std::env::var("APPDATA") {
             let startup_dir = std::path::PathBuf::from(&appdata)
                 .join("Microsoft\\Windows\\Start Menu\\Programs\\Startup");
-            let bat_path = startup_dir.join("FlatUI.bat");
-            let lnk_path = startup_dir.join("FlatUI.lnk");
+            let bat_path = startup_dir.join("FlatUI Hush.bat");
+            let lnk_path = startup_dir.join("FlatUI Hush.lnk");
+            // Also clean up pre-rename FlatUI shortcuts
+            let legacy_bat = startup_dir.join("FlatUI.bat");
+            let legacy_lnk = startup_dir.join("FlatUI.lnk");
             let mut removed = false;
-            if bat_path.exists() {
-                let _ = std::fs::remove_file(&bat_path);
-                removed = true;
-            }
-            if lnk_path.exists() {
-                let _ = std::fs::remove_file(&lnk_path);
-                removed = true;
+            for path in [bat_path, lnk_path, legacy_bat, legacy_lnk] {
+                if path.exists() {
+                    let _ = std::fs::remove_file(&path);
+                    removed = true;
+                }
             }
             log::info!("Removed from startup: {}", removed);
             return removed;
@@ -1749,8 +2298,8 @@ fn search_programs(query: String) -> Vec<SearchResult> {
             // FlatUI commands
             ("reboot", "flatui:reboot"),
             ("shutdown", "flatui:shutdown"),
-            ("add flatui to startup", "flatui:addstartup"),
-            ("remove flatui from startup", "flatui:removestartup"),
+            ("add flatui hush to startup", "flatui:addstartup"),
+            ("remove flatui hush from startup", "flatui:removestartup"),
         ];
 
         for (name, cmd) in system_shortcuts.iter() {
@@ -1907,20 +2456,18 @@ fn walk_programs(
 
 // ===== Reset config (for -rs flag) =====
 fn reset_config() {
-    use std::path::PathBuf;
-    let data_dir = if let Some(lad) = std::env::var_os("LOCALAPPDATA") {
-        PathBuf::from(&lad).join("FlatUI")
-    } else {
-        return;
-    };
+    let data_dir = persist::data_dir();
 
     let files = [
         "blacklist.json",
         "clipboard.json",
         "notes.txt",
         "widgets.json",
+        "widget_visibility.json",
+        "icon_recolor.json",
         "settings.json",
         "themes.json",
+        "tables.json",
     ];
 
     for file in &files {
@@ -1935,6 +2482,45 @@ fn reset_config() {
 }
 
 // ===== Helpers =====
+
+/// Debounced persistence of movable-table window positions. WindowEvent::Moved
+/// fires for every pixel of a drag — writing tables.json (and doing the
+/// read-modify-write) for each event would be wasteful, so events are parked
+/// in a map and a single background thread flushes the latest position per
+/// table every 400 ms.
+mod moved_save {
+    use parking_lot::Mutex;
+    use std::collections::HashMap;
+    use std::sync::Once;
+
+    static PARKED: Mutex<Option<HashMap<String, (i32, i32)>>> = Mutex::new(None);
+    static START: Once = Once::new();
+
+    pub fn schedule(name: String, x: i32, y: i32) {
+        {
+            let mut parked = PARKED.lock();
+            parked
+                .get_or_insert_with(HashMap::new)
+                .insert(name, (x, y));
+        }
+        START.call_once(|| {
+            std::thread::Builder::new()
+                .name("table-pos-save".into())
+                .spawn(|| loop {
+                    std::thread::sleep(std::time::Duration::from_millis(400));
+                    let pending = PARKED.lock().take();
+                    if let Some(map) = pending {
+                        let mut all = crate::persist::load_table_positions();
+                        for (name, pos) in map {
+                            all.insert(name, pos);
+                        }
+                        crate::persist::save_table_positions(&all);
+                    }
+                })
+                .ok();
+        });
+    }
+}
 
 fn position_taskbar(window: &tauri::WebviewWindow) {
     if let Some(monitor) = window.current_monitor().ok().flatten() {

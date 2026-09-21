@@ -87,10 +87,18 @@ pub fn apply_no_activate(window: &WebviewWindow) -> windows::core::Result<()> {
 
         // Strip WS_OVERLAPPEDWINDOW (caption + sysmenu + minmax + thickframe) and
         // replace with WS_POPUP. This removes the Windows-drawn caption buttons.
+        //
+        // WS_VISIBLE is NOT force-set here: this helper runs at startup on
+        // windows that are still hidden (the tables overlays) — OR-ing
+        // WS_VISIBLE into the style made a hidden fullscreen overlay window
+        // VISIBLE-but-transparent, which silently swallowed every mouse
+        // click on the desktop until the user opened + closed the quick
+        // menu (the only path that called hide() for real).
         let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-        let new_style = (style & !(WS_OVERLAPPEDWINDOW.0 as isize))
-            | (WS_POPUP.0 as isize)
-            | (WS_VISIBLE.0 as isize);
+        let mut new_style = (style & !(WS_OVERLAPPEDWINDOW.0 as isize)) | (WS_POPUP.0 as isize);
+        if IsWindowVisible(hwnd).as_bool() {
+            new_style |= WS_VISIBLE.0 as isize;
+        }
         SetWindowLongPtrW(hwnd, GWL_STYLE, new_style);
 
         // === Set window region to client area only ===

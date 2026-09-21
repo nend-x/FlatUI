@@ -223,9 +223,9 @@ html.background-ready, html.background-ready body {
 /* Exit button — visually distinct (red-ish on hover) so the user knows
    it's the "quit and restore" button. */
 .exit-btn:hover {
-  color: #e8857a;
-  border-color: #c45a4a;
-  background: rgba(100, 40, 30, 0.85);
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--accent-soft);
 }
 
 /* (The legacy `.winselect-btn` rule has been removed — the winselect
@@ -657,8 +657,8 @@ html.background-ready, html.background-ready body {
 }
 
 .context-menu-item.danger:hover {
-  background: rgba(184, 100, 90, 0.12);
-  color: #E8B5AD;
+  background: rgba(var(--danger-rgb), 0.12);
+  color: var(--danger);
 }
 
 .context-menu-separator {
@@ -1097,6 +1097,17 @@ html.background-ready, html.background-ready body {
   background: var(--accent-terracotta);
   border-radius: 2px;
   transition: width 400ms var(--ease-out-soft);
+}
+
+/* ===== Flatlight mode (0.2 tables update) =====
+   Desktop icons live in the desktop table and widgets in the widgets
+   table — flatlight itself shows ONLY the centered search bar (plus
+   spotlight results while typing). Everything else is display:none so the
+   open/close cascade simply skips the hidden elements. */
+.launcher-root.flatlight-mode .launcher-actions,
+.launcher-root.flatlight-mode .widget,
+.launcher-root.flatlight-mode .launcher-grid {
+  display: none !important;
 }
 
 /* ===== Spotlight results ===== */
@@ -1776,8 +1787,8 @@ html.background-ready, html.background-ready body {
 }
 
 .clipboard-clear:hover {
-  color: #E8958D;
-  background: rgba(220, 100, 90, 0.10);
+  color: var(--danger);
+  background: rgba(var(--danger-rgb), 0.10);
 }
 
 /* ===== Setup screen ===== */

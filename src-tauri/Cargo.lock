@@ -914,8 +914,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "flatui"
-version = "0.1.6"
+name = "flatuihush"
+version = "2.0.0"
 dependencies = [
  "base64 0.22.1",
  "env_logger",
