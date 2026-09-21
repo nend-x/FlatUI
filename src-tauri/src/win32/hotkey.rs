@@ -87,6 +87,12 @@ static HANDLERS: Handlers = Handlers::new();
 static WIN_PENDING: AtomicBool = AtomicBool::new(false);
 static TABLES_OPEN: AtomicBool = AtomicBool::new(false);
 
+/// Magic dwExtraInfo stamped onto every key event we inject ourselves.
+/// Low-level hooks (ours AND other apps') can read this to tell synthetic
+/// input apart — we rely on LLKHF_INJECTED for the ignore decision, but the
+/// marker makes debugging input traces unambiguous.
+pub const OWN_INJECT_MARKER: usize = 0x_F1A7_0001;
+
 /// How long Win must be held before the table picker appears. Mirrors
 /// `settings.tables_hold_ms` — updated by lib.rs on startup and whenever
 /// settings are saved. Kept here so the hold-detector never touches the
@@ -342,6 +348,54 @@ fn re_inject_win_down() {
             log::warn!("re_inject_win_down: SendInput sent {sent}");
         }
     }
+}
+
+/// Inject a synthetic Win KEY-UP (marked injected).
+///
+/// Why: the pie picker's Win-down is swallowed and its Win-up is swallowed
+/// too (the OS shell must never see a standalone Win release). But some
+/// Windows internals track modifier latched state from OUR SendInput'd
+/// combos, so after a picker release the OS can still believe Win is down
+/// (Start menu pops, Win-chord state sticks). Sending an injected Win-up
+/// right after the picker closes clears that latch.
+///
+/// Our own hook ignores injected input unconditionally (the `!injected`
+/// guard in ll_keyboard_proc), so this synthetic up can never re-trigger
+/// tap/hold/release logic — and since the shell never saw a Win-down, a
+/// lone injected up can't open the Start menu either.
+pub fn inject_win_keyup() {
+    let input = INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: windows::Win32::UI::Input::KeyboardAndMouse::INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: VK_LWIN,
+                wScan: 0,
+                dwFlags: KEYEVENTF_KEYUP | KEYEVENTF_EXTENDEDKEY,
+                time: 0,
+                dwExtraInfo: OWN_INJECT_MARKER,
+            },
+        },
+    };
+    unsafe {
+        let sent = SendInput(&[input], std::mem::size_of::<INPUT>() as i32);
+        if sent != 1 {
+            log::warn!("inject_win_keyup: SendInput sent {sent}");
+        }
+    }
+}
+
+/// The pie picker was closed WITHOUT a Win release (frontend click-dismiss,
+/// Esc, or any non-hook funnel). Clears the picker/latch flags so a later
+/// real Win-up degrades to a no-op instead of a release gesture, then sends
+/// the synthetic Win-up (see inject_win_keyup) so the OS never believes Win
+/// is stuck down.
+///
+/// NOT called on the combo-cancel path — there Win is legitimately held and
+/// was just re-injected; a synthetic up would break the in-flight combo.
+pub fn tables_closed_recover() {
+    TABLES_OPEN.store(false, Ordering::SeqCst);
+    WIN_PENDING.store(false, Ordering::SeqCst);
+    inject_win_keyup();
 }
 
 /// Inject a dummy VK__none_ key-up to suppress the focused window's menu

@@ -300,6 +300,12 @@ pub fn run() {
                                 } else {
                                     hide_tables_impl(&app);
                                 }
+                                // The picker closed (table opened or nothing
+                                // hovered): clear any latched Win state in the
+                                // OS with a synthetic Win-up. Our own hook
+                                // ignores injected input, so this can't
+                                // re-trigger the tap/hold/release logic.
+                                win32::hotkey::inject_win_keyup();
                             });
                         })
                     },
@@ -978,6 +984,13 @@ fn close_table(app: tauri::AppHandle, name: String) {
     }
     if let Some(win) = app.get_webview_window(label) {
         let _ = win.hide();
+    }
+    // The pie picker itself was closed from the frontend (click dismiss /
+    // Esc) rather than by a Win release — recover the Win-key latch the same
+    // way the release path does. NO-OP for the other table windows.
+    #[cfg(windows)]
+    if name == "tables" {
+        win32::hotkey::tables_closed_recover();
     }
 }
 
