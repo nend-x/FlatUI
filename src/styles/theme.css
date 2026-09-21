@@ -51,15 +51,15 @@
   --bg-espresso-frosted: var(--bg-espresso);
   --bg-espresso-glass: var(--bg-espresso);
 
-  /* Neutral ramp — outline / variant / on-surface */
-  --sand: #938F99;
-  --sand-rgb: 147, 143, 153;
-  --sand-bright: #CAC4D0;
-  --sand-bright-rgb: 202, 196, 208;
-  --sand-dim: #49454F;
-  --sand-dim-rgb: 73, 69, 79;
-  --sand-cream: #E6E1E9;
-  --sand-cream-rgb: 230, 225, 233;
+  /* Gray ramp — outline / variant / on-surface */
+  --sand: #8A8A8A;
+  --sand-rgb: 138, 138, 138;
+  --sand-bright: #C6C6C6;
+  --sand-bright-rgb: 198, 198, 198;
+  --sand-dim: #4A4A4A;
+  --sand-dim-rgb: 74, 74, 74;
+  --sand-cream: #E8E8E8;
+  --sand-cream-rgb: 232, 232, 232;
 
   /* Neutral gray accents (hover/selection states) */
   --accent-terracotta: #ABABAB;
@@ -163,8 +163,8 @@
      The hue-rotate and saturate values are computed per-theme to match
      the --accent-terracotta color. Default (sand-cream): terracotta #B8835A.
      These are overridden at runtime by applyTheme() in launcher/main.ts. */
-  --icon-recolor-hue: -16deg;
-  --icon-recolor-sat: 0.8;
+  --icon-recolor-hue: 0deg;
+  --icon-recolor-sat: 0.0;
   --icon-recolor-brightness: 0.95;
 }
 

@@ -192,7 +192,7 @@
   opacity: 1;
   width: 18px;
   background: var(--sand-cream);
-  box-shadow: 0 0 4px rgba(237, 228, 211, 0.4);
+  box-shadow: 0 0 4px rgba(var(--sand-cream-rgb), 0.4);
 }
 
 .taskbar-icon.foreground.running:hover .indicator {
@@ -298,8 +298,8 @@
 }
 
 .tb-context-menu-item.danger:hover {
-  background: rgba(220, 100, 90, 0.20);
-  color: #F0B0A8;
+  background: rgba(var(--danger-rgb), 0.20);
+  color: var(--danger);
 }
 
 /* ===== Window switcher flyout ===== */
