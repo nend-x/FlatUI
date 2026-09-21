@@ -106,7 +106,7 @@
 }
 
 .taskbar-icon {
-  /* width now auto: fits the permanent name bar + icon */
+  width: calc(var(--taskbar-icon-size) + var(--taskbar-icon-padding) * 2);
   height: calc(var(--taskbar-icon-size) + var(--taskbar-icon-padding) * 2);
   display: flex;
   align-items: center;
@@ -117,27 +117,6 @@
   position: relative;
   transition: transform 180ms var(--ease-spring),
               background-color 140ms var(--ease-out-soft);
-}
-
-/* Permanent horizontal name bar — sits LEFT of every app's icon and is
-   always visible (no hover needed). Long names truncate with an ellipsis. */
-.taskbar-app-name {
-  font-family: var(--font-display);
-  font-size: 10px;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
-  max-width: 110px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  margin-right: 4px;
-  padding-left: 6px;
-  pointer-events: none;
-  user-select: none;
-}
-
-.taskbar-icon.foreground .taskbar-app-name {
-  color: var(--text-primary);
 }
 
 .taskbar-icon:hover {

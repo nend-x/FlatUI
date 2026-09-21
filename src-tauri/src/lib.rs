@@ -836,10 +836,10 @@ fn open_table_impl(_app: &tauri::AppHandle, _name: &str) {}
 /// its position is intentionally NOT persisted).
 #[cfg(windows)]
 fn open_taskbar_table(app: &tauri::AppHandle) {
-    // The window is 260px wide but only the 62px rail is visible; clamp
-    // against the VISIBLE rail so it can hug the screen edge (the invisible
-    // right-hand zone may hang off-screen — it's fully transparent).
-    const RAIL_W: f64 = 66.0;
+    // The window is wider than the visible 210px rail (transparent chrome
+    // to the right hosts the tooltip + context menu); clamp against the
+    // VISIBLE rail so it can hug the screen edge.
+    const RAIL_W: f64 = 214.0;
     const STRIP_H: f64 = 5.0 * 62.0 + 14.0; // 5 icon slots + rail padding
 
     let Some(strip) = app.get_webview_window("table-taskbar") else {
@@ -867,7 +867,7 @@ fn open_taskbar_table(app: &tauri::AppHandle) {
         mon_pos.y as f64 + mon_size.height as f64 - (STRIP_H + 8.0) * scale,
     );
 
-    let _ = strip.set_size(tauri::LogicalSize::new(260.0, STRIP_H));
+    let _ = strip.set_size(tauri::LogicalSize::new(380.0, STRIP_H));
     let _ = strip.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
     let _ = strip.set_always_on_top(true);
     let _ = strip.show();

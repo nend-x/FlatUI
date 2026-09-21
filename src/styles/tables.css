@@ -138,7 +138,7 @@
   left: 4px;
   top: 7px;
   bottom: 7px;
-  width: 62px;
+  width: 210px;
   border-radius: 31px;
   background-color: var(--bg-espresso-deep);
   background-size: var(--grain-size);
@@ -227,6 +227,28 @@
   transform: scale(var(--mag, 1.45));
 }
 
+/* Permanent horizontal name bar — LEFT of every icon on the line, always
+   visible (no hover needed). Truncates long names with an ellipsis. */
+.tt-name {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: calc(50% - 32px); /* ends before the icon on the line */
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  user-select: none;
+  transition: color 140ms var(--ease-out-soft);
+}
+
+.tt-icon.foreground .tt-name { color: var(--text-primary); }
+
 .tt-icon .fallback {
   font-family: var(--font-display);
   font-size: 14px;
@@ -260,7 +282,7 @@
    next to whichever icon is hovered. */
 .tt-tooltip {
   position: absolute;
-  left: 76px;
+  left: 218px;
   top: 0;
   padding: 5px 9px;
   font-family: var(--font-display);
@@ -608,7 +630,7 @@
    the strip window. */
 .tt-context-menu {
   position: fixed;
-  left: 74px;
+  left: 218px;
   z-index: 50;
   min-width: 120px;
   padding: 4px;
