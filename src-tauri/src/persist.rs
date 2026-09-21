@@ -337,51 +337,50 @@ pub struct ThemesConfig {
 pub fn default_themes() -> ThemesConfig {
     ThemesConfig {
         themes: vec![
-            // ===== material3-dark (active) — soft gray M3 surfaces =====
-            // Material 3 dark scheme on a neutral (N100/N10) gray ramp:
-            // surface tones #1C1B1F family, on-surface #E6E1E9 text,
-            // baseline M3 primary #D0BCFF as the accent. Fully opaque
-            // surfaces — no blur, no glass.
+            // ===== material3-dark (active) — pure neutral gray =====
+            // Flat gray surfaces (no hue tint), gray text ramp, a neutral
+            // gray accent — NOT the M3 baseline purple. Fully opaque
+            // surfaces — no blur, no frost, no grain.
             Theme {
                 name: "material3-dark".to_string(),
                 active: true,
                 colors: ThemeColors {
-                    // Surfaces — M3 neutral: surface / lowest / high
-                    bg_espresso: "#1C1B1F".to_string(),
-                    bg_espresso_rgb: "28, 27, 31".to_string(),
-                    bg_espresso_deep: "#131316".to_string(),
-                    bg_espresso_deep_rgb: "19, 19, 22".to_string(),
-                    bg_espresso_raised: "#2B2930".to_string(),
-                    bg_espresso_raised_rgb: "43, 41, 48".to_string(),
-                    // Opaque washes — this theme has NO blur/frosting
-                    bg_espresso_frosted: "#1C1B1F".to_string(),
-                    bg_espresso_glass: "#1C1B1F".to_string(),
-                    // Neutral ramp — outline / variant / on-surface
-                    sand: "#938F99".to_string(),
-                    sand_rgb: "147, 143, 153".to_string(),
-                    sand_bright: "#CAC4D0".to_string(),
-                    sand_bright_rgb: "202, 196, 208".to_string(),
-                    sand_dim: "#49454F".to_string(),
-                    sand_dim_rgb: "73, 69, 79".to_string(),
-                    sand_cream: "#E6E1E9".to_string(),
-                    sand_cream_rgb: "230, 225, 233".to_string(),
-                    // Accents — M3 baseline dark scheme: primary + secondary
-                    accent_terracotta: "#D0BCFF".to_string(),
-                    accent_terracotta_rgb: "208, 188, 255".to_string(),
-                    accent_caramel: "#CCC2DC".to_string(),
-                    accent_caramel_rgb: "204, 194, 220".to_string(),
-                    accent_soft: "rgba(208,188,255,0.16)".to_string(),
-                    border_subtle: "rgba(230,225,233,0.06)".to_string(),
-                    border_strong: "rgba(230,225,233,0.16)".to_string(),
-                    status_running: "#CCC2DC".to_string(),
-                    status_pinned: "#938F99".to_string(),
-                    danger: "#F2B8B5".to_string(),
-                    danger_rgb: "242, 184, 181".to_string(),
-                    // Text — M3 on-surface / on-surface-variant / outline
-                    text_primary: "#E6E1E9".to_string(),
-                    text_secondary: "#CAC4D0".to_string(),
-                    text_muted: "#938F99".to_string(),
-                    // Shadows — M3 elevation shadows (soft, tight)
+                    // Surfaces — neutral gray: surface / lowest / high
+                    bg_espresso: "#1C1C1C".to_string(),
+                    bg_espresso_rgb: "28, 28, 28".to_string(),
+                    bg_espresso_deep: "#131313".to_string(),
+                    bg_espresso_deep_rgb: "19, 19, 19".to_string(),
+                    bg_espresso_raised: "#2A2A2A".to_string(),
+                    bg_espresso_raised_rgb: "42, 42, 42".to_string(),
+                    // Opaque — this theme has NO blur/frosting
+                    bg_espresso_frosted: "#1C1C1C".to_string(),
+                    bg_espresso_glass: "#1C1C1C".to_string(),
+                    // Gray ramp — outline / variant / on-surface
+                    sand: "#8A8A8A".to_string(),
+                    sand_rgb: "138, 138, 138".to_string(),
+                    sand_bright: "#C6C6C6".to_string(),
+                    sand_bright_rgb: "198, 198, 198".to_string(),
+                    sand_dim: "#4A4A4A".to_string(),
+                    sand_dim_rgb: "74, 74, 74".to_string(),
+                    sand_cream: "#E8E8E8".to_string(),
+                    sand_cream_rgb: "232, 232, 232".to_string(),
+                    // Accents — neutral gray (hover/selection states)
+                    accent_terracotta: "#ABABAB".to_string(),
+                    accent_terracotta_rgb: "171, 171, 171".to_string(),
+                    accent_caramel: "#C4C4C4".to_string(),
+                    accent_caramel_rgb: "196, 196, 196".to_string(),
+                    accent_soft: "rgba(171,171,171,0.14)".to_string(),
+                    border_subtle: "rgba(232,232,232,0.06)".to_string(),
+                    border_strong: "rgba(232,232,232,0.16)".to_string(),
+                    status_running: "#C4C4C4".to_string(),
+                    status_pinned: "#6E6E6E".to_string(),
+                    danger: "#C97A74".to_string(),
+                    danger_rgb: "201, 122, 116".to_string(),
+                    // Text — primary / secondary / muted grays
+                    text_primary: "#E8E8E8".to_string(),
+                    text_secondary: "#C0C0C0".to_string(),
+                    text_muted: "#8A8A8A".to_string(),
+                    // Shadows — soft, tight elevation shadows
                     shadow_window: "0 1px 3px rgba(0, 0, 0, 0.24)".to_string(),
                     shadow_popup: "0 1px 3px rgba(0, 0, 0, 0.30), 0 4px 10px rgba(0, 0, 0, 0.25)".to_string(),
                     shadow_icon_hover: "0 1px 2px rgba(0, 0, 0, 0.20)".to_string(),

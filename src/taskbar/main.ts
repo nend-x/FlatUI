@@ -18,7 +18,8 @@ interface TaskbarApp {
 // THEME_ICON_RECOLOR map. Used when applying a theme so the taskbar's
 // icon recolor filter matches the launcher's.
 const THEME_ICON_RECOLOR: Record<string, { hue: string; sat: string; brightness: string }> = {
-  "material3-dark": { hue: "218deg", sat: "1.0", brightness: "0.95" },
+  // Neutral gray theme — recolor filter yields desaturated gray icons
+  "material3-dark": { hue: "0deg", sat: "0.0", brightness: "0.95" },
 };
 
 interface WindowPreview {

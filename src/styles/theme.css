@@ -1,6 +1,6 @@
 /* =========================================================================
-   FLATUI THEME — Material 3 dark, soft gray
-   Flat M3 neutral surfaces, no blur, baseline M3 accent
+   FLATUI THEME — Material 3 dark, pure neutral gray
+   Flat neutral surfaces, zero hue tint, no blur, baseline M3 accent
    ========================================================================= */
 
 @font-face {
@@ -40,13 +40,13 @@
      hardcoded rgba() in the CSS has been replaced with rgba(var(--xxx-rgb), alpha).
      Defaults match the material3-dark theme in persist.rs; runtime theme
      application overrides every one of these. */
-  /* Surfaces — M3 neutral: surface / surface-container-lowest / high */
-  --bg-espresso: #1C1B1F;
-  --bg-espresso-rgb: 28, 27, 31;
-  --bg-espresso-deep: #131316;
-  --bg-espresso-deep-rgb: 19, 19, 22;
-  --bg-espresso-raised: #2B2930;
-  --bg-espresso-raised-rgb: 43, 41, 48;
+  /* Surfaces — pure neutral gray, no hue tint */
+  --bg-espresso: #1C1C1C;
+  --bg-espresso-rgb: 28, 28, 28;
+  --bg-espresso-deep: #131313;
+  --bg-espresso-deep-rgb: 19, 19, 19;
+  --bg-espresso-raised: #2A2A2A;
+  --bg-espresso-raised-rgb: 42, 42, 42;
   /* Opaque washes — fully solid, this theme has NO blur/frosting */
   --bg-espresso-frosted: var(--bg-espresso);
   --bg-espresso-glass: var(--bg-espresso);
@@ -61,32 +61,32 @@
   --sand-cream: #E6E1E9;
   --sand-cream-rgb: 230, 225, 233;
 
-  /* M3 baseline dark scheme: primary #D0BCFF, secondary #CCC2DC */
-  --accent-terracotta: #D0BCFF;
-  --accent-terracotta-rgb: 208, 188, 255;
-  --accent-caramel: #CCC2DC;
-  --accent-caramel-rgb: 204, 194, 220;
-  --accent-soft: rgba(208, 188, 255, 0.10);
+  /* Neutral gray accents (hover/selection states) */
+  --accent-terracotta: #ABABAB;
+  --accent-terracotta-rgb: 171, 171, 171;
+  --accent-caramel: #C4C4C4;
+  --accent-caramel-rgb: 196, 196, 196;
+  --accent-soft: rgba(171, 171, 171, 0.10);
 
-  --border-subtle: rgba(230, 225, 233, 0.06);
-  --border-strong: rgba(230, 225, 233, 0.16);
+  --border-subtle: rgba(232, 232, 232, 0.06);
+  --border-strong: rgba(232, 232, 232, 0.16);
 
-  --status-running: #CCC2DC;
-  --status-pinned: #938F99;
+  --status-running: #C4C4C4;
+  --status-pinned: #6E6E6E;
 
   /* Danger accent — M3 error color. Overridden per-theme at runtime
      (persist.rs default_themes) like every other color above. */
-  --danger: #F2B8B5;
-  --danger-rgb: 242, 184, 181;
+  --danger: #C97A74;
+  --danger-rgb: 201, 122, 116;
 
   /* ===== Text colors (calibrated per-theme for readability) =====
      These are the primary text colors used throughout the app. They're
      separate from --sand/--sand-cream/--sand-dim (which are also used
      for non-text purposes like borders and backgrounds) so we can tune
      text contrast independently per theme. */
-  --text-primary: var(--sand-cream);
-  --text-secondary: var(--sand);
-  --text-muted: var(--sand-dim);
+  --text-primary: #E8E8E8;
+  --text-secondary: #C0C0C0;
+  --text-muted: #8A8A8A;
 
   /* ===== Shadows — M3 elevation (soft, tight) =====
      Dark themes use stronger black shadows; light themes

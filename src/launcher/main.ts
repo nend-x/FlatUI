@@ -511,7 +511,8 @@ interface Theme {
 // theme.css when a theme is applied, so icon recoloring matches the theme's
 // accent color. Computed from each theme's accent-terracotta hue/saturation.
 const THEME_ICON_RECOLOR: Record<string, { hue: string; sat: string; brightness: string }> = {
-  "material3-dark": { hue: "218deg", sat: "1.0", brightness: "0.95" },
+  // Neutral gray theme — recolor filter yields desaturated gray icons
+  "material3-dark": { hue: "0deg", sat: "0.0", brightness: "0.95" },
 };
 
 function applyTheme(theme: Theme) {
