@@ -168,9 +168,11 @@ pub fn run() {
                     let _ = win32::window::register_appbar(&taskbar, 40);
                 }
                 // The disable-shell-taskbar setting can leave only the
-                // taskbar TABLE (Win-hold pie -> strip) — no bottom bar.
+                // taskbar TABLE (Win-hold pie -> strip) — no bottom bar,
+                // and no reserved edge space either.
                 #[cfg(windows)]
                 if persist::load_settings().disable_shell_taskbar {
+                    win32::window::unregister_appbar(&taskbar);
                     let _ = taskbar.hide();
                 }
             }
@@ -1581,13 +1583,19 @@ fn save_settings(settings: serde_json::Value, app: tauri::AppHandle) {
         .store(current.tables_hold_ms.clamp(80, 1000), Ordering::SeqCst);
 
     // Shell-taskbar disable applies immediately — the taskbar TABLE
-    // (Win-hold pie -> strip) always stays available.
+    // (Win-hold pie -> strip) always stays available. The AppBar edge
+    // reservation is released/reclaimed with the toggle, otherwise a
+    // hidden bar would keep reserving 40px of screen edge via WinAPI.
     #[cfg(windows)]
     if let Some(t) = app.get_webview_window("taskbar") {
         if current.disable_shell_taskbar {
+            win32::window::unregister_appbar(&t);
             let _ = t.hide();
-        } else if !win32::fullscreen::is_foreground_fullscreen() {
-            let _ = t.show();
+        } else {
+            let _ = win32::window::register_appbar(&t, 40);
+            if !win32::fullscreen::is_foreground_fullscreen() {
+                let _ = t.show();
+            }
         }
     }
 
