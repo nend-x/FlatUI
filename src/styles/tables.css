@@ -71,19 +71,6 @@
               transform 180ms var(--ease-spring);
 }
 
-.pie-slice .pie-label {
-  font-family: var(--font-display);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  fill: var(--text-secondary);
-  text-anchor: middle;
-  dominant-baseline: middle;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 140ms var(--ease-out-soft);
-}
-
 .pie-hub {
   fill: rgba(var(--bg-espresso-deep-rgb), 0.78);
   fill-opacity: 0;
@@ -99,7 +86,6 @@
    is hidden on dismiss, so the reverse transition is just polish). */
 .tables-root.shown .pie-wedge { fill-opacity: 1; stroke-opacity: 1; }
 .tables-root.shown .pie-icon-inner { opacity: 1; transform: scale(1); }
-.tables-root.shown .pie-label { opacity: 1; }
 .tables-root.shown .pie-hub   { fill-opacity: 1; stroke-opacity: 1; }
 
 /* Hovered slice: raised fill, terracotta border, brightened content. */
@@ -113,17 +99,16 @@
   transform: scale(1.18);
 }
 .pie-slice.hover .pie-icon-inner svg { stroke: var(--text-primary); }
-.pie-slice.hover .pie-label { fill: var(--text-primary); }
 
 .pie-slice:active .pie-wedge { fill: rgba(var(--sand-rgb), 0.10); }
 
 /* Bloom-out stagger by DOM order (flatlight, desktop, taskbar,
    widgets, settings) — plays forward on open, in reverse on dismiss. */
-.pie-slice:nth-of-type(1) .pie-wedge, .pie-slice:nth-of-type(1) .pie-icon-inner, .pie-slice:nth-of-type(1) .pie-label { transition-delay: 0ms; }
-.pie-slice:nth-of-type(2) .pie-wedge, .pie-slice:nth-of-type(2) .pie-icon-inner, .pie-slice:nth-of-type(2) .pie-label { transition-delay: 20ms; }
-.pie-slice:nth-of-type(3) .pie-wedge, .pie-slice:nth-of-type(3) .pie-icon-inner, .pie-slice:nth-of-type(3) .pie-label { transition-delay: 40ms; }
-.pie-slice:nth-of-type(4) .pie-wedge, .pie-slice:nth-of-type(4) .pie-icon-inner, .pie-slice:nth-of-type(4) .pie-label { transition-delay: 60ms; }
-.pie-slice:nth-of-type(5) .pie-wedge, .pie-slice:nth-of-type(5) .pie-icon-inner, .pie-slice:nth-of-type(5) .pie-label { transition-delay: 80ms; }
+.pie-slice:nth-of-type(1) .pie-wedge, .pie-slice:nth-of-type(1) .pie-icon-inner { transition-delay: 0ms; }
+.pie-slice:nth-of-type(2) .pie-wedge, .pie-slice:nth-of-type(2) .pie-icon-inner { transition-delay: 20ms; }
+.pie-slice:nth-of-type(3) .pie-wedge, .pie-slice:nth-of-type(3) .pie-icon-inner { transition-delay: 40ms; }
+.pie-slice:nth-of-type(4) .pie-wedge, .pie-slice:nth-of-type(4) .pie-icon-inner { transition-delay: 60ms; }
+.pie-slice:nth-of-type(5) .pie-wedge, .pie-slice:nth-of-type(5) .pie-icon-inner { transition-delay: 80ms; }
 
 /* ===== Vertical taskbar strip (table 1) =====
    The window is wider than the visible rail (260px) — transparent chrome to

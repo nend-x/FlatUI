@@ -170,7 +170,7 @@ pub fn load_settings() -> Settings {
 
 fn default_settings() -> Settings {
     Settings {
-        theme: "sand-cream".to_string(),
+        theme: "material3-dark".to_string(),
         auto_fullscreen: true,
         refresh_interval: 2,
         cube_animation: true,
@@ -337,6 +337,58 @@ pub struct ThemesConfig {
 pub fn default_themes() -> ThemesConfig {
     ThemesConfig {
         themes: vec![
+            // ===== material3-dark (active) — soft gray M3 surfaces =====
+            // Material 3 dark scheme on a neutral (N100/N10) gray ramp:
+            // surface tones #1C1B1F family, on-surface #E6E1E9 text,
+            // baseline M3 primary #D0BCFF as the accent. Fully opaque
+            // surfaces — no blur, no glass.
+            Theme {
+                name: "material3-dark".to_string(),
+                active: true,
+                colors: ThemeColors {
+                    // Surfaces — M3 neutral: surface / lowest / high
+                    bg_espresso: "#1C1B1F".to_string(),
+                    bg_espresso_rgb: "28, 27, 31".to_string(),
+                    bg_espresso_deep: "#131316".to_string(),
+                    bg_espresso_deep_rgb: "19, 19, 22".to_string(),
+                    bg_espresso_raised: "#2B2930".to_string(),
+                    bg_espresso_raised_rgb: "43, 41, 48".to_string(),
+                    // Opaque washes — this theme has NO blur/frosting
+                    bg_espresso_frosted: "rgba(28,27,31,0.92)".to_string(),
+                    bg_espresso_glass: "rgba(28,27,31,0.96)".to_string(),
+                    // Neutral ramp — outline / variant / on-surface
+                    sand: "#938F99".to_string(),
+                    sand_rgb: "147, 143, 153".to_string(),
+                    sand_bright: "#CAC4D0".to_string(),
+                    sand_bright_rgb: "202, 196, 208".to_string(),
+                    sand_dim: "#49454F".to_string(),
+                    sand_dim_rgb: "73, 69, 79".to_string(),
+                    sand_cream: "#E6E1E9".to_string(),
+                    sand_cream_rgb: "230, 225, 233".to_string(),
+                    // Accents — M3 baseline dark scheme: primary + secondary
+                    accent_terracotta: "#D0BCFF".to_string(),
+                    accent_terracotta_rgb: "208, 188, 255".to_string(),
+                    accent_caramel: "#CCC2DC".to_string(),
+                    accent_caramel_rgb: "204, 194, 220".to_string(),
+                    accent_soft: "rgba(208,188,255,0.16)".to_string(),
+                    border_subtle: "rgba(230,225,233,0.06)".to_string(),
+                    border_strong: "rgba(230,225,233,0.16)".to_string(),
+                    status_running: "#CCC2DC".to_string(),
+                    status_pinned: "#938F99".to_string(),
+                    danger: "#F2B8B5".to_string(),
+                    danger_rgb: "242, 184, 181".to_string(),
+                    // Text — M3 on-surface / on-surface-variant / outline
+                    text_primary: "#E6E1E9".to_string(),
+                    text_secondary: "#CAC4D0".to_string(),
+                    text_muted: "#938F99".to_string(),
+                    // Shadows — M3 elevation shadows (soft, tight)
+                    shadow_window: "0 1px 3px rgba(0, 0, 0, 0.24)".to_string(),
+                    shadow_popup: "0 1px 3px rgba(0, 0, 0, 0.30), 0 4px 10px rgba(0, 0, 0, 0.25)".to_string(),
+                    shadow_icon_hover: "0 1px 2px rgba(0, 0, 0, 0.20)".to_string(),
+                    shadow_card: "0 8px 24px rgba(0, 0, 0, 0.45)".to_string(),
+                },
+            },
+            /* ===== Old themes — disabled, kept for reference =====
             Theme {
                 name: "sand-cream".to_string(),
                 active: true,
@@ -466,20 +518,36 @@ pub fn default_themes() -> ThemesConfig {
                     shadow_card: "0 10px 30px rgba(0, 0, 0, 0.30)".to_string(),
                 },
             },
+            ===== end old themes ===== */
         ],
     }
 }
 
 pub fn load_themes() -> ThemesConfig {
     let path = data_dir().join("themes.json");
+    let defaults = default_themes();
     match fs::read_to_string(&path) {
         Ok(s) => match serde_json::from_str::<ThemesConfig>(&s) {
-            Ok(config) => config,
+            Ok(config) => {
+                // Migration: a pre-material3-dark themes.json still holds the
+                // retired themes. Once the file contains the new default set
+                // (detected by the presence of material3-dark) user edits are
+                // preserved; older files are rewritten with the defaults.
+                if !config.themes.iter().any(|t| t.name == "material3-dark") {
+                    log::info!(
+                        "themes.json predates material3-dark — rewriting with defaults"
+                    );
+                    if let Ok(s) = serde_json::to_string_pretty(&defaults) {
+                        let _ = fs::write(&path, s);
+                    }
+                    return defaults;
+                }
+                config
+            }
             Err(_) => {
                 // File exists but is old format or corrupt — overwrite with
                 // the current defaults so future loads succeed.
                 log::warn!("themes.json was old format or corrupt — rewriting with defaults");
-                let defaults = default_themes();
                 if let Ok(s) = serde_json::to_string_pretty(&defaults) {
                     let _ = fs::write(&path, s);
                 }
@@ -488,7 +556,6 @@ pub fn load_themes() -> ThemesConfig {
         },
         Err(_) => {
             // First run — create default themes file
-            let defaults = default_themes();
             if let Ok(s) = serde_json::to_string_pretty(&defaults) {
                 let _ = fs::write(&path, s);
             }

@@ -15,9 +15,7 @@ export interface ThemePayload {
 // Per-theme icon recolor hue/sat/brightness. Must match the launcher's
 // THEME_ICON_RECOLOR map (computed from each theme's accent color).
 export const THEME_ICON_RECOLOR: Record<string, { hue: string; sat: string; brightness: string }> = {
-  "sand-cream": { hue: "-16deg", sat: "0.8", brightness: "0.95" },
-  "earthly-green": { hue: "98deg", sat: "1.0", brightness: "0.95" },
-  "silver-lining": { hue: "168deg", sat: "0.4", brightness: "0.90" },
+  "material3-dark": { hue: "218deg", sat: "1.0", brightness: "0.95" },
 };
 
 export function applyThemeColors(colors: Record<string, string>): void {

@@ -32,7 +32,6 @@ const SLICE_ORDER = ["flatlight", "desktop", "taskbar", "widgets", "settings"];
 const RADIUS = 138;      // outer wedge radius (px)
 const SLICE_DEG = 360 / SLICE_ORDER.length; // no angular gap — wedges share edges like a real pie
 const ICON_R = 86;       // icon center distance from anchor
-const LABEL_R = 118;     // label distance from anchor
 const HUB_R = 26;        // center hub radius
 
 const TABLE_IDS: Record<string, number> = {
@@ -81,10 +80,6 @@ function layoutPie(x: number, y: number) {
     icon.setAttribute("width", "24");
     icon.setAttribute("height", "24");
 
-    const [lx, ly] = polar(x, y, LABEL_R, mid);
-    const label = slice.querySelector<SVGTextElement>(".pie-label")!;
-    label.setAttribute("x", `${lx.toFixed(2)}`);
-    label.setAttribute("y", `${ly.toFixed(2)}`);
   }
 }
 

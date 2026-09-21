@@ -10,8 +10,8 @@
 <body>
   <!-- Pie table picker — five full wedges radiating from the anchor point
        (cursor, or screen center for Ctrl+Win). Wedge geometry is computed
-       by JS from the tables://show payload; the icon + label markup below
-       is static and gets positioned onto each slice's mid-angle. -->
+       by JS from the tables://show payload; icons are static and get
+       positioned onto each slice's mid-angle. -->
   <div class="tables-root" id="tables-root">
     <svg class="pie" id="pie">
       <!-- Table 4 — flatlight (top slice) -->
@@ -23,7 +23,6 @@
           <path d="m21 21-4.3-4.3"/>
         </svg>
         </g></g>
-        <text class="pie-label">Flatlight</text>
       </g>
       <!-- Table 5 — desktop (top-right slice) -->
       <g class="pie-slice" id="btn-desktop" data-table="desktop">
@@ -35,7 +34,6 @@
           <line x1="12" y1="17" x2="12" y2="21"/>
         </svg>
         </g></g>
-        <text class="pie-label">Desktop</text>
       </g>
       <!-- Table 1 — taskbar (bottom-right slice) -->
       <g class="pie-slice" id="btn-taskbar" data-table="taskbar">
@@ -49,7 +47,6 @@
           <line x1="12" y1="10" x2="12" y2="3"/>
         </svg>
         </g></g>
-        <text class="pie-label">Taskbar</text>
       </g>
       <!-- Table 3 — widgets (bottom-left slice) -->
       <g class="pie-slice" id="btn-widgets" data-table="widgets">
@@ -62,7 +59,6 @@
           <rect x="14" y="14" width="7" height="7" rx="1.5"/>
         </svg>
         </g></g>
-        <text class="pie-label">Widgets</text>
       </g>
       <!-- Table 2 — settings (top-left slice) -->
       <g class="pie-slice" id="btn-settings" data-table="settings">
@@ -73,7 +69,6 @@
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
         </g></g>
-        <text class="pie-label">Settings</text>
       </g>
       <!-- Center hub — shows what the gesture is waiting on -->
       <circle class="pie-hub" id="pie-hub"/>

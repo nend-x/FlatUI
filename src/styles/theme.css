@@ -1,6 +1,6 @@
 /* =========================================================================
-   FLATUI THEME — Anthropic-inspired, Sand+Espresso palette
-   Mat/frosted aesthetic, minimal glow, premium feel
+   FLATUI THEME — Material 3 dark, soft gray
+   Flat M3 neutral surfaces, no blur, baseline M3 accent
    ========================================================================= */
 
 @font-face {
@@ -33,46 +33,51 @@
 }
 
 :root {
-  /* ===== Palette: Sand + Espresso — desaturated, premium =====
+  /* ===== Palette: Material 3 dark — soft neutral gray =====
      Each color has both a solid form (--bg-espresso) and an RGB-channel
      form (--bg-espresso-rgb) so we can compose rgba(var(--bg-espresso-rgb), 0.45)
      at any alpha. The RGB form is what makes theme switching work — every
-     hardcoded rgba() in the CSS has been replaced with rgba(var(--xxx-rgb), alpha). */
-  --bg-espresso: #4B3621;
-  --bg-espresso-rgb: 75, 54, 33;
-  --bg-espresso-deep: #3A2A1A;
-  --bg-espresso-deep-rgb: 58, 42, 26;
-  --bg-espresso-raised: #54402D;
-  --bg-espresso-raised-rgb: 84, 64, 40;
-  /* Frosted glass — espresso-based with strong backdrop blur */
-  --bg-espresso-frosted: rgba(58, 42, 26, 0.55);
-  --bg-espresso-glass: rgba(58, 42, 26, 0.65);
+     hardcoded rgba() in the CSS has been replaced with rgba(var(--xxx-rgb), alpha).
+     Defaults match the material3-dark theme in persist.rs; runtime theme
+     application overrides every one of these. */
+  /* Surfaces — M3 neutral: surface / surface-container-lowest / high */
+  --bg-espresso: #1C1B1F;
+  --bg-espresso-rgb: 28, 27, 31;
+  --bg-espresso-deep: #131316;
+  --bg-espresso-deep-rgb: 19, 19, 22;
+  --bg-espresso-raised: #2B2930;
+  --bg-espresso-raised-rgb: 43, 41, 48;
+  /* Opaque washes — this theme has NO blur/frosting */
+  --bg-espresso-frosted: rgba(28, 27, 31, 0.92);
+  --bg-espresso-glass: rgba(28, 27, 31, 0.96);
 
-  --sand: #C2B280;
-  --sand-rgb: 194, 178, 128;
-  --sand-bright: #D4C19C;
-  --sand-bright-rgb: 212, 193, 156;
-  --sand-dim: #8A7B5C;
-  --sand-dim-rgb: 138, 123, 92;
-  --sand-cream: #EDE4D3;
-  --sand-cream-rgb: 237, 228, 211;
+  /* Neutral ramp — outline / variant / on-surface */
+  --sand: #938F99;
+  --sand-rgb: 147, 143, 153;
+  --sand-bright: #CAC4D0;
+  --sand-bright-rgb: 202, 196, 208;
+  --sand-dim: #49454F;
+  --sand-dim-rgb: 73, 69, 79;
+  --sand-cream: #E6E1E9;
+  --sand-cream-rgb: 230, 225, 233;
 
-  --accent-terracotta: #B8835A;
-  --accent-terracotta-rgb: 184, 131, 90;
-  --accent-caramel: #D4A574;
-  --accent-caramel-rgb: 212, 165, 116;
-  --accent-soft: rgba(184, 131, 90, 0.10);
+  /* M3 baseline dark scheme: primary #D0BCFF, secondary #CCC2DC */
+  --accent-terracotta: #D0BCFF;
+  --accent-terracotta-rgb: 208, 188, 255;
+  --accent-caramel: #CCC2DC;
+  --accent-caramel-rgb: 204, 194, 220;
+  --accent-soft: rgba(208, 188, 255, 0.10);
 
-  --border-subtle: rgba(194, 178, 128, 0.08);
-  --border-strong: rgba(194, 178, 128, 0.18);
+  --border-subtle: rgba(230, 225, 233, 0.06);
+  --border-strong: rgba(230, 225, 233, 0.16);
 
-  --status-running: #D4A574;
-  --status-pinned: #8A7B5C;
+  --status-running: #CCC2DC;
+  --status-pinned: #938F99;
 
-  /* Danger accent — destructive actions. Overridden per-theme at runtime
+  /* Danger accent — M3 error color. Overridden per-theme at runtime
      (persist.rs default_themes) like every other color above. */
-  --danger: #C4664F;
-  --danger-rgb: 196, 102, 79;
+  --danger: #F2B8B5;
+  --danger-rgb: 242, 184, 181;
 
   /* ===== Text colors (calibrated per-theme for readability) =====
      These are the primary text colors used throughout the app. They're
@@ -83,13 +88,13 @@
   --text-secondary: var(--sand);
   --text-muted: var(--sand-dim);
 
-  /* ===== Shadows (calibrated per-theme) =====
-     Dark themes use stronger black shadows; light themes (silver-lining)
+  /* ===== Shadows — M3 elevation (soft, tight) =====
+     Dark themes use stronger black shadows; light themes
      use softer, lower-opacity shadows so they don't ruin the aesthetic. */
-  --shadow-window: 0 1px 4px rgba(0, 0, 0, 0.18);
-  --shadow-popup: 0 2px 12px rgba(0, 0, 0, 0.32), 0 1px 2px rgba(0, 0, 0, 0.22);
-  --shadow-icon-hover: 0 1px 3px rgba(0, 0, 0, 0.14);
-  --shadow-card: 0 14px 44px rgba(0, 0, 0, 0.5);
+  --shadow-window: 0 1px 3px rgba(0, 0, 0, 0.24);
+  --shadow-popup: 0 1px 3px rgba(0, 0, 0, 0.30), 0 4px 10px rgba(0, 0, 0, 0.25);
+  --shadow-icon-hover: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.45);
 
   /* ===== Typography ===== */
   --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Mono", monospace;
