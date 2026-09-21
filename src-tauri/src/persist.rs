@@ -331,11 +331,21 @@ pub struct Theme {
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
 pub struct ThemesConfig {
+    /// Schema version of this file. Files missing the field (or with an
+    /// older version) carry stale color payloads — load_themes() rewrites
+    /// them with the current defaults. Bump whenever default_themes()
+    /// changes meaningfully.
+    #[serde(default)]
+    pub version: u32,
     pub themes: Vec<Theme>,
 }
 
+/// Current themes.json schema version.
+const THEMES_VERSION: u32 = 2;
+
 pub fn default_themes() -> ThemesConfig {
     ThemesConfig {
+        version: THEMES_VERSION,
         themes: vec![
             // ===== material3-dark (active) — pure neutral gray =====
             // Flat gray surfaces (no hue tint), gray text ramp, a neutral
@@ -374,8 +384,8 @@ pub fn default_themes() -> ThemesConfig {
                     border_strong: "rgba(232,232,232,0.16)".to_string(),
                     status_running: "#C4C4C4".to_string(),
                     status_pinned: "#6E6E6E".to_string(),
-                    danger: "#C97A74".to_string(),
-                    danger_rgb: "201, 122, 116".to_string(),
+                    danger: "#9C9C9C".to_string(),
+                    danger_rgb: "156, 156, 156".to_string(),
                     // Text — primary / secondary / muted grays
                     text_primary: "#E8E8E8".to_string(),
                     text_secondary: "#C0C0C0".to_string(),
@@ -528,11 +538,12 @@ pub fn load_themes() -> ThemesConfig {
     match fs::read_to_string(&path) {
         Ok(s) => match serde_json::from_str::<ThemesConfig>(&s) {
             Ok(config) => {
-                // Migration: a pre-material3-dark themes.json still holds the
-                // retired themes. Once the file contains the new default set
-                // (detected by the presence of material3-dark) user edits are
-                // preserved; older files are rewritten with the defaults.
-                if !config.themes.iter().any(|t| t.name == "material3-dark") {
+                // Migration: rewrite files whose schema is older than the
+                // current version — their color payloads are stale (this is
+                // how retired-theme payloads and recolored defaults get
+                // replaced). Current-version files are preserved untouched
+                // so user edits survive.
+                if config.version < THEMES_VERSION {
                     log::info!(
                         "themes.json predates material3-dark — rewriting with defaults"
                     );

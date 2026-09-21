@@ -76,8 +76,8 @@
 
   /* Danger accent — M3 error color. Overridden per-theme at runtime
      (persist.rs default_themes) like every other color above. */
-  --danger: #C97A74;
-  --danger-rgb: 201, 122, 116;
+  --danger: #9C9C9C;
+  --danger-rgb: 156, 156, 156;
 
   /* ===== Text colors (calibrated per-theme for readability) =====
      These are the primary text colors used throughout the app. They're
