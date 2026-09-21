@@ -14,8 +14,9 @@
       <div class="tt-line"></div>
       <div class="tt-scroll" id="tt-scroll"><!-- icons injected here --></div>
     </div>
-    <!-- Outside the clipping rail; JS positions it next to the hovered icon -->
-    <div class="tt-tooltip" id="tt-tooltip"></div>
+    <!-- Permanent name bars — one per icon, outside the clipping rail;
+         the container mirrors the rail's scroll offset (JS) -->
+    <div class="tt-names" id="tt-names"></div>
   </div>
 
   <script type="module" src="./main.ts"></script>

@@ -138,7 +138,7 @@
   left: 4px;
   top: 7px;
   bottom: 7px;
-  width: 210px;
+  width: 62px;
   border-radius: 31px;
   background-color: var(--bg-espresso-deep);
   background-size: var(--grain-size);
@@ -227,28 +227,6 @@
   transform: scale(var(--mag, 1.45));
 }
 
-/* Permanent horizontal name bar — LEFT of every icon on the line, always
-   visible (no hover needed). Truncates long names with an ellipsis. */
-.tt-name {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  max-width: calc(50% - 32px); /* ends before the icon on the line */
-  font-family: var(--font-display);
-  font-size: 10px;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  pointer-events: none;
-  user-select: none;
-  transition: color 140ms var(--ease-out-soft);
-}
-
-.tt-icon.foreground .tt-name { color: var(--text-primary); }
-
 .tt-icon .fallback {
   font-family: var(--font-display);
   font-size: 14px;
@@ -278,31 +256,6 @@
   width: 18px;
 }
 
-/* Tooltip — a single element outside the (clipping) rail, positioned by JS
-   next to whichever icon is hovered. */
-.tt-tooltip {
-  position: absolute;
-  left: 218px;
-  top: 0;
-  padding: 5px 9px;
-  font-family: var(--font-display);
-  font-size: 10px;
-  color: var(--text-primary);
-  background-color: var(--bg-espresso-deep);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-popup);
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-50%) scale(0.94);
-  transition: opacity 120ms var(--ease-out-soft), transform 140ms var(--ease-spring);
-  z-index: 6;
-}
-.tt-tooltip.visible {
-  opacity: 1;
-  transform: translateY(-50%) scale(1);
-}
 
 /* ===== Flatlight — medium floating search window (0.2 split) ===== */
 .flatlight-root {
@@ -630,7 +583,7 @@
    the strip window. */
 .tt-context-menu {
   position: fixed;
-  left: 218px;
+  left: 74px;
   z-index: 50;
   min-width: 120px;
   padding: 4px;

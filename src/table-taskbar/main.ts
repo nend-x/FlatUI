@@ -25,7 +25,7 @@ interface TaskbarApp {
 
 const root = document.getElementById("tt-root")!;
 const scroll = document.getElementById("tt-scroll")!;
-const tooltip = document.getElementById("tt-tooltip")!;
+const names = document.getElementById("tt-names")!;
 
 // Theme + icon-recolor values are applied together by the shared applyTheme
 // — startup load AND live theme://changed events both go through it.
@@ -114,7 +114,6 @@ function buildIcon(app: TaskbarApp): HTMLElement {
     hoveredIdx = iconEls().indexOf(slot);
     slot.classList.add("hover");
     slot.style.setProperty("--mag", magnify.toFixed(3));
-    showTooltip(slot);
   });
 
   slot.addEventListener("mouseleave", () => {
@@ -122,7 +121,6 @@ function buildIcon(app: TaskbarApp): HTMLElement {
       hoveredIdx = -1;
       slot.classList.remove("hover");
       slot.style.removeProperty("--mag");
-      hideTooltip();
     }
   });
 
@@ -170,7 +168,6 @@ function reconcile() {
     if (!appById.has(el.dataset.appId!)) {
       if (el.classList.contains("hover")) {
         hoveredIdx = -1;
-        hideTooltip();
       }
       el.remove();
     }
@@ -194,6 +191,7 @@ function reconcile() {
 
   // Clamp the scroll target into the new range without moving it otherwise.
   target = Math.max(0, Math.min(maxOffset(), target));
+  rebuildNames();
 }
 
 function iconEls(): HTMLElement[] {
@@ -202,18 +200,30 @@ function iconEls(): HTMLElement[] {
 
 let hoveredIdx = -1;
 
-function showTooltip(el: HTMLElement) {
-  const app = appFor(el);
-  if (!app) return;
-  tooltip.textContent = app.name;
-  // Icon center is offset from the container top by the scroll offset.
-  const top = el.offsetTop + el.offsetHeight / 2 - offset;
-  tooltip.style.top = `${top}px`;
-  tooltip.classList.add("visible");
-}
-
-function hideTooltip() {
-  tooltip.classList.remove("visible");
+// ===== Permanent name bars =====
+// The old hover tooltip look, but one bar per icon, always visible. Bars
+// live in a container OUTSIDE the clipping rail; the container mirrors the
+// rail's scroll transform (applyTransform) so each bar stays glued to its
+// icon. Bars are clickable = same activate behavior as the icon.
+function rebuildNames() {
+  names.innerHTML = "";
+  for (const el of iconEls()) {
+    const app = appFor(el);
+    if (!app) continue;
+    const bar = document.createElement("div");
+    bar.className = "tt-name-bar";
+    if (app.is_foreground) bar.classList.add("foreground");
+    bar.textContent = app.name;
+    bar.dataset.appId = app.id;
+    // Vertical position matches the icon slot (offset is handled by the
+    // shared scroll transform on the container).
+    bar.style.top = `${el.offsetTop}px`;
+    bar.addEventListener("click", () => {
+      invoke("activate_app", { appId: app.id });
+      closeStrip();
+    });
+    names.appendChild(bar);
+  }
 }
 
 // ===== Smooth wheel scrolling (max 5 icons visible) =====
@@ -232,6 +242,7 @@ function maxOffset(): number {
 
 function applyTransform() {
   scroll.style.transform = `translateY(${-offset}px)`;
+  names.style.transform = `translateY(${-offset}px)`;
 }
 
 function animate() {
@@ -251,9 +262,6 @@ window.addEventListener("wheel", (e) => {
   e.preventDefault();
   target = Math.max(0, Math.min(maxOffset(), target + e.deltaY * 0.9));
   if (!raf) raf = requestAnimationFrame(animate);
-  // Keep the tooltip glued to its icon while scrolling.
-  const hovered = iconEls()[hoveredIdx];
-  if (hovered) showTooltip(hovered);
 }, { passive: false });
 
 // ===== Right-click context menu (End task — same as the taskbar) =====
@@ -290,7 +298,6 @@ function closeStrip() {
   if (closing) return;
   closing = true;
   root.classList.remove("shown");
-  hideTooltip();
   // Let the pop-out transition (220ms) finish before the backend hides the
   // window (close_table also tears down the outside-click watcher).
   setTimeout(() => invoke("close_table", { name: "taskbar" }), 230);
