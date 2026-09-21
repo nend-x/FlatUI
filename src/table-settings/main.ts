@@ -43,7 +43,7 @@ interface Settings {
   table_icon_magnify?: number;
   clock_24h?: boolean;
   minimize_on_launcher?: boolean;
-  show_native_taskbar?: boolean;
+  disable_shell_taskbar?: boolean;
   user_name?: string;
   show_desktop_grid?: boolean;
 }
@@ -62,7 +62,7 @@ const magnifyVal = document.getElementById("magnify-val")!;
 const themeSelect = document.getElementById("theme-select") as HTMLSelectElement;
 const toggleIconRecolor = document.getElementById("toggle-icon-recolor") as HTMLInputElement;
 const toggleMinimize = document.getElementById("toggle-minimize") as HTMLInputElement;
-const toggleNative = document.getElementById("toggle-native-taskbar") as HTMLInputElement;
+const toggleShellTaskbar = document.getElementById("toggle-shell-taskbar") as HTMLInputElement;
 const inputName = document.getElementById("input-name") as HTMLInputElement;
 const segClock = document.getElementById("seg-clock")!;
 const exitBtn = document.getElementById("mt-exit")!;
@@ -78,7 +78,7 @@ function currentSettings(): Settings {
     table_icon_magnify: parseFloat(sliderMagnify.value),
     clock_24h: segClock.querySelector("button.active")?.getAttribute("data-value") === "24",
     minimize_on_launcher: toggleMinimize.checked,
-    show_native_taskbar: toggleNative.checked,
+    disable_shell_taskbar: !toggleShellTaskbar.checked,
     user_name: inputName.value,
   };
 }
@@ -96,7 +96,7 @@ async function load() {
     holdVal.textContent = `${sliderHold.value} ms`;
     magnifyVal.textContent = `${parseFloat(sliderMagnify.value).toFixed(2)}\u00d7`;
     toggleMinimize.checked = s.minimize_on_launcher ?? true;
-    toggleNative.checked = s.show_native_taskbar ?? false;
+    toggleShellTaskbar.checked = !(s.disable_shell_taskbar ?? false);
     inputName.value = s.user_name ?? "";
     setSegClock(s.clock_24h ?? true);
   } catch {}
@@ -137,7 +137,7 @@ sliderMagnify.addEventListener("input", () => {
 });
 
 toggleMinimize.addEventListener("change", saveSettings);
-toggleNative.addEventListener("change", saveSettings);
+toggleShellTaskbar.addEventListener("change", saveSettings);
 
 let nameTimer: number | null = null;
 inputName.addEventListener("input", () => {

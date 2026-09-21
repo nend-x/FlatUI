@@ -154,10 +154,10 @@ pub struct Settings {
     /// Hide the desktop icons inside the launcher grid (toggle).
     #[serde(default = "default_true")]
     pub show_desktop_grid: bool,
-    /// Show the ORIGINAL (native) Windows taskbar instead of the FlatUI
-    /// taskbar (toggle). False = FlatUI taskbar only (default).
+    /// Disable the FlatUI shell taskbar (bottom bar) — only the taskbar
+    /// TABLE (Win-hold pie -> taskbar strip) remains. Default: off.
     #[serde(default)]
-    pub show_native_taskbar: bool,
+    pub disable_shell_taskbar: bool,
 }
 
 fn default_tables_hold_ms() -> u64 { 220 }
@@ -176,7 +176,7 @@ fn default_settings() -> Settings {
     Settings {
         theme: "material3-dark".to_string(),
         auto_fullscreen: true,
-        show_native_taskbar: false,
+        disable_shell_taskbar: false,
         refresh_interval: 2,
         cube_animation: true,
         tables_hold_ms: 220,

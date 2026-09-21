@@ -167,11 +167,10 @@ pub fn run() {
                     // style alone is enough.
                     let _ = win32::window::register_appbar(&taskbar, 40);
                 }
-                // The "original Windows taskbar" setting decides which bar
-                // owns the bottom edge: native shown => custom hidden.
+                // The disable-shell-taskbar setting can leave only the
+                // taskbar TABLE (Win-hold pie -> strip) — no bottom bar.
                 #[cfg(windows)]
-                if persist::load_settings().show_native_taskbar {
-                    hide_taskbar::set_show_native(true);
+                if persist::load_settings().disable_shell_taskbar {
                     let _ = taskbar.hide();
                 }
             }
@@ -371,10 +370,10 @@ pub fn run() {
                                 if fs {
                                     let _ = taskbar.hide();
                                 } else {
-                                    // When the native (og) taskbar is shown the
-                                    // custom bar stays hidden.
+                                    // Respect the disable-shell-taskbar setting:
+                                    // when it's on, only the taskbar TABLE exists.
                                     #[cfg(windows)]
-                                    if !hide_taskbar::is_native_visible() {
+                                    if !persist::load_settings().disable_shell_taskbar {
                                         let _ = taskbar.show();
                                     }
                                     #[cfg(not(windows))]
@@ -1571,8 +1570,8 @@ fn save_settings(settings: serde_json::Value, app: tauri::AppHandle) {
     if let Some(v) = settings.get("show_desktop_grid").and_then(|v| v.as_bool()) {
         current.show_desktop_grid = v;
     }
-    if let Some(v) = settings.get("show_native_taskbar").and_then(|v| v.as_bool()) {
-        current.show_native_taskbar = v;
+    if let Some(v) = settings.get("disable_shell_taskbar").and_then(|v| v.as_bool()) {
+        current.disable_shell_taskbar = v;
     }
     persist::save_settings(&current);
 
@@ -1581,18 +1580,14 @@ fn save_settings(settings: serde_json::Value, app: tauri::AppHandle) {
     win32::hotkey::HOLD_MS
         .store(current.tables_hold_ms.clamp(80, 1000), Ordering::SeqCst);
 
-    // Switch between the FlatUI taskbar and the original Windows taskbar
-    // immediately — no restart needed.
+    // Shell-taskbar disable applies immediately — the taskbar TABLE
+    // (Win-hold pie -> strip) always stays available.
     #[cfg(windows)]
-    {
-        hide_taskbar::set_show_native(current.show_native_taskbar);
-        if let Some(t) = app.get_webview_window("taskbar") {
-            if current.show_native_taskbar {
-                // The two bars would stack on the same edge — custom goes away.
-                let _ = t.hide();
-            } else if !win32::fullscreen::is_foreground_fullscreen() {
-                let _ = t.show();
-            }
+    if let Some(t) = app.get_webview_window("taskbar") {
+        if current.disable_shell_taskbar {
+            let _ = t.hide();
+        } else if !win32::fullscreen::is_foreground_fullscreen() {
+            let _ = t.show();
         }
     }
 
