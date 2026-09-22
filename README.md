@@ -16,7 +16,7 @@ Hush_UI replaces the Windows shell experience. The Win key opens the launcher in
   - **Taskbar** — your taskbar icons on a vertical line strip (wheel-scrolls, each app has a permanent name bar)
   - **Settings** — the settings panel as a movable window
   - **Widgets** — clipboard, notes, audio, system and **brightness** widgets in one window
-  - **Flatlight** — the launcher itself
+  - **Hushlight** — the launcher itself
   - **Desktop** — desktop icons in a movable window
 - **Ctrl + Win (hold)** — same, centered on screen.
 - **Win + anything else** — real combos (Win+D, Win+E...) pass through untouched.

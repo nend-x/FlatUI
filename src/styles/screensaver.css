@@ -1,0 +1,80 @@
+/* =========================================================================
+   Hush_UI — Screensaver styles
+   OLED black canvas with a slow particle drift field, big thin clock
+   centered on top. Everything monochrome, everything slow.
+   ========================================================================= */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  cursor: none;
+  user-select: none;
+}
+
+.ss-root {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.4s cubic-bezier(0.33, 0, 0.2, 1);
+}
+
+.ss-root.awake {
+  opacity: 1;
+}
+
+.ss-root.fading {
+  opacity: 0;
+}
+
+#field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ===== Clock overlay — large, thin, quiet ===== */
+.ss-overlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.ss-clock {
+  font-family: var(--font-display, "Segoe UI", sans-serif);
+  font-size: clamp(64px, 11vh, 128px);
+  font-weight: 200;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.ss-date {
+  font-family: var(--font-display, "Segoe UI", sans-serif);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.34);
+  margin-top: 14px;
+}
+
+/* the clock group breathes very slowly, in sync with nothing in particular */
+.ss-overlay {
+  animation: ss-breathe 12s ease-in-out infinite;
+}
+
+@keyframes ss-breathe {
+  0%, 100% { opacity: 0.92; }
+  50%      { opacity: 0.75; }
+}

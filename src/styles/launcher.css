@@ -1099,14 +1099,14 @@ html.background-ready, html.background-ready body {
   transition: width 400ms var(--ease-out-soft);
 }
 
-/* ===== Flatlight mode (0.2 tables update) =====
+/* ===== Hushlight mode (0.2 tables update) =====
    Desktop icons live in the desktop table and widgets in the widgets
-   table — flatlight itself shows ONLY the centered search bar (plus
+   table — hushlight itself shows ONLY the centered search bar (plus
    spotlight results while typing). Everything else is display:none so the
    open/close cascade simply skips the hidden elements. */
-.launcher-root.flatlight-mode .launcher-actions,
-.launcher-root.flatlight-mode .widget,
-.launcher-root.flatlight-mode .launcher-grid {
+.launcher-root.hushlight-mode .launcher-actions,
+.launcher-root.hushlight-mode .widget,
+.launcher-root.hushlight-mode .launcher-grid {
   display: none !important;
 }
 

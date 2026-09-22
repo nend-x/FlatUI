@@ -102,7 +102,7 @@
 
 .pie-slice:active .pie-wedge { fill: rgba(var(--sand-rgb), 0.10); }
 
-/* Bloom-out stagger by DOM order (flatlight, desktop, taskbar,
+/* Bloom-out stagger by DOM order (hushlight, desktop, taskbar,
    widgets, settings) — plays forward on open, in reverse on dismiss. */
 .pie-slice:nth-of-type(1) .pie-wedge, .pie-slice:nth-of-type(1) .pie-icon-inner { transition-delay: 0ms; }
 .pie-slice:nth-of-type(2) .pie-wedge, .pie-slice:nth-of-type(2) .pie-icon-inner { transition-delay: 20ms; }
@@ -257,8 +257,8 @@
 }
 
 
-/* ===== Flatlight — medium floating search window (0.2 split) ===== */
-.flatlight-root {
+/* ===== Hushlight — medium floating search window (0.2 split) ===== */
+.hushlight-root {
   inset: 10px;
   justify-content: flex-start;
 }
@@ -785,7 +785,7 @@
   font-size: 12px;
 }
 
-/* Exit button (danger) — lives in the settings table since flatlight is
+/* Exit button (danger) — lives in the settings table since hushlight is
    search-only now and no longer hosts the action buttons. */
 .mt-exit {
   margin-top: 10px;
