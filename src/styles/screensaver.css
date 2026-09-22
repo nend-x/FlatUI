@@ -33,37 +33,56 @@ body {
   opacity: 0;
 }
 
-/* ===== Clock — rides inside the ball ===== */
+/* ===== Clock + date — ride inside the ball (Material 3 type scale) ===== */
 .ss-clock {
   font-family: var(--font-display, "Segoe UI", sans-serif);
-  font-size: 30px;
-  font-weight: 300;
-  letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums; /* digits never jitter width */
+  color: #1d1d20;
+  line-height: 1;
   z-index: 2;
 }
 
+.ss-date {
+  font-family: var(--font-display, "Segoe UI", sans-serif);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b6b70;
+  margin-top: 6px;
+}
+
 /* ===== Jelly ball =====
-   Plain flat gray — no gradients, no shadow, no fake 3D. One long keyframe
-   run visits every region of the screen and kicks off each corner (~64s
-   per lap). The squash/stretch pulse layered on top gives it the jelly
-   feel. The clock is centered inside it. */
+   A calm light-gray M3 surface floating on the OLED dark. Flat fill — no
+   gradient, no shadow, no fake 3D. The clock + date are centered inside.
+   One long keyframe run visits every region of the screen and kicks off
+   each corner (~72s per lap); a slow squash/stretch pulse gives the jelly
+   feel. Everything runs on the same gentle easing. */
 .ss-ball {
   position: absolute;
   left: 0;
   top: 0;
-  width: 220px;
-  height: 220px;
-  margin: -110px 0 0 -110px;
+  width: 224px;
+  height: 224px;
+  margin: -112px 0 0 -112px;
   border-radius: 46% 54% 52% 48% / 52% 46% 54% 48%;
-  background: #8a8a8a;
+  background: #c9c9ce;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   animation:
-    ss-wander 64s cubic-bezier(0.45, 0, 0.55, 1) infinite,
-    ss-jelly 3.6s ease-in-out infinite;
+    ss-wander 72s cubic-bezier(0.45, 0, 0.55, 1) infinite,
+    ss-jelly 5.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   will-change: transform;
+}
+
+/* entrance: the ball settles in with a gentle scale, not a pop */
+.ss-root .ss-ball {
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes ss-wander {
@@ -82,18 +101,18 @@ body {
   100% { left: 18%;  top: 24%; }
 }
 
-/* squash + morph — the jelly wobble layered over the wander */
+/* squash + morph — a slow, breathing jelly wobble */
 @keyframes ss-jelly {
   0%, 100% {
     transform: scale(1, 1) rotate(0deg);
     border-radius: 46% 54% 52% 48% / 52% 46% 54% 48%;
   }
-  30% {
-    transform: scale(1.08, 0.92) rotate(3deg);
+  35% {
+    transform: scale(1.045, 0.955) rotate(1.6deg);
     border-radius: 52% 48% 46% 54% / 48% 54% 46% 52%;
   }
-  60% {
-    transform: scale(0.92, 1.1) rotate(-3deg);
+  70% {
+    transform: scale(0.955, 1.05) rotate(-1.6deg);
     border-radius: 48% 52% 54% 46% / 54% 48% 52% 46%;
   }
 }

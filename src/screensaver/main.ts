@@ -15,6 +15,7 @@ interface Settings {
 
 const ball = document.getElementById("ball")!;
 const clockEl = document.getElementById("clock")!;
+const dateEl = document.getElementById("date")!;
 const root = document.getElementById("root")!;
 
 let closing = false;
@@ -35,6 +36,11 @@ function tick() {
     h = h % 12 || 12;
   }
   clockEl.textContent = `${pad(h)}:${pad(now.getMinutes())}${suffix}`;
+  dateEl.textContent = now.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
 }
 
 function startClock() {
