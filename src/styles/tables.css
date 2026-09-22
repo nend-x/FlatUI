@@ -687,6 +687,16 @@
   font-size: 12px;
 }
 
+/* Launch feedback — the opened icon spins for 3s while the app/folder
+   starts, then the desktop table closes itself. */
+@keyframes td-icon-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.td-grid .launcher-item .icon-box.spinning {
+  animation: td-icon-spin 1s linear infinite;
+}
+
 /* Exit button (danger) — lives in the settings table since flatlight is
    search-only now and no longer hosts the action buttons. */
 .mt-exit {

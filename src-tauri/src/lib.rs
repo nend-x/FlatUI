@@ -189,10 +189,21 @@ pub fn run() {
             #[cfg(windows)]
             {
                 if let Some(tables) = app.get_webview_window("tables") {
+                    // Kill the one-frame light-blue flash on open: WebView2's
+                    // default opaque background paints for a frame before the
+                    // first transparent web frame is composited. Force the
+                    // webview background fully transparent so the pre-paint
+                    // frame is invisible.
+                    let _ = tables.set_background_color(Some(
+                        tauri::utils::config::Color(0, 0, 0, 0),
+                    ));
                     let _ = tables.hide();
                     let _ = win32::window::apply_no_activate(&tables);
                 }
                 if let Some(strip) = app.get_webview_window("table-taskbar") {
+                    let _ = strip.set_background_color(Some(
+                        tauri::utils::config::Color(0, 0, 0, 0),
+                    ));
                     let _ = strip.hide();
                     let _ = win32::window::apply_no_activate(&strip);
                 }

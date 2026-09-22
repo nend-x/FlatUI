@@ -46,6 +46,10 @@ listen("table://desktop-shown", () => {
 function close() {
   if (closing) return;
   closing = true;
+  if (launchCloseTimer !== null) {
+    window.clearTimeout(launchCloseTimer);
+    launchCloseTimer = null;
+  }
   root.classList.remove("shown");
   // Let the pop-out play before the backend hides the window.
   setTimeout(() => invoke("close_table", { name: "desktop" }), 240);
@@ -73,8 +77,25 @@ listen<LauncherItem[]>("launcher://items-updated", (e) => {
   render();
 });
 
-function launch(item: LauncherItem) {
+function launch(item: LauncherItem, source?: HTMLElement | null) {
   invoke("launch_desktop_item", { itemId: item.id });
+
+  // Launch feedback: the opened icon spins for 3s, then the desktop
+  // table closes itself (the opened app/folder takes over from here).
+  if (source) {
+    const iconBox = source.querySelector<HTMLElement>(".icon-box");
+    if (iconBox && !iconBox.classList.contains("spinning")) {
+      iconBox.classList.add("spinning");
+    }
+  }
+  closeAfterLaunch();
+}
+
+let launchCloseTimer: number | null = null;
+function closeAfterLaunch() {
+  if (launchCloseTimer !== null) window.clearTimeout(launchCloseTimer);
+  // Let the 3s spin animation play before the table dismisses.
+  launchCloseTimer = window.setTimeout(close, 3000);
 }
 
 function render() {
@@ -111,7 +132,7 @@ function render() {
       if (e.shiftKey) {
         invoke("execute_run_admin", { command: item.path });
       } else {
-        launch(item);
+        launch(item, el);
       }
     });
 
@@ -153,7 +174,7 @@ function showItemContextMenu(x: number, y: number, item: LauncherItem) {
   open.textContent = "Open";
   open.addEventListener("click", () => {
     menu.remove();
-    launch(item);
+    launch(item, document.querySelector<HTMLElement>(`.launcher-item[data-id="${CSS.escape(item.id)}"]`));
   });
   menu.appendChild(open);
 
