@@ -33,50 +33,37 @@ body {
   opacity: 0;
 }
 
-/* ===== Clock ===== */
+/* ===== Clock — rides inside the ball ===== */
 .ss-clock {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
   font-family: var(--font-display, "Segoe UI", sans-serif);
-  font-size: 88px;
+  font-size: 30px;
   font-weight: 300;
   letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.82);
-  text-shadow: 0 0 24px rgba(120, 160, 255, 0.25);
+  color: rgba(255, 255, 255, 0.9);
   z-index: 2;
 }
 
 /* ===== Jelly ball =====
-   The ball's wander path is one long keyframe run that visits every region
-   of the screen and kicks off each corner. ~64s per lap, very slow. The
-   squash/stretch pulse layered on top gives it the jelly feel. */
+   Plain flat gray — no gradients, no shadow, no fake 3D. One long keyframe
+   run visits every region of the screen and kicks off each corner (~64s
+   per lap). The squash/stretch pulse layered on top gives it the jelly
+   feel. The clock is centered inside it. */
 .ss-ball {
   position: absolute;
   left: 0;
   top: 0;
-  width: 140px;
-  height: 140px;
-  margin: -70px 0 0 -70px;
+  width: 220px;
+  height: 220px;
+  margin: -110px 0 0 -110px;
   border-radius: 46% 54% 52% 48% / 52% 46% 54% 48%;
-  background: radial-gradient(
-    circle at 36% 32%,
-    rgba(150, 190, 255, 0.55) 0%,
-    rgba(90, 120, 230, 0.32) 42%,
-    rgba(40, 60, 160, 0.14) 72%,
-    rgba(0, 0, 0, 0) 100%
-  );
-  filter: blur(1px);
+  background: #8a8a8a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   animation:
     ss-wander 64s cubic-bezier(0.45, 0, 0.55, 1) infinite,
     ss-jelly 3.6s ease-in-out infinite;
   will-change: transform;
-}
-
-/* soft breathing glow behind the clock */
-.ss-clock {
-  animation: ss-clock-glow 9s ease-in-out infinite;
 }
 
 @keyframes ss-wander {
@@ -109,9 +96,4 @@ body {
     transform: scale(0.92, 1.1) rotate(-3deg);
     border-radius: 48% 52% 54% 46% / 54% 48% 52% 46%;
   }
-}
-
-@keyframes ss-clock-glow {
-  0%, 100% { opacity: 0.82; }
-  50%      { opacity: 0.6; }
 }

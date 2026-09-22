@@ -7,10 +7,10 @@
 </head>
 <body>
   <div id="root" class="ss-root awake">
-    <!-- the wandering jelly ball -->
-    <div id="ball" class="ss-ball"></div>
-    <!-- clock, centered -->
-    <div id="clock" class="ss-clock">--:--</div>
+    <!-- the wandering jelly ball — the clock lives inside the ball -->
+    <div id="ball" class="ss-ball">
+      <div id="clock" class="ss-clock">--:--</div>
+    </div>
   </div>
   <script type="module" src="./main.ts"></script>
 </body>

@@ -9,10 +9,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_LAYERED, WS_EX_TRANSPARENT,
     WS_OVERLAPPEDWINDOW, WS_POPUP, WS_VISIBLE,
     EnumWindows, IsWindowVisible, IsIconic, GetClassNameW, ShowWindowAsync, SW_MINIMIZE,
-    GetWindowThreadProcessId, SetLayeredWindowAttributes, LWA_ALPHA,
-};
-use windows::Win32::Foundation::COLORREF;
-use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
+    GetWindowThreadProcessId,};
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DwmSetWindowAttribute, DWMWA_CLOAKED, DWMWA_CLOAK};
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::UI::WindowsAndMessaging::GWL_HWNDPARENT;
 
@@ -20,34 +18,56 @@ fn hwnd_of(window: &WebviewWindow) -> HWND {
     window.hwnd().expect("hwnd() failed")
 }
 
-// ===== Pie picker overlay show/hide via layered-window alpha =====
+// ===== Pie picker overlay show/hide via DWM cloaking =====
 //
 // The picker is a fullscreen transparent WebView2. Hiding/showing it with
 // ShowWindow makes WebView2's composition surface tear down/re-attach and
 // flash its default background for a frame — the intermittent light-blue
 // flicker on open. Instead the window is created visible ONCE and is
-// thereafter toggled with:
-//   hidden  → WS_EX_LAYERED + WS_EX_TRANSPARENT (click-through), alpha 0
-//   shown   → WS_EX_LAYERED only, alpha 255
-// The surface is never destroyed or shown mid-paint, so there is nothing
-// left to flash.
+// thereafter toggled with DWM cloaking:
+//   hidden → WS_EX_TRANSPARENT (click-through) + DWMWA_CLOAK (composed
+//            offscreen — surface stays alive, nothing to re-attach)
+//   shown  → uncloak, clear WS_EX_TRANSPARENT
+// No layered redirection is involved (WS_EX_LAYERED on a WebView2 surface
+// is itself a flicker source), so there is nothing left to flash.
 pub fn set_picker_visible(window: &WebviewWindow, visible: bool) -> windows::core::Result<()> {
     let hwnd = hwnd_of(window);
     unsafe {
+        // NOTE: this used to toggle WS_EX_LAYERED + SetLayeredWindowAttributes
+        // alpha 0/255. Redirecting a WebView2 child surface through layered
+        // windows makes DWM drop/recompose the WebView2's own swapchain on
+        // every toggle — that recomposition is the residual light-blue
+        // flicker on open. DWM cloaking keeps the window fully composed
+        // offscreen instead: no layered redirection, no surface teardown, no
+        // flash.
         let mut ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
-        ex |= WS_EX_LAYERED.0 as isize;
+        ex &= !(WS_EX_LAYERED.0 as isize);
         if visible {
             ex &= !(WS_EX_TRANSPARENT.0 as isize);
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
+            let cloak: i32 = 0;
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_CLOAK,
+                &cloak as *const _ as *const _,
+                std::mem::size_of::<i32>() as u32,
+            );
             let _ = SetWindowPos(
                 hwnd, Some(HWND_TOPMOST), 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
             );
-            let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), 255, LWA_ALPHA);
         } else {
             ex |= WS_EX_TRANSPARENT.0 as isize;
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
-            let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_ALPHA);
+            // Cloak BEFORE removing from the topmost z-order so the window
+            // never paints a stale frame while transitioning out.
+            let cloak: i32 = 1;
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_CLOAK,
+                &cloak as *const _ as *const _,
+                std::mem::size_of::<i32>() as u32,
+            );
         }
     }
     Ok(())

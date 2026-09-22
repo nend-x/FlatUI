@@ -31,7 +31,7 @@ body {
 .toast-accent {
   width: 3px;
   border-radius: 3px;
-  background: var(--accent, #7aa2ff);
+  background: var(--accent-muted, #8a8a8a);
   flex: 0 0 auto;
 }
 
