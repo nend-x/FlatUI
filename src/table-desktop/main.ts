@@ -37,6 +37,7 @@ let closing = false;
 
 listen("table://desktop-shown", () => {
   closing = false;
+  launching = false; // a previous session's launch animation must not block new clicks
   root.classList.remove("shown");
   void root.offsetWidth;
   root.classList.add("shown");

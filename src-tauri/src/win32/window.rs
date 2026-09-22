@@ -5,18 +5,52 @@ use tauri::WebviewWindow;
 use windows::core::BOOL;
 use windows::Win32::Foundation::{HWND, LPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_FRAMECHANGED, GWL_EXSTYLE, GWL_STYLE,
-    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_FRAMECHANGED, SWP_SHOWWINDOW, GWL_EXSTYLE, GWL_STYLE,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_LAYERED, WS_EX_TRANSPARENT,
     WS_OVERLAPPEDWINDOW, WS_POPUP, WS_VISIBLE,
     EnumWindows, IsWindowVisible, IsIconic, GetClassNameW, ShowWindowAsync, SW_MINIMIZE,
-    GetWindowThreadProcessId,
+    GetWindowThreadProcessId, SetLayeredWindowAttributes, LWA_ALPHA,
 };
+use windows::Win32::Foundation::COLORREF;
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::UI::WindowsAndMessaging::GWL_HWNDPARENT;
 
 fn hwnd_of(window: &WebviewWindow) -> HWND {
     window.hwnd().expect("hwnd() failed")
+}
+
+// ===== Pie picker overlay show/hide via layered-window alpha =====
+//
+// The picker is a fullscreen transparent WebView2. Hiding/showing it with
+// ShowWindow makes WebView2's composition surface tear down/re-attach and
+// flash its default background for a frame — the intermittent light-blue
+// flicker on open. Instead the window is created visible ONCE and is
+// thereafter toggled with:
+//   hidden  → WS_EX_LAYERED + WS_EX_TRANSPARENT (click-through), alpha 0
+//   shown   → WS_EX_LAYERED only, alpha 255
+// The surface is never destroyed or shown mid-paint, so there is nothing
+// left to flash.
+pub fn set_picker_visible(window: &WebviewWindow, visible: bool) -> windows::core::Result<()> {
+    let hwnd = hwnd_of(window);
+    unsafe {
+        let mut ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        ex |= WS_EX_LAYERED.0 as isize;
+        if visible {
+            ex &= !(WS_EX_TRANSPARENT.0 as isize);
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
+            let _ = SetWindowPos(
+                hwnd, Some(HWND_TOPMOST), 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+            );
+            let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), 255, LWA_ALPHA);
+        } else {
+            ex |= WS_EX_TRANSPARENT.0 as isize;
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex);
+            let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_ALPHA);
+        }
+    }
+    Ok(())
 }
 
 pub fn apply_no_activate(window: &WebviewWindow) -> windows::core::Result<()> {

@@ -214,17 +214,15 @@ pub fn run() {
             #[cfg(windows)]
             {
                 if let Some(tables) = app.get_webview_window("tables") {
-                    let _ = tables.hide();
                     let _ = win32::window::apply_no_activate(&tables);
-                    // Pre-fit the picker to the monitor NOW, while the
-                    // window is still hidden at startup. Resizing a
-                    // transparent WebView2 at show time makes the
-                    // composition re-attach and flash its default
-                    // background for a frame (the "light-blue flicker"
-                    // on Win-hold). With the window already monitor-sized
-                    // the per-show path becomes a no-op (see
-                    // show_tables_impl) and never touches the surface.
+                    // Pre-fit the picker to the monitor and switch to the
+                    // layered show/hide scheme (window stays visible with
+                    // alpha 0 + click-through forever) so the WebView2
+                    // composition never tears down/re-attaches — that
+                    // re-attach was flashing the default light-blue
+                    // background for a frame on every open.
                     prefit_tables_window(&tables);
+                    let _ = win32::window::set_picker_visible(&tables, false);
                 }
                 if let Some(strip) = app.get_webview_window("table-taskbar") {
                     let _ = strip.hide();
@@ -746,8 +744,10 @@ fn show_tables_impl(app: &tauri::AppHandle, center: bool) {
     // rapid hold → release → hold never races the dismiss delay.
     TABLES_SEQ.fetch_add(1, Ordering::SeqCst);
 
-    let _ = tables.set_always_on_top(true);
-    let _ = tables.show(); // window is NOACTIVATE — focus is untouched
+    // Layered-alpha reveal — the window is never hidden/shown, so the
+    // WebView2 surface never re-attaches (no light-blue flash). Topmost +
+    // NOACTIVATE are handled inside.
+    let _ = win32::window::set_picker_visible(&tables, true);
     // Emit AFTER the window is on screen so the picker animates from a
     // presented frame instead of racing the show.
     let _ = app.emit(
@@ -793,7 +793,9 @@ fn hide_tables_impl(app: &tauri::AppHandle) {
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(280));
             if TABLES_SEQ.load(Ordering::SeqCst) == seq {
-                let _ = handle.get_webview_window("tables").map(|w| w.hide());
+                let _ = handle
+                    .get_webview_window("tables")
+                    .map(|w| win32::window::set_picker_visible(&w, false));
             }
         });
     }
@@ -809,7 +811,7 @@ fn hide_tables_now(app: &tauri::AppHandle) {
     TABLES_SEQ.fetch_add(1, Ordering::SeqCst);
     if let Some(tables) = app.get_webview_window("tables") {
         let _ = app.emit("tables://hide", ());
-        let _ = tables.hide();
+        let _ = win32::window::set_picker_visible(&tables, false);
     }
 }
 
