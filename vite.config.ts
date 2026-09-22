@@ -9,8 +9,9 @@ export default defineConfig({
     rollupOptions: {
       input: {
         launcher: resolve(__dirname, "src/launcher/index.html"),
-        flatlight: resolve(__dirname, "src/flatlight/index.html"),
-        setup: resolve(__dirname, "src/setup/index.html"),
+        hushlight: resolve(__dirname, "src/hushlight/index.html"),
+        screensaver: resolve(__dirname, "src/screensaver/index.html"),
+        notification: resolve(__dirname, "src/notification/index.html"),
         tables: resolve(__dirname, "src/tables/index.html"),
         "table-taskbar": resolve(__dirname, "src/table-taskbar/index.html"),
         "table-settings": resolve(__dirname, "src/table-settings/index.html"),

@@ -1,5 +1,5 @@
 /* =========================================================================
-   FLATLIGHT — the medium floating search window (0.2 split).
+   HUSHLIGHT — the medium floating search window (0.2 split).
    Win tap / picker table 4 opens it. Search only: apps, system shortcuts,
    desktop items excluded (those live in the desktop table now).
    ========================================================================= */
@@ -23,7 +23,7 @@ const resultsEl = document.getElementById("fl-results")!;
 const hintEl = document.getElementById("fl-hint")!;
 
 // ===== Theme + icon recolor =====
-// The flatlight page previously only loaded the theme at startup — a live
+// The hushlight page previously only loaded the theme at startup — a live
 // theme switch never reached it, so the window stayed in the startup theme
 // ("hardcoded"). It now follows theme://changed / icon-recolor://changed
 // like every other surface.
@@ -38,7 +38,7 @@ listen<boolean>("icon-recolor://changed", (e) => {
 // ===== Show / hide with pop animations =====
 let closing = false;
 
-listen("flatlight://shown", () => {
+listen("hushlight://shown", () => {
   closing = false;
   input.value = "";
   resultsEl.innerHTML = "";
@@ -50,7 +50,7 @@ listen("flatlight://shown", () => {
   setTimeout(() => input.focus(), 60);
 });
 
-listen("flatlight://hidden", () => {
+listen("hushlight://hidden", () => {
   playPopOut();
 });
 
@@ -179,6 +179,11 @@ function launch(result: SearchResult) {
   else if (path === "flatui:shutdown") invoke("shutdown_system");
   else if (path === "flatui:addstartup") invoke("add_to_startup");
   else if (path === "flatui:removestartup") invoke("remove_from_startup");
+  else if (path === "hushui:screensaver") {
+    // Screensaver shortcut: play the pop-out, then launch the fullscreen
+    // OLED screensaver window.
+    invoke("show_screensaver");
+  }
   else invoke("execute_run", { command: path });
   playPopOut();
 }
@@ -212,7 +217,7 @@ input.addEventListener("keydown", (e) => {
   }
 });
 
-// Click outside the flatlight window closes it (Spotlight behavior): when
+// Click outside the hushlight window closes it (Spotlight behavior): when
 // the window loses focus and focus doesn't come back within a beat, play
 // the pop-out. The re-check handles the brief focus dance right after open.
 getCurrentWindow().onFocusChanged(({ payload: focused }) => {

@@ -943,7 +943,7 @@ async function applyFilter() {
   const q = searchInput.value.trim().toLowerCase();
 
   if (q === "") {
-    // Empty: the desktop grid is gone from flatlight (0.2 split — desktop
+    // Empty: the desktop grid is gone from hushlight (0.2 split — desktop
     // icons live in the desktop table now), so idle state shows nothing
     // but the centered search bar.
     if (spotlightSearchTimer) {
@@ -1181,10 +1181,10 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// Right-click → context menu (desktop grid only — flatlight is search-only
+// Right-click → context menu (desktop grid only — hushlight is search-only
 // since the 0.2 split, so it never shows the New Folder / Refresh menu).
 root.addEventListener("contextmenu", (e) => {
-  if (root.classList.contains("flatlight-mode")) {
+  if (root.classList.contains("hushlight-mode")) {
     e.preventDefault();
     return;
   }

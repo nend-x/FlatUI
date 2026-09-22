@@ -1,0 +1,87 @@
+/* =========================================================================
+   Hush_UI — Notification toast styles
+   ========================================================================= */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+}
+
+.toast {
+  display: flex;
+  align-items: stretch;
+  width: 324px;
+  margin: 8px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--surface, rgba(24, 24, 28, 0.92));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateX(24px);
+  gap: 12px;
+}
+
+.toast-accent {
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent, #7aa2ff);
+  flex: 0 0 auto;
+}
+
+.toast-content {
+  min-width: 0;
+}
+
+.toast-title {
+  font-family: var(--font-display, "Segoe UI", sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #eee);
+  margin-bottom: 4px;
+}
+
+.toast-body {
+  font-family: var(--font-display, "Segoe UI", sans-serif);
+  font-size: 13px;
+  color: var(--text-muted, #aaa);
+  word-wrap: break-word;
+}
+
+/* slide-in from the right (the window sits at the screen's right edge) */
+.toast.in {
+  animation: toast-in 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* smooth slide-out */
+.toast.out {
+  animation: toast-out 360ms cubic-bezier(0.45, 0, 0.55, 1) forwards;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}

@@ -12,22 +12,6 @@
   "app": {
     "windows": [
       {
-        "label": "setup",
-        "title": "Hush_UI Setup",
-        "url": "setup/index.html",
-        "width": 400,
-        "height": 260,
-        "decorations": false,
-        "transparent": true,
-        "resizable": false,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "focus": true,
-        "center": true,
-        "shadow": false,
-        "visible": true
-      },
-      {
         "label": "launcher",
         "title": " ",
         "url": "launcher/index.html",
@@ -45,9 +29,38 @@
         "visible": false
       },
       {
-        "label": "flatlight",
-        "title": "Hush_UI — Flatlight",
-        "url": "flatlight/index.html",
+        "label": "screensaver",
+        "title": "Hush_UI — Screensaver",
+        "url": "screensaver/index.html",
+        "fullscreen": true,
+        "decorations": false,
+        "transparent": false,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "focus": true,
+        "shadow": false,
+        "visible": false
+      },
+      {
+        "label": "notification",
+        "title": " ",
+        "url": "notification/index.html",
+        "width": 340,
+        "height": 116,
+        "decorations": false,
+        "transparent": true,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "focus": false,
+        "shadow": false,
+        "visible": false
+      },
+      {
+        "label": "hushlight",
+        "title": "Hush_UI — Hushlight",
+        "url": "hushlight/index.html",
         "width": 540,
         "height": 600,
         "decorations": false,

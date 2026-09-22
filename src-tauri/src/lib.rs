@@ -53,7 +53,7 @@ static CLOSE_SEQ: AtomicU64 = AtomicU64::new(0);
 // the picker frontend keeps it fresh via the `set_tables_hover` command:
 //   0 = nothing hovered (release dismisses the picker)
 //   1 = taskbar table   2 = settings table
-//   3 = widgets table   4 = flatlight table   5 = desktop table
+//   3 = widgets table   4 = hushlight table   5 = desktop table
 // The cursor can move between hover and Win-up by a few px; the frontend
 // re-reports on every mouseenter/leave, so the race window is tiny and a
 // missed report degrades gracefully to "dismiss".
@@ -65,11 +65,6 @@ static TABLES_SEQ: AtomicU64 = AtomicU64::new(0);
 // Logical cursor position (primary-monitor-relative, CSS px) captured when
 // the picker opened — the taskbar table spawns next to it.
 static TABLES_CURSOR: Mutex<(f64, f64)> = Mutex::new((0.0, 0.0));
-
-// Set at startup when the user declined the UAC prompt and the app is
-// running non-elevated. The setup window reads it via `get_elevation_state`
-// and surfaces the dimmer warning.
-static NOT_ELEVATED_WARNING: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -107,11 +102,10 @@ pub fn run() {
             }
             elevation::ElevationOutcome::Declined => {
                 // User declined the UAC prompt — keep running without
-                // elevation. Remember it so the UI can warn.
+                // elevation.
                 log::warn!(
                     "UAC declined — launching non-elevated; the brightness dimmer may not work on system apps"
                 );
-                NOT_ELEVATED_WARNING.store(true, Ordering::SeqCst);
             }
             elevation::ElevationOutcome::AlreadyElevated => {
                 // Shouldn't happen (we checked is_elevated above), but
@@ -156,29 +150,19 @@ pub fn run() {
     }
 
     // The app is usually elevated at this point (we requested UAC above and
-    // only continued when the user declined). The setup window is visible by
-    // default (tauri.conf.json).
+    // only continued when the user declined).
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(state.clone())
         .setup(move |app| {
-            // Run setup in background — emits to setup window
             let handle = app.handle().clone();
-            std::thread::spawn(move || {
-                #[cfg(windows)]
-                if !elevation::is_elevated() {
-                    let _ = handle.emit(
-                        "setup://warning",
-                        "Not running as administrator — screen dimming might not work on system apps.",
-                    );
-                }
 
-                // Step 2: Preparing the shell
-                let _ = handle.emit("setup://step", "Preparing shell...");
-                // Step 3: Installing Win key handler
-                let _ = handle.emit("setup://step", "Installing Win key handler...");
-                let _ = handle.emit("setup://done", ());
+            // First-run notification — the notification framework is now the
+            // app's startup feedback surface (the setup window is gone).
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                show_notification(&handle, "Hush_UI", "Hello world!", 2000);
             });
 
             // The shell taskbar was REMOVED — the bottom bar (and its AppBar
@@ -464,14 +448,16 @@ pub fn run() {
             shutdown_system,
             add_to_startup,
             remove_from_startup,
-            close_setup_window,
+            notify,
+            notification_close_finished,
+            show_screensaver,
+            hide_screensaver,
             exit_flatui,
             reset_config,
             get_active_theme,
             get_all_themes,
             set_active_theme,
             set_dimmer_level,
-            get_elevation_state,
         ])
         .on_window_event(|window, event| {
             match event {
@@ -545,15 +531,15 @@ pub(crate) fn toggle_launcher_impl(app: &tauri::AppHandle) {
     }
 }
 
-/// Show the flatlight: window FIRST, event AFTER.
+/// Show the hushlight: window FIRST, event AFTER.
 ///
-/// 0.2: flatlight is no longer a fullscreen overlay — it is a medium
+/// 0.2: hushlight is no longer a fullscreen overlay — it is a medium
 /// centered window with just the search bar (desktop icons moved to the
 /// desktop table, widgets to the widgets table). The old fullscreen
 /// "launcher" window now only hosts the screenshot region-select flow.
 fn show_launcher(app: &tauri::AppHandle) {
-    let Some(flatlight) = app.get_webview_window("flatlight") else {
-        log::error!("show_launcher: flatlight window not found");
+    let Some(hushlight) = app.get_webview_window("hushlight") else {
+        log::error!("show_launcher: hushlight window not found");
         return;
     };
 
@@ -562,28 +548,28 @@ fn show_launcher(app: &tauri::AppHandle) {
     LAUNCHER_OPEN.store(true, Ordering::SeqCst);
 
     // Center on the primary monitor (physical px).
-    if let Ok(Some(monitor)) = flatlight.primary_monitor() {
+    if let Ok(Some(monitor)) = hushlight.primary_monitor() {
         let pos = monitor.position();
         let size = monitor.size();
-        let win = flatlight.outer_size().unwrap_or_default();
+        let win = hushlight.outer_size().unwrap_or_default();
         let x = pos.x + (size.width as i32 - win.width as i32) / 2;
         let y = pos.y + (size.height as i32 - win.height as i32) / 3;
-        let _ = flatlight.set_position(tauri::PhysicalPosition::new(x, y));
+        let _ = hushlight.set_position(tauri::PhysicalPosition::new(x, y));
     }
 
     // Show-desktop effect hardcoded OFF.
 
-    let _ = flatlight.set_always_on_top(true);
-    let _ = flatlight.show();
-    let _ = flatlight.set_focus();
+    let _ = hushlight.set_always_on_top(true);
+    let _ = hushlight.show();
+    let _ = hushlight.set_focus();
     // Emit AFTER the window is on screen — the frontend's pop-in then starts
     // from a presented frame.
-    let _ = app.emit("flatlight://shown", ());
+    let _ = app.emit("hushlight://shown", ());
 }
 
-/// Hide flatlight with its pop-out animation.
+/// Hide hushlight with its pop-out animation.
 ///
-/// Emits `flatlight://hidden` (the frontend plays its pop-out, THEN reports
+/// Emits `hushlight://hidden` (the frontend plays its pop-out, THEN reports
 /// back via `launcher_close_finished`, at which point we hide the window).
 /// A fallback thread hides the window after 1.2 s in case that report is
 /// ever lost — superseded by any new show via CLOSE_SEQ.
@@ -592,32 +578,32 @@ fn hide_launcher_animated(app: &tauri::AppHandle) {
         return; // already closing or closed — nothing to animate
     }
     let seq = CLOSE_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
-    let _ = app.emit("flatlight://hidden", ());
+    let _ = app.emit("hushlight://hidden", ());
 
     let handle = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(1200));
         if CLOSE_SEQ.load(Ordering::SeqCst) == seq {
-            if let Some(flatlight) = handle.get_webview_window("flatlight") {
-                let _ = flatlight.hide();
+            if let Some(hushlight) = handle.get_webview_window("hushlight") {
+                let _ = hushlight.hide();
             }
-            log::info!("flatlight hidden via fallback timer");
+            log::info!("hushlight hidden via fallback timer");
         }
     });
 }
 
-/// Called by the flatlight frontend the moment its pop-out animation
+/// Called by the hushlight frontend the moment its pop-out animation
 /// finished — hide the window at exactly the right time instead of a
 /// wall-clock guess. Guarded so a late report can never hide a freshly
-/// re-opened flatlight.
+/// re-opened hushlight.
 #[tauri::command]
 fn launcher_close_finished(app: tauri::AppHandle) {
     if LAUNCHER_OPEN.load(Ordering::SeqCst) {
         return; // a new show superseded the close while the report was in flight
     }
     CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
-    if let Some(flatlight) = app.get_webview_window("flatlight") {
-        let _ = flatlight.hide();
+    if let Some(hushlight) = app.get_webview_window("hushlight") {
+        let _ = hushlight.hide();
     }
 }
 
@@ -641,10 +627,10 @@ fn fit_launcher_to_screen(app: &tauri::AppHandle) {
 
 #[tauri::command]
 fn close_launcher(app: tauri::AppHandle) {
-    // Two close paths share this command: the flatlight state machine and
+    // Two close paths share this command: the hushlight state machine and
     // the screenshot flow (which shows the fullscreen "launcher" window for
     // region-select and closes it when done). If the screenshot window is
-    // the one visible, close THAT directly without touching flatlight state.
+    // the one visible, close THAT directly without touching hushlight state.
     if let Some(launcher) = app.get_webview_window("launcher") {
         if launcher.is_visible().unwrap_or(false) && !LAUNCHER_OPEN.load(Ordering::SeqCst) {
             CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
@@ -666,7 +652,7 @@ fn close_launcher(app: tauri::AppHandle) {
 //   2 settings  — the settings panel as a movable window (pos → tables.json)
 //   3 widgets   — the launcher widgets in a small movable window
 //                 (pos → tables.json)
-//   4 flatlight — the flatlight launcher itself (searchbar-only overlay)
+//   4 hushlight — the hushlight launcher itself (searchbar-only overlay)
 //   5 desktop   — the desktop icons in a medium movable window
 //                 (pos → tables.json)
 //
@@ -678,7 +664,7 @@ fn table_name_from_id(id: i32) -> &'static str {
         1 => "taskbar",
         2 => "settings",
         3 => "widgets",
-        4 => "flatlight",
+        4 => "hushlight",
         5 => "desktop",
         _ => "",
     }
@@ -809,8 +795,8 @@ fn open_table_impl(app: &tauri::AppHandle, name: &str) {
         "settings" => show_movable_table(app, "table-settings", "settings", None),
         "widgets" => show_movable_table(app, "table-widgets", "widgets", None),
         "desktop" => show_movable_table(app, "table-desktop", "desktop", None),
-        "flatlight" => {
-            // Table 4 IS the flatlight — show the search window itself. If
+        "hushlight" => {
+            // Table 4 IS the hushlight — show the search window itself. If
             // it's already open, leave it alone.
             if !LAUNCHER_OPEN.load(Ordering::SeqCst) {
                 show_launcher(app);
@@ -955,7 +941,7 @@ fn restore_table_positions(app: &tauri::AppHandle) {
 
 /// The picker frontend reports hover changes; the keyboard hook reads this
 /// on Win-up to decide which table to open. id: 0=none 1=taskbar 2=settings
-/// 3=widgets 4=flatlight.
+/// 3=widgets 4=hushlight.
 #[tauri::command]
 fn set_tables_hover(id: i32) {
     TABLES_HOVERED.store(id.clamp(0, 5), Ordering::SeqCst);
@@ -1134,16 +1120,16 @@ fn minimize_all_windows(app: tauri::AppHandle) {
     log::info!("minimize_all_windows");
     #[cfg(windows)]
     {
-        // Close flatlight first so it doesn't get minimized or block. This
+        // Close hushlight first so it doesn't get minimized or block. This
         // is an INSTANT hide (everything minimizes right now, so there is
         // nothing pretty to animate over) — fix the state machine
         // accordingly: cancel any pending animated close.
         if LAUNCHER_OPEN.swap(false, Ordering::SeqCst) {
             CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
-            if let Some(flatlight) = app.get_webview_window("flatlight") {
-                let _ = flatlight.hide();
+            if let Some(hushlight) = app.get_webview_window("hushlight") {
+                let _ = hushlight.hide();
             }
-            let _ = app.emit("flatlight://hidden", ());
+            let _ = app.emit("hushlight://hidden", ());
         }
 
         // Approach: enumerate all top-level windows and call ShowWindow(SW_MINIMIZE)
@@ -1159,8 +1145,8 @@ fn minimize_all_windows(app: tauri::AppHandle) {
         struct State { skip_pid: u32 }
         let mut state = State { skip_pid: 0 };
         // Find our own PID (flatuihush) so we skip our windows.
-        if let Some(flatlight) = app.get_webview_window("flatlight") {
-            if let Ok(hwnd) = flatlight.hwnd() {
+        if let Some(hushlight) = app.get_webview_window("hushlight") {
+            if let Ok(hwnd) = hushlight.hwnd() {
                 let mut pid: u32 = 0;
                 unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)); }
                 state.skip_pid = pid;
@@ -1821,16 +1807,16 @@ fn set_clipboard_image(data_url: String) {
 }
 
 // ===== Show launcher for screenshot (instant, no animations) =====
-// Uses the fullscreen "launcher" window (NOT flatlight — that one is the
+// Uses the fullscreen "launcher" window (NOT hushlight — that one is the
 // medium search window now). The screenshot overlay needs the whole screen.
 #[tauri::command]
 fn show_launcher_for_screenshot(app: tauri::AppHandle) {
-    // If flatlight is open, close it instantly — the screenshot overlay
+    // If hushlight is open, close it instantly — the screenshot overlay
     // replaces it on screen.
     if LAUNCHER_OPEN.swap(false, Ordering::SeqCst) {
         CLOSE_SEQ.fetch_add(1, Ordering::SeqCst);
-        if let Some(flatlight) = app.get_webview_window("flatlight") {
-            let _ = flatlight.hide();
+        if let Some(hushlight) = app.get_webview_window("hushlight") {
+            let _ = hushlight.hide();
         }
     }
     if let Some(launcher) = app.get_webview_window("launcher") {
@@ -1841,11 +1827,87 @@ fn show_launcher_for_screenshot(app: tauri::AppHandle) {
     }
 }
 
-// ===== Close setup window =====
+// ===== Notification framework =====
+//
+// A small bottom-right toast window ("notification", declared in
+// tauri.conf.json, hidden by default). `notify` positions it just above the
+// bottom-right corner of the primary monitor, shows it and emits the payload;
+// the frontend plays a slide-in. After `duration_ms` the backend asks the
+// frontend to play its slide-out (notify://hide) and hides the window when
+// the frontend reports back via `notification_close_finished`.
+#[derive(serde::Serialize, Clone)]
+struct NotificationPayload {
+    title: String,
+    body: String,
+}
+
+fn show_notification(handle: &tauri::AppHandle, title: &str, body: &str, duration_ms: u64) {
+    let Some(win) = handle.get_webview_window("notification") else {
+        log::warn!("notify: notification window not found");
+        return;
+    };
+
+    // Anchor bottom-right of the primary monitor, with a small margin.
+    if let Ok(Some(monitor)) = win.primary_monitor() {
+        let mw = monitor.size().width as f64;
+        let mh = monitor.size().height as f64;
+        let scale = monitor.scale_factor();
+        let lw = 340.0;
+        let lh = 116.0;
+        let x = mw - lw * scale - 16.0 * scale;
+        let y = mh - lh * scale - 16.0 * scale;
+        let _ = win.set_position(tauri::PhysicalPosition::new(x as i32, y as i32));
+    }
+
+    let _ = win.show();
+    let _ = handle.emit(
+        "notify://show",
+        NotificationPayload {
+            title: title.to_string(),
+            body: body.to_string(),
+        },
+    );
+
+    // Schedule the slide-out after the requested duration.
+    let h = handle.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(duration_ms));
+        let _ = h.emit("notify://hide", ());
+    });
+}
+
 #[tauri::command]
-fn close_setup_window(app: tauri::AppHandle) {
-    if let Some(setup) = app.get_webview_window("setup") {
-        let _ = setup.close();
+fn notify(app: tauri::AppHandle, title: String, body: String, duration_ms: Option<u64>) {
+    show_notification(&app, &title, &body, duration_ms.unwrap_or(2000));
+}
+
+#[tauri::command]
+fn notification_close_finished(app: tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window("notification") {
+        let _ = win.hide();
+    }
+}
+
+// ===== Screensaver =====
+//
+// Fullscreen OLED window (pure black + a slow jelly ball and the clock).
+// Launched via the "screensaver" shortcut in hushlight; any input dismisses
+// it with a smooth fade handled by the frontend, which then reports back.
+#[tauri::command]
+fn show_screensaver(app: tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window("screensaver") {
+        let _ = win.set_fullscreen(true);
+        let _ = win.show();
+        let _ = win.set_focus();
+        let _ = app.emit("screensaver://shown", ());
+    }
+}
+
+#[tauri::command]
+fn hide_screensaver(app: tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window("screensaver") {
+        let _ = win.hide();
+        let _ = app.emit("screensaver://hidden", ());
     }
 }
 
@@ -1862,33 +1924,6 @@ fn set_dimmer_level(level: f64) {
     win32::dimmer::set_level(level.clamp(0.0, 1.0));
     #[cfg(not(windows))]
     let _ = level;
-}
-
-/// Elevation state for the UI. `uac_declined` is true when the user said No
-/// to the launch-time UAC prompt — the setup window shows the dimmer warning.
-#[derive(serde::Serialize)]
-struct ElevationState {
-    elevated: bool,
-    uac_declined: bool,
-}
-
-#[tauri::command]
-fn get_elevation_state() -> ElevationState {
-    #[cfg(windows)]
-    {
-        let elevated = elevation::is_elevated();
-        ElevationState {
-            elevated,
-            uac_declined: !elevated,
-        }
-    }
-    #[cfg(not(windows))]
-    {
-        ElevationState {
-            elevated: false,
-            uac_declined: false,
-        }
-    }
 }
 
 // ===== Exit Hush_UI — revert everything and quit =====
@@ -2294,6 +2329,7 @@ fn search_programs(query: String) -> Vec<SearchResult> {
             ("shutdown", "flatui:shutdown"),
             ("add flatui hush to startup", "flatui:addstartup"),
             ("remove flatui hush from startup", "flatui:removestartup"),
+            ("screensaver", "hushui:screensaver"),
         ];
 
         for (name, cmd) in system_shortcuts.iter() {

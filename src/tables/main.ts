@@ -25,10 +25,10 @@ let hoverTask: number | null = null;
 
 // ===== Pie geometry ======================================================
 // Five equal 72° wedges radiating from the anchor point, clockwise from
-// the top: flatlight, desktop, taskbar, widgets, settings. A small gap
+// the top: hushlight, desktop, taskbar, widgets, settings. A small gap
 // between wedges reads as slice borders and keeps the center hub visible.
 
-const SLICE_ORDER = ["flatlight", "desktop", "taskbar", "widgets", "settings"];
+const SLICE_ORDER = ["hushlight", "desktop", "taskbar", "widgets", "settings"];
 const RADIUS = 138;      // outer wedge radius (px)
 const SLICE_DEG = 360 / SLICE_ORDER.length; // no angular gap — wedges share edges like a real pie
 const ICON_R = 86;       // icon center distance from anchor
@@ -38,7 +38,7 @@ const TABLE_IDS: Record<string, number> = {
   taskbar: 1,
   settings: 2,
   widgets: 3,
-  flatlight: 4,
+  hushlight: 4,
   desktop: 5,
 };
 

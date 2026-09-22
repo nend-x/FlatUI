@@ -1,0 +1,117 @@
+/* =========================================================================
+   Hush_UI — Screensaver styles
+   Pure black OLED surface, one soft jelly ball wandering slowly around the
+   screen with a gentle bounce off the corners, clock in the middle.
+   Everything is slow and relaxing on purpose.
+   ========================================================================= */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000; /* true OLED black */
+  cursor: none;
+  user-select: none;
+}
+
+.ss-root {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.2s cubic-bezier(0.33, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.ss-root.awake {
+  opacity: 1;
+}
+
+.ss-root.fading {
+  opacity: 0;
+}
+
+/* ===== Clock ===== */
+.ss-clock {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display, "Segoe UI", sans-serif);
+  font-size: 88px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.82);
+  text-shadow: 0 0 24px rgba(120, 160, 255, 0.25);
+  z-index: 2;
+}
+
+/* ===== Jelly ball =====
+   The ball's wander path is one long keyframe run that visits every region
+   of the screen and kicks off each corner. ~64s per lap, very slow. The
+   squash/stretch pulse layered on top gives it the jelly feel. */
+.ss-ball {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 140px;
+  height: 140px;
+  margin: -70px 0 0 -70px;
+  border-radius: 46% 54% 52% 48% / 52% 46% 54% 48%;
+  background: radial-gradient(
+    circle at 36% 32%,
+    rgba(150, 190, 255, 0.55) 0%,
+    rgba(90, 120, 230, 0.32) 42%,
+    rgba(40, 60, 160, 0.14) 72%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  filter: blur(1px);
+  animation:
+    ss-wander 64s cubic-bezier(0.45, 0, 0.55, 1) infinite,
+    ss-jelly 3.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* soft breathing glow behind the clock */
+.ss-clock {
+  animation: ss-clock-glow 9s ease-in-out infinite;
+}
+
+@keyframes ss-wander {
+  0%   { left: 18%;  top: 24%; }
+  10%  { left: 40%;  top: 16%; }
+  20%  { left: 78%;  top: 30%; }   /* approach top-right corner */
+  26%  { left: 92%;  top: 12%; }   /* kick off the corner */
+  34%  { left: 64%;  top: 42%; }
+  44%  { left: 30%;  top: 60%; }
+  52%  { left: 10%;  top: 84%; }   /* approach bottom-left corner */
+  58%  { left: 22%;  top: 94%; }   /* kick off the corner */
+  66%  { left: 52%;  top: 70%; }
+  74%  { left: 84%;  top: 82%; }
+  82%  { left: 94%;  top: 92%; }   /* kick off the bottom-right corner */
+  90%  { left: 56%;  top: 44%; }
+  100% { left: 18%;  top: 24%; }
+}
+
+/* squash + morph — the jelly wobble layered over the wander */
+@keyframes ss-jelly {
+  0%, 100% {
+    transform: scale(1, 1) rotate(0deg);
+    border-radius: 46% 54% 52% 48% / 52% 46% 54% 48%;
+  }
+  30% {
+    transform: scale(1.08, 0.92) rotate(3deg);
+    border-radius: 52% 48% 46% 54% / 48% 54% 46% 52%;
+  }
+  60% {
+    transform: scale(0.92, 1.1) rotate(-3deg);
+    border-radius: 48% 52% 54% 46% / 54% 48% 52% 46%;
+  }
+}
+
+@keyframes ss-clock-glow {
+  0%, 100% { opacity: 0.82; }
+  50%      { opacity: 0.6; }
+}

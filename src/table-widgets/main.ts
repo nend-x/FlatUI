@@ -1,5 +1,5 @@
 /* =========================================================================
-   TABLE 3 — widgets table. The flatlight launcher's widgets in a small
+   TABLE 3 — widgets table. The hushlight launcher's widgets in a small
    non-fullscreen movable window (position persists to tables.json).
    Same design language: grain panels, launcher.css widget styles.
    ========================================================================= */

@@ -1,6 +1,6 @@
 /* =========================================================================
    TABLE 5 — desktop table. The desktop icons in a medium movable window
-   (position persists to tables.json). Same icon tiles as the old flatlight
+   (position persists to tables.json). Same icon tiles as the old hushlight
    grid: click launches, shift+click runs as admin, right-click gives the
    Open / Rename / Delete menu, right-click on empty space gives
    New Folder / New File / Refresh.
