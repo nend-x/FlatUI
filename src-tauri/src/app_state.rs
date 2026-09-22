@@ -19,14 +19,6 @@ pub struct TaskbarApp {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct TrayIcon {
-    pub id: String,
-    pub name: String,
-    #[serde(rename = "icon_data_url")]
-    pub icon_data_url: Option<String>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
 pub struct DesktopItem {
     pub id: String,
     pub name: String,
@@ -38,12 +30,10 @@ pub struct DesktopItem {
 
 pub struct AppState {
     pub taskbar_apps: Vec<TaskbarApp>,
-    pub tray_icons: Vec<TrayIcon>,
     pub desktop_items: Vec<DesktopItem>,
     /// Window blacklist — identified by PERMANENT traits (title + exe_path),
     pub blacklisted: Vec<BlacklistEntry>,
     pub blacklisted_hwnds: Vec<usize>,
-    pub taskbar_hidden: bool,
     pub app_order: Vec<String>,
     /// IDs of apps that the user has just launched and is waiting for
     /// the corresponding window to appear. When a new window matches the
@@ -68,11 +58,9 @@ impl AppState {
     pub fn new() -> Self {
         Self {
             taskbar_apps: Vec::new(),
-            tray_icons: Vec::new(),
             desktop_items: Vec::new(),
             blacklisted: Vec::new(),
             blacklisted_hwnds: Vec::new(),
-            taskbar_hidden: false,
             app_order: Vec::new(),
             pending_launches: Vec::new(),
         }

@@ -8,7 +8,6 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        taskbar: resolve(__dirname, "src/taskbar/index.html"),
         launcher: resolve(__dirname, "src/launcher/index.html"),
         flatlight: resolve(__dirname, "src/flatlight/index.html"),
         setup: resolve(__dirname, "src/setup/index.html"),

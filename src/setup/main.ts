@@ -45,6 +45,13 @@ async function loadTheme() {
 // Load theme before showing the setup content
 void loadTheme();
 
+// UAC-declined warning: when the user said No to the launch-time UAC prompt,
+// the app still runs — but the brightness dimmer (a software overlay) may not
+// cover system/elevated apps. Surface that here.
+listen("setup://warning", () => {
+  document.getElementById("setup-warning")?.classList.add("visible");
+});
+
 listen<string>("setup://step", (event) => {
   setupStatus.classList.add("fading");
   setTimeout(() => {

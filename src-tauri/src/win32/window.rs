@@ -3,20 +3,16 @@
 
 use tauri::WebviewWindow;
 use windows::core::BOOL;
-use windows::Win32::Foundation::{HWND, LPARAM, RECT};
+use windows::Win32::Foundation::{HWND, LPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE,
-    SWP_SHOWWINDOW, SWP_NOMOVE, SWP_NOSIZE, SWP_FRAMECHANGED, GWL_EXSTYLE, GWL_STYLE,
+    GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_FRAMECHANGED, GWL_EXSTYLE, GWL_STYLE,
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
     WS_OVERLAPPEDWINDOW, WS_POPUP, WS_VISIBLE,
-    GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN,
     EnumWindows, IsWindowVisible, IsIconic, GetClassNameW, ShowWindowAsync, SW_MINIMIZE,
     GetWindowThreadProcessId,
 };
-use windows::Win32::Graphics::Dwm::{DwmExtendFrameIntoClientArea, DwmGetWindowAttribute, DWMWA_CLOAKED};
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED};
 use windows::Win32::System::Threading::GetCurrentProcessId;
-use windows::Win32::UI::Controls::MARGINS;
-use windows::Win32::UI::Shell::{SHAppBarMessage, APPBARDATA, ABE_BOTTOM, ABM_NEW, ABM_QUERYPOS, ABM_SETPOS};
 use windows::Win32::UI::WindowsAndMessaging::GWL_HWNDPARENT;
 
 fn hwnd_of(window: &WebviewWindow) -> HWND {
@@ -127,89 +123,6 @@ pub fn apply_no_activate(window: &WebviewWindow) -> windows::core::Result<()> {
         );
     }
     Ok(())
-}
-
-pub fn extend_frameless(window: &WebviewWindow) -> windows::core::Result<()> {
-    let hwnd = hwnd_of(window);
-    unsafe {
-        let margins = MARGINS {
-            cxLeftWidth: -1,
-            cxRightWidth: -1,
-            cyTopHeight: -1,
-            cyBottomHeight: -1,
-        };
-        let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
-    }
-    Ok(())
-}
-
-/// Register the taskbar as a Windows AppBar — reserves space at the bottom
-/// of the primary monitor so other apps shrink their work area.
-pub fn register_appbar(window: &WebviewWindow, height: i32) -> windows::core::Result<()> {
-    let hwnd = hwnd_of(window);
-    unsafe {
-        let mut abd = APPBARDATA {
-            cbSize: std::mem::size_of::<APPBARDATA>() as u32,
-            hWnd: hwnd,
-            ..Default::default()
-        };
-
-        let registered = SHAppBarMessage(ABM_NEW, &mut abd);
-        if registered == 0 {
-            log::warn!("ABM_NEW returned 0 — appbar may already be registered");
-        }
-
-        let screen_w = GetSystemMetrics(SM_CXSCREEN);
-        let screen_h = GetSystemMetrics(SM_CYSCREEN);
-
-        abd.uEdge = ABE_BOTTOM;
-        abd.rc = RECT {
-            left: 0,
-            top: screen_h - height,
-            right: screen_w,
-            bottom: screen_h,
-        };
-
-        SHAppBarMessage(ABM_QUERYPOS, &mut abd);
-        SHAppBarMessage(ABM_SETPOS, &mut abd);
-
-        let _ = SetWindowPos(
-            hwnd,
-            Some(HWND_TOPMOST),
-            abd.rc.left,
-            abd.rc.top,
-            abd.rc.right - abd.rc.left,
-            abd.rc.bottom - abd.rc.top,
-            SWP_NOACTIVATE | SWP_SHOWWINDOW,
-        );
-
-        log::info!(
-            "AppBar registered: rect ({}, {}, {}, {})",
-            abd.rc.left, abd.rc.top, abd.rc.right, abd.rc.bottom
-        );
-    }
-    Ok(())
-}
-
-pub fn unregister_appbar(window: &WebviewWindow) {
-    let hwnd = hwnd_of(window);
-    unsafe {
-        // ABM_REMOVE (constant value 1) tells the shell to deregister this
-        // HWND as an appbar and release the reserved screen edge.
-        //
-        // Previously this called ABM_NEW first (which registers a NEW
-        // appbar) before ABM_REMOVE — a leftover from a copy-paste from
-        // register_appbar. The bogus ABM_NEW call was either a no-op
-        // (already registered) or a silent re-registration with a fresh
-        // AppBarMsg, which is never what we want on teardown.
-        const ABM_REMOVE_CONST: u32 = 1;
-        let mut abd = APPBARDATA {
-            cbSize: std::mem::size_of::<APPBARDATA>() as u32,
-            hWnd: hwnd,
-            ..Default::default()
-        };
-        let _ = SHAppBarMessage(ABM_REMOVE_CONST, &mut abd);
-    }
 }
 
 // ===== Minimize all windows (show-desktop effect for the launcher) =====

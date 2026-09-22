@@ -4,7 +4,7 @@
 use windows::core::*;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::Accessibility::{
-    SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK, WINEVENTPROC,
+    SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK,
 };
 
 // WinEvent constants (not exported by windows-rs 0.61)

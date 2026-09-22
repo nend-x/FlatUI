@@ -154,10 +154,12 @@ pub struct Settings {
     /// Hide the desktop icons inside the launcher grid (toggle).
     #[serde(default = "default_true")]
     pub show_desktop_grid: bool,
-    /// Disable the FlatUI shell taskbar (bottom bar) — only the taskbar
-    /// TABLE (Win-hold pie -> taskbar strip) remains. Default: off.
+    /// Brightness dimmer strength — a systemless software dim overlay (see
+    /// win32::dimmer). 0.0 = no dim, 1.0 = max dim (~86%, never fully
+    /// opaque). The overlay is a click-through black layered window;
+    /// nothing on the system is modified. Default: off.
     #[serde(default)]
-    pub disable_shell_taskbar: bool,
+    pub dimmer_level: f64,
 }
 
 fn default_tables_hold_ms() -> u64 { 220 }
@@ -176,7 +178,7 @@ fn default_settings() -> Settings {
     Settings {
         theme: "material3-dark".to_string(),
         auto_fullscreen: true,
-        disable_shell_taskbar: false,
+        dimmer_level: 0.0,
         refresh_interval: 2,
         cube_animation: true,
         tables_hold_ms: 220,

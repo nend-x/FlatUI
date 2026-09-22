@@ -73,6 +73,7 @@ const WIDGET_IDS = [
   "notes-widget",
   "sysmon-widget",
   "audio-widget",
+  "brightness-widget",
 ] as const;
 
 async function applyVisibility() {
@@ -107,6 +108,52 @@ async function updateSysmon() {
 }
 
 setInterval(updateSysmon, 2000);
+
+// ===== Brightness widget (systemless dim overlay) =====
+// A pure software dim: a click-through black overlay window whose alpha is
+// the dim strength. Nothing on the system is modified — slide back to 0%
+// (or exit FlatUI) and the display is exactly as before.
+const brightnessSlider = document.getElementById("brightness-slider") as HTMLInputElement;
+const brightnessVal = document.getElementById("brightness-val")!;
+const brightnessHint = document.getElementById("brightness-hint") as HTMLElement;
+
+async function loadBrightness() {
+  if (document.getElementById("brightness-widget")?.style.display === "none") return;
+  try {
+    // Read the persisted level from settings so the slider follows external
+    // changes (settings table, startup restore).
+    const s = await invoke<{ dimmer_level?: number }>("load_settings");
+    const pct = Math.round((s.dimmer_level ?? 0) * 100);
+    brightnessSlider.value = String(pct);
+    brightnessVal.textContent = `${pct}%`;
+  } catch {}
+}
+
+let brightnessTimer: number | null = null;
+brightnessSlider.addEventListener("input", () => {
+  const pct = parseInt(brightnessSlider.value, 10);
+  brightnessVal.textContent = `${pct}%`;
+  invoke("set_dimmer_level", { level: pct / 100 });
+  // Persist (debounced) so the level survives restarts.
+  if (brightnessTimer) window.clearTimeout(brightnessTimer);
+  brightnessTimer = window.setTimeout(async () => {
+    try {
+      const s = await invoke<Record<string, unknown>>("load_settings");
+      await invoke("save_settings", { settings: { ...s, dimmer_level: pct / 100 } });
+    } catch {}
+  }, 250);
+});
+
+// Elevation warning: without admin (UAC declined) the overlay may not dim
+// system/elevated apps.
+(async () => {
+  try {
+    const st = await invoke<{ elevated?: boolean; uac_declined?: boolean }>("get_elevation_state");
+    if (st.uac_declined || st.elevated === false) {
+      brightnessHint.hidden = false;
+    }
+  } catch {}
+})();
 
 // ===== Audio widget =====
 async function loadAudio() {
@@ -234,6 +281,7 @@ listen<boolean>("icon-recolor://changed", (e) => {
   await renderGreeting();
   await loadNotes();
   await loadAudio();
+  await loadBrightness();
   renderClipboard();
   try {
     const items = await invoke<string[]>("load_clipboard");

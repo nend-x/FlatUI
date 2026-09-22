@@ -66,6 +66,11 @@ static TABLES_SEQ: AtomicU64 = AtomicU64::new(0);
 // the picker opened — the taskbar table spawns next to it.
 static TABLES_CURSOR: Mutex<(f64, f64)> = Mutex::new((0.0, 0.0));
 
+// Set at startup when the user declined the UAC prompt and the app is
+// running non-elevated. The setup window reads it via `get_elevation_state`
+// and surfaces the dimmer warning.
+static NOT_ELEVATED_WARNING: AtomicBool = AtomicBool::new(false);
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Install the crash handler BEFORE anything else — before logger init,
@@ -80,13 +85,16 @@ pub fn run() {
 
     log::info!("FlatUI starting up…");
 
-    // The app requires administrative privileges to function (the Win-key
-    // hook needs to intercept input for elevated apps, and the start-menu
-    // killer needs to terminate StartMenuExperienceHost.exe). If not
-    // elevated, automatically request UAC elevation via ShellExecuteW
-    // "runas" — the standard Windows UAC prompt appears. If the user
-    // accepts, this (non-elevated) process exits and the elevated process
-    // takes over. If the user declines, this process exits.
+    // UAC on launch: if not elevated, pop the standard Windows UAC prompt
+    // via ShellExecuteW "runas". Two outcomes:
+    //
+    //   - Accepted  — an elevated relaunch is in flight; this (non-elevated)
+    //     process exits and the elevated process takes over.
+    //   - Declined — the app STILL LAUNCHES, but in non-elevated mode. The
+    //     setup window surfaces a warning that the brightness dimmer may
+    //     not cover system/elevated apps (UIPI keeps a non-elevated overlay
+    //     below elevated windows; some elevated surfaces also block
+    //     click-through rendering above them).
     #[cfg(windows)]
     if !elevation::is_elevated() {
         match elevation::request_elevation() {
@@ -98,10 +106,12 @@ pub fn run() {
                 std::process::exit(0);
             }
             elevation::ElevationOutcome::Declined => {
-                // User declined the UAC prompt. Exit — the app can't
-                // function without admin rights.
-                log::info!("User declined UAC — exiting");
-                std::process::exit(0);
+                // User declined the UAC prompt — keep running without
+                // elevation. Remember it so the UI can warn.
+                log::warn!(
+                    "UAC declined — launching non-elevated; the brightness dimmer may not work on system apps"
+                );
+                NOT_ELEVATED_WARNING.store(true, Ordering::SeqCst);
             }
             elevation::ElevationOutcome::AlreadyElevated => {
                 // Shouldn't happen (we checked is_elevated above), but
@@ -117,10 +127,24 @@ pub fn run() {
         reset_config();
     }
 
-    // Start the in-process HideTaskbar monitor (replaces the old
-    // HideTaskbar.exe child process — no more standalone exe needed).
+    // Native taskbar hider — the in-process monitor keeps Shell_TrayWnd /
+    // Shell_SecondaryTrayWnd at alpha 0. Still needed: the custom shell
+    // taskbar is gone, but FlatUI Hush is still a shell replacement and the
+    // native taskbar must stay out of the way.
     #[cfg(windows)]
     hide_taskbar::start();
+
+    // Start the brightness dimmer overlay thread (systemless software dim —
+    // a click-through black layered window; see win32::dimmer). The persisted
+    // dim level is applied once the overlay window exists.
+    #[cfg(windows)]
+    {
+        let saved = persist::load_settings().dimmer_level;
+        if saved > 0.0 {
+            win32::dimmer::set_level(saved);
+        }
+        win32::dimmer::start();
+    }
 
     let state = Arc::new(Mutex::new(AppState::new()));
 
@@ -131,8 +155,9 @@ pub fn run() {
         log::info!("Loaded {} blacklisted window entries from disk", s.blacklisted.len());
     }
 
-    // The app is always elevated at this point (we checked above and exited
-    // if not). The setup window is visible by default (tauri.conf.json).
+    // The app is usually elevated at this point (we requested UAC above and
+    // only continued when the user declined). The setup window is visible by
+    // default (tauri.conf.json).
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -147,8 +172,19 @@ pub fn run() {
                 // Step 1: Welcome (already shown), wait 1s
                 std::thread::sleep(std::time::Duration::from_secs(1));
 
-                // Step 2: Hiding the native taskbar (in-process, no child exe)
-                let _ = handle.emit("setup://step", "Hiding taskbar...");
+                // Emit a warning when the user declined UAC: the brightness
+                // dimmer overlay may not cover system/elevated apps.
+                #[cfg(windows)]
+                if !elevation::is_elevated() {
+                    let _ = handle.emit(
+                        "setup://warning",
+                        "Not running as administrator — screen dimming might not work on system apps.",
+                    );
+                }
+
+                // Step 2: Preparing the shell (the shell taskbar was removed —
+                // the native Windows taskbar is left untouched now)
+                let _ = handle.emit("setup://step", "Preparing shell...");
                 std::thread::sleep(std::time::Duration::from_secs(1));
 
                 // Step 3: Installing Win key handler
@@ -157,24 +193,13 @@ pub fn run() {
                 let _ = handle.emit("setup://done", ());
             });
 
+            // The shell taskbar was REMOVED — the bottom bar (and its AppBar
+            // edge reservation) no longer exists. Only the taskbar TABLE
+            // (Win-hold pie → strip) remains. The "taskbar" webview window is
+            // still declared in tauri.conf.json (hidden at startup) so older
+            // setups don't break, but nothing ever shows it.
             if let Some(taskbar) = app.get_webview_window("taskbar") {
-                position_taskbar(&taskbar);
-                #[cfg(windows)]
-                {
-                    let _ = win32::window::apply_no_activate(&taskbar);
-                    // Note: do NOT call extend_frameless on taskbar — it leaves a
-                    // visible caption strip on Win11. The transparent window + WS_POPUP
-                    // style alone is enough.
-                    let _ = win32::window::register_appbar(&taskbar, 40);
-                }
-                // The disable-shell-taskbar setting can leave only the
-                // taskbar TABLE (Win-hold pie -> strip) — no bottom bar,
-                // and no reserved edge space either.
-                #[cfg(windows)]
-                if persist::load_settings().disable_shell_taskbar {
-                    win32::window::unregister_appbar(&taskbar);
-                    let _ = taskbar.hide();
-                }
+                let _ = taskbar.hide();
             }
 
             if let Some(launcher) = app.get_webview_window("launcher") {
@@ -361,34 +386,11 @@ pub fn run() {
 
                     #[cfg(windows)]
                     {
-                        let fs = win32::fullscreen::is_foreground_fullscreen();
-                        let state = handle.state::<Arc<Mutex<AppState>>>();
-                        let mut s = state.lock();
-                        let was_hidden = s.taskbar_hidden;
-                        if fs != was_hidden {
-                            s.taskbar_hidden = fs;
-                            drop(s);
-                            if let Some(taskbar) = handle.get_webview_window("taskbar") {
-                                if fs {
-                                    let _ = taskbar.hide();
-                                } else {
-                                    // Respect the disable-shell-taskbar setting:
-                                    // when it's on, only the taskbar TABLE exists.
-                                    #[cfg(windows)]
-                                    if !persist::load_settings().disable_shell_taskbar {
-                                        let _ = taskbar.show();
-                                    }
-                                    #[cfg(not(windows))]
-                                    let _ = taskbar.show();
-                                }
-                            }
-                            let _ = handle.emit("taskbar://fullscreen-changed", fs);
-                        } else {
-                            drop(s);
-                        }
-
-                        // Refresh taskbar apps every 2s as fallback
-                        std::thread::sleep(std::time::Duration::from_millis(1500));
+                        // The shell taskbar is gone — no fullscreen
+                        // hide/show dance needed anymore. Keep the light
+                        // taskbar-app scan alive so the taskbar TABLE
+                        // (Win-hold pie → strip) stays current.
+                        std::thread::sleep(std::time::Duration::from_millis(2000));
                         refresh_taskbar_apps(&handle);
                     }
                 });
@@ -416,17 +418,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             run_setup,
             get_taskbar_apps,
-            get_tray_icons,
             get_desktop_items,
             activate_app,
-            context_menu_app,
-            tray_click,
             toggle_launcher,
             close_launcher,
             launcher_close_finished,
             launch_desktop_item,
-            toggle_calendar_flyout,
-            get_app_windows,
             get_all_windows,
             activate_window,
             create_desktop_item,
@@ -477,14 +474,11 @@ pub fn run() {
             get_active_theme,
             get_all_themes,
             set_active_theme,
+            set_dimmer_level,
+            get_elevation_state,
         ])
         .on_window_event(|window, event| {
             match event {
-                WindowEvent::CloseRequested { api, .. } => {
-                    if window.label() == "taskbar" {
-                        api.prevent_close();
-                    }
-                }
                 // Movable tables: persist their position while being dragged
                 // (throttled — Moved fires for every px of the drag). Only
                 // visible windows save, so the startup clamp/restore passes
@@ -523,11 +517,6 @@ fn get_taskbar_apps(state: tauri::State<'_, Arc<Mutex<AppState>>>) -> Vec<app_st
 }
 
 #[tauri::command]
-fn get_tray_icons() -> Vec<app_state::TrayIcon> {
-    Vec::new()
-}
-
-#[tauri::command]
 fn get_desktop_items(state: tauri::State<'_, Arc<Mutex<AppState>>>) -> Vec<app_state::DesktopItem> {
     state.lock().desktop_items.clone()
 }
@@ -542,22 +531,6 @@ fn activate_app(app_id: String, app: tauri::AppHandle) {
         }
     }
     let _ = app.emit("taskbar://icon-activated", app_id);
-}
-
-#[tauri::command]
-fn context_menu_app(app_id: String, x: f64, y: f64) {
-    log::info!("context_menu_app: {app_id} @ {x},{y}");
-    #[cfg(windows)]
-    {
-        if let Err(e) = win32::apps::show_context_menu(&app_id, x as i32, y as i32) {
-            log::error!("context_menu failed: {e}");
-        }
-    }
-}
-
-#[tauri::command]
-fn tray_click(_tray_id: String, _right_click: Option<bool>) {
-    // Tray functionality removed
 }
 
 #[tauri::command]
@@ -781,7 +754,7 @@ fn show_tables_impl(_app: &tauri::AppHandle, _center: bool) {}
 /// landing inside the delay.
 #[cfg(windows)]
 fn hide_tables_impl(app: &tauri::AppHandle) {
-    if let Some(tables) = app.get_webview_window("tables") {
+    if let Some(_tables) = app.get_webview_window("tables") {
         let seq = TABLES_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
         let _ = app.emit("tables://hide", ());
         let handle = app.clone();
@@ -1062,27 +1035,6 @@ fn launch_desktop_item(item_id: String, state: tauri::State<'_, Arc<Mutex<AppSta
         #[cfg(not(windows))]
         let _ = &p;
     }
-}
-
-#[tauri::command]
-fn toggle_calendar_flyout() {
-    log::info!("toggle_calendar_flyout (not implemented yet)");
-}
-
-#[tauri::command]
-fn get_app_windows(
-    app_id: String,
-    state: tauri::State<'_, Arc<Mutex<AppState>>>,
-) -> Vec<win32::peek::WindowPreview> {
-    #[cfg(windows)]
-    {
-        let s = state.lock();
-        if let Some(app) = s.taskbar_apps.iter().find(|a| a.id == app_id) {
-            return win32::peek::get_windows_for_app(app);
-        }
-    }
-    let _ = app_id;
-    Vec::new()
 }
 
 #[tauri::command]
@@ -1427,7 +1379,7 @@ fn get_volume_impl() -> f32 {
     };
     use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
     use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, CoCreateInstance, COINIT_MULTITHREADED, CLSCTX_ALL};
-    use windows::core::Interface;
+    
 
     let _ = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
     let vol = unsafe {
@@ -1456,7 +1408,7 @@ fn set_volume_impl(volume: f32) {
     };
     use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
     use windows::Win32::System::Com::{CoInitializeEx, CoUninitialize, CoCreateInstance, COINIT_MULTITHREADED, CLSCTX_ALL};
-    use windows::core::Interface;
+    
 
     let _ = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
     unsafe {
@@ -1572,8 +1524,8 @@ fn save_settings(settings: serde_json::Value, app: tauri::AppHandle) {
     if let Some(v) = settings.get("show_desktop_grid").and_then(|v| v.as_bool()) {
         current.show_desktop_grid = v;
     }
-    if let Some(v) = settings.get("disable_shell_taskbar").and_then(|v| v.as_bool()) {
-        current.disable_shell_taskbar = v;
+    if let Some(v) = settings.get("dimmer_level").and_then(|v| v.as_f64()) {
+        current.dimmer_level = v.clamp(0.0, 1.0);
     }
     persist::save_settings(&current);
 
@@ -1582,22 +1534,10 @@ fn save_settings(settings: serde_json::Value, app: tauri::AppHandle) {
     win32::hotkey::HOLD_MS
         .store(current.tables_hold_ms.clamp(80, 1000), Ordering::SeqCst);
 
-    // Shell-taskbar disable applies immediately — the taskbar TABLE
-    // (Win-hold pie -> strip) always stays available. The AppBar edge
-    // reservation is released/reclaimed with the toggle, otherwise a
-    // hidden bar would keep reserving 40px of screen edge via WinAPI.
+    // Brightness dimmer applies live (systemless overlay — see
+    // win32::dimmer). The level is persisted so it survives restarts.
     #[cfg(windows)]
-    if let Some(t) = app.get_webview_window("taskbar") {
-        if current.disable_shell_taskbar {
-            win32::window::unregister_appbar(&t);
-            let _ = t.hide();
-        } else {
-            let _ = win32::window::register_appbar(&t, 40);
-            if !win32::fullscreen::is_foreground_fullscreen() {
-                let _ = t.show();
-            }
-        }
-    }
+    win32::dimmer::set_level(current.dimmer_level);
 
     // Taskbar clock and the launcher react to format/behavior changes live.
     let _ = app.emit(
@@ -1672,7 +1612,7 @@ fn get_language() -> String {
 fn take_screenshot() -> Option<String> {
     #[cfg(windows)]
     {
-        use windows::Win32::Foundation::RECT;
+        
         use windows::Win32::Graphics::Gdi::{
             GetDC, CreateCompatibleDC, CreateCompatibleBitmap,
             SelectObject, BitBlt, GetDIBits, DeleteDC, DeleteObject, ReleaseDC,
@@ -1782,13 +1722,13 @@ fn set_clipboard_image(data_url: String) {
     #[cfg(windows)]
     {
         use base64::Engine;
-        use windows::Win32::Foundation::HANDLE;
+        
         use windows::Win32::System::DataExchange::{
             CloseClipboard, EmptyClipboard, OpenClipboard, RegisterClipboardFormatW,
             SetClipboardData,
         };
         use windows::Win32::System::Ole::CF_DIB;
-        use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+        
         use windows::core::w;
 
         let Some(b64) = data_url.strip_prefix("data:image/png;base64,") else {
@@ -1903,15 +1843,58 @@ fn close_setup_window(app: tauri::AppHandle) {
     }
 }
 
+// ===== Brightness dimmer (systemless software dim overlay) =====
+//
+// The dimmer is a pure Win32 overlay — a black, topmost, fully
+// click-through layered window whose alpha is the dim strength. Nothing on
+// the system is modified (no WMI/DDC brightness, no registry, no power
+// plan): closing FlatUI or sliding to 0% removes the dim instantly and the
+// display is exactly as before.
+#[tauri::command]
+fn set_dimmer_level(level: f64) {
+    #[cfg(windows)]
+    win32::dimmer::set_level(level.clamp(0.0, 1.0));
+    #[cfg(not(windows))]
+    let _ = level;
+}
+
+/// Elevation state for the UI. `uac_declined` is true when the user said No
+/// to the launch-time UAC prompt — the setup window shows the dimmer warning.
+#[derive(serde::Serialize)]
+struct ElevationState {
+    elevated: bool,
+    uac_declined: bool,
+}
+
+#[tauri::command]
+fn get_elevation_state() -> ElevationState {
+    #[cfg(windows)]
+    {
+        let elevated = elevation::is_elevated();
+        ElevationState {
+            elevated,
+            uac_declined: !elevated,
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        ElevationState {
+            elevated: false,
+            uac_declined: false,
+        }
+    }
+}
+
 // ===== Exit FlatUI — revert everything and quit =====
 //
-// Called when the user clicks the exit button (top-left of the launcher).
+// Called when the user clicks the exit button in the settings table.
 // Reverts all shell modifications:
 //   1. Stop the start-menu killer (so StartMenuExperienceHost.exe can run)
-//   2. Show the native taskbar (stop hiding it)
-//   3. Restart explorer.exe (restores the native shell: taskbar, Start menu,
+//   2. Un-hide the native taskbar (stop the hider monitor, alpha back to 255)
+//   3. Remove the brightness dim overlay (instantly restores full brightness)
+//   4. Restart explorer.exe (restores the native shell: taskbar, Start menu,
 //      desktop icons, tray)
-//   4. Exit the FlatUI process
+//   5. Exit the FlatUI process
 #[tauri::command]
 fn exit_flatui() {
     log::info!("exit_flatui: reverting everything and exiting");
@@ -1920,12 +1903,17 @@ fn exit_flatui() {
     #[cfg(windows)]
     start_menu_killer::stop();
 
-    // 2. Show the native taskbar (stop the hide_taskbar monitor and
-    //    immediately set alpha to 255)
+    // 2. Un-hide the native taskbar (stop the hide_taskbar monitor and set
+    //    its alpha back to 255) so the shell comes back on exit.
     #[cfg(windows)]
     hide_taskbar::stop();
 
-    // 3. Restart explorer.exe — this restores the native shell (taskbar,
+    // 3. Kill the brightness dim overlay so the user is never stuck dim
+    //    after FlatUI exits.
+    #[cfg(windows)]
+    win32::dimmer::set_level(0.0);
+
+    // 4. Restart explorer.exe — this restores the native shell (taskbar,
     //    Start menu, desktop). We kill explorer first, then relaunch it.
     //    The relaunch uses ShellExecuteW with "open" on explorer.exe.
     #[cfg(windows)]
@@ -1942,7 +1930,7 @@ fn exit_flatui() {
         let _ = Command::new("explorer.exe").spawn();
     }
 
-    // 4. Exit the FlatUI process
+    // 5. Exit the FlatUI process
     std::process::exit(0);
 }
 
@@ -2518,24 +2506,6 @@ mod moved_save {
                     }
                 })
                 .ok();
-        });
-    }
-}
-
-fn position_taskbar(window: &tauri::WebviewWindow) {
-    if let Some(monitor) = window.current_monitor().ok().flatten() {
-        let mon_size = monitor.size();
-        let mon_pos = monitor.position();
-        let scale = monitor.scale_factor();
-        let logical_h = 40.0;
-        let physical_h = (logical_h * scale).round() as i32;
-        let _ = window.set_size(tauri::PhysicalSize {
-            width: mon_size.width,
-            height: physical_h as u32,
-        });
-        let _ = window.set_position(tauri::PhysicalPosition {
-            x: mon_pos.x,
-            y: mon_pos.y + mon_size.height as i32 - physical_h,
         });
     }
 }
