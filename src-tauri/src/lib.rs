@@ -214,8 +214,15 @@ pub fn run() {
             #[cfg(windows)]
             {
                 if let Some(tables) = app.get_webview_window("tables") {
-                    let _ = tables.hide();
                     let _ = win32::window::apply_no_activate(&tables);
+                    // Pre-fit the picker to the monitor and switch to the
+                    // layered show/hide scheme (window stays visible with
+                    // alpha 0 + click-through forever) so the WebView2
+                    // composition never tears down/re-attaches — that
+                    // re-attach was flashing the default light-blue
+                    // background for a frame on every open.
+                    prefit_tables_window(&tables);
+                    let _ = win32::window::set_picker_visible(&tables, false);
                 }
                 if let Some(strip) = app.get_webview_window("table-taskbar") {
                     let _ = strip.hide();
@@ -710,8 +717,10 @@ fn show_tables_impl(app: &tauri::AppHandle, center: bool) {
     let mon_pos = monitor.position();
     let mon_size = monitor.size();
     let scale = monitor.scale_factor();
-    let _ = tables.set_position(tauri::PhysicalPosition::new(mon_pos.x, mon_pos.y));
-    let _ = tables.set_size(tauri::PhysicalSize::new(mon_size.width, mon_size.height));
+    // Only move/resize when it actually drifted (monitor change, DPI
+    // switch). A redundant resize of a transparent WebView2 right before
+    // show() is the source of the one-frame light-blue flicker — skip it.
+    prefit_tables_window(&tables);
 
     let (ax, ay) = if center {
         (
@@ -735,8 +744,10 @@ fn show_tables_impl(app: &tauri::AppHandle, center: bool) {
     // rapid hold → release → hold never races the dismiss delay.
     TABLES_SEQ.fetch_add(1, Ordering::SeqCst);
 
-    let _ = tables.set_always_on_top(true);
-    let _ = tables.show(); // window is NOACTIVATE — focus is untouched
+    // Layered-alpha reveal — the window is never hidden/shown, so the
+    // WebView2 surface never re-attaches (no light-blue flash). Topmost +
+    // NOACTIVATE are handled inside.
+    let _ = win32::window::set_picker_visible(&tables, true);
     // Emit AFTER the window is on screen so the picker animates from a
     // presented frame instead of racing the show.
     let _ = app.emit(
@@ -747,6 +758,27 @@ fn show_tables_impl(app: &tauri::AppHandle, center: bool) {
 
 #[cfg(not(windows))]
 fn show_tables_impl(_app: &tauri::AppHandle, _center: bool) {}
+
+/// Size the tables window to the primary monitor, but ONLY when it has
+/// actually drifted from that geometry. Skipping the no-op resize keeps
+/// WebView2's transparent surface untouched — resizing/re-showing it is
+/// what produces the one-frame light-blue flash when the pie opens.
+#[cfg(windows)]
+fn prefit_tables_window(tables: &tauri::WebviewWindow) {
+    let Some(monitor) = tables.primary_monitor().ok().flatten() else {
+        return;
+    };
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
+    let cur_pos = tables.outer_position().unwrap_or_default();
+    let cur_size = tables.outer_size().unwrap_or_default();
+    if cur_pos.x != mon_pos.x || cur_pos.y != mon_pos.y {
+        let _ = tables.set_position(tauri::PhysicalPosition::new(mon_pos.x, mon_pos.y));
+    }
+    if cur_size.width != mon_size.width || cur_size.height != mon_size.height {
+        let _ = tables.set_size(tauri::PhysicalSize::new(mon_size.width, mon_size.height));
+    }
+}
 
 /// Dismiss the picker with its pop-out animation: emit `tables://hide` (the
 /// frontend scales the buttons back down), then hide the window once the
@@ -761,7 +793,9 @@ fn hide_tables_impl(app: &tauri::AppHandle) {
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(280));
             if TABLES_SEQ.load(Ordering::SeqCst) == seq {
-                let _ = handle.get_webview_window("tables").map(|w| w.hide());
+                let _ = handle
+                    .get_webview_window("tables")
+                    .map(|w| win32::window::set_picker_visible(&w, false));
             }
         });
     }
@@ -777,7 +811,7 @@ fn hide_tables_now(app: &tauri::AppHandle) {
     TABLES_SEQ.fetch_add(1, Ordering::SeqCst);
     if let Some(tables) = app.get_webview_window("tables") {
         let _ = app.emit("tables://hide", ());
-        let _ = tables.hide();
+        let _ = win32::window::set_picker_visible(&tables, false);
     }
 }
 

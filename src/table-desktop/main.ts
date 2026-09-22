@@ -37,6 +37,7 @@ let closing = false;
 
 listen("table://desktop-shown", () => {
   closing = false;
+  launching = false; // a previous session's launch animation must not block new clicks
   root.classList.remove("shown");
   void root.offsetWidth;
   root.classList.add("shown");
@@ -59,6 +60,11 @@ document.addEventListener("keydown", (e) => {
 // ===== Desktop items =====
 let items: LauncherItem[] = [];
 
+// While a launch animation is playing the grid ignores further clicks and
+// the window closes right after the spin finishes.
+const LAUNCH_SPIN_MS = 1000;
+let launching = false;
+
 async function refresh() {
   try {
     items = await invoke<LauncherItem[]>("get_desktop_items");
@@ -74,7 +80,24 @@ listen<LauncherItem[]>("launcher://items-updated", (e) => {
 });
 
 function launch(item: LauncherItem) {
+  launchWithSpin(item, null);
+}
+
+/// Launch an item and play the 1s spin animation on its icon, then close
+/// the desktop table. `el` is the tile that was clicked (null for the
+/// context-menu "Open" path when the tile reference is unavailable).
+function launchWithSpin(item: LauncherItem, el: HTMLElement | null) {
+  if (launching) return;
+  launching = true;
   invoke("launch_desktop_item", { itemId: item.id });
+  if (el) {
+    el.classList.add("launching");
+    // Re-trigger the spin even if the tile was re-rendered between clicks.
+    void el.offsetWidth;
+  }
+  // After the 1s spin → close the desktop table (its own pop-out plays
+  // before the backend hides the window).
+  setTimeout(() => close(), LAUNCH_SPIN_MS);
 }
 
 function render() {
@@ -108,17 +131,18 @@ function render() {
     el.appendChild(label);
 
     el.addEventListener("click", (e) => {
+      if (launching) return;
       if (e.shiftKey) {
         invoke("execute_run_admin", { command: item.path });
       } else {
-        launch(item);
+        launchWithSpin(item, el);
       }
     });
 
     el.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      showItemContextMenu(e.clientX, e.clientY, item);
+      showItemContextMenu(e.clientX, e.clientY, item, el);
     });
 
     grid.appendChild(el);
@@ -140,7 +164,7 @@ grid.addEventListener("contextmenu", (e) => {
   }
 });
 
-function showItemContextMenu(x: number, y: number, item: LauncherItem) {
+function showItemContextMenu(x: number, y: number, item: LauncherItem, tile: HTMLElement | null) {
   document.querySelectorAll(".context-menu").forEach((el) => el.remove());
 
   const menu = document.createElement("div");
@@ -153,7 +177,7 @@ function showItemContextMenu(x: number, y: number, item: LauncherItem) {
   open.textContent = "Open";
   open.addEventListener("click", () => {
     menu.remove();
-    launch(item);
+    launchWithSpin(item, tile);
   });
   menu.appendChild(open);
 
