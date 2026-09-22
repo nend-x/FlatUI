@@ -15,6 +15,7 @@
 mod app_state;
 pub mod crash_handler;
 mod elevation;
+mod hide_taskbar;
 mod persist;
 #[cfg(windows)]
 mod start_menu_killer;
@@ -126,9 +127,12 @@ pub fn run() {
         reset_config();
     }
 
-    // NOTE: the old HideTaskbar monitor (which hid the NATIVE Windows
-    // taskbar) is gone along with the custom shell taskbar. The native
-    // taskbar stays exactly as Windows made it.
+    // Native taskbar hider — the in-process monitor keeps Shell_TrayWnd /
+    // Shell_SecondaryTrayWnd at alpha 0. Still needed: the custom shell
+    // taskbar is gone, but FlatUI Hush is still a shell replacement and the
+    // native taskbar must stay out of the way.
+    #[cfg(windows)]
+    hide_taskbar::start();
 
     // Start the brightness dimmer overlay thread (systemless software dim —
     // a click-through black layered window; see win32::dimmer). The persisted
@@ -1886,10 +1890,11 @@ fn get_elevation_state() -> ElevationState {
 // Called when the user clicks the exit button in the settings table.
 // Reverts all shell modifications:
 //   1. Stop the start-menu killer (so StartMenuExperienceHost.exe can run)
-//   2. Remove the brightness dim overlay (instantly restores full brightness)
-//   3. Restart explorer.exe (restores the native shell: taskbar, Start menu,
+//   2. Un-hide the native taskbar (stop the hider monitor, alpha back to 255)
+//   3. Remove the brightness dim overlay (instantly restores full brightness)
+//   4. Restart explorer.exe (restores the native shell: taskbar, Start menu,
 //      desktop icons, tray)
-//   4. Exit the FlatUI process
+//   5. Exit the FlatUI process
 #[tauri::command]
 fn exit_flatui() {
     log::info!("exit_flatui: reverting everything and exiting");
@@ -1898,13 +1903,17 @@ fn exit_flatui() {
     #[cfg(windows)]
     start_menu_killer::stop();
 
+    // 2. Un-hide the native taskbar (stop the hide_taskbar monitor and set
+    //    its alpha back to 255) so the shell comes back on exit.
+    #[cfg(windows)]
+    hide_taskbar::stop();
 
-    // 2. Kill the brightness dim overlay so the user is never stuck dim
+    // 3. Kill the brightness dim overlay so the user is never stuck dim
     //    after FlatUI exits.
     #[cfg(windows)]
     win32::dimmer::set_level(0.0);
 
-    // 3. Restart explorer.exe — this restores the native shell (taskbar,
+    // 4. Restart explorer.exe — this restores the native shell (taskbar,
     //    Start menu, desktop). We kill explorer first, then relaunch it.
     //    The relaunch uses ShellExecuteW with "open" on explorer.exe.
     #[cfg(windows)]
@@ -1921,7 +1930,7 @@ fn exit_flatui() {
         let _ = Command::new("explorer.exe").spawn();
     }
 
-    // 4. Exit the FlatUI process
+    // 5. Exit the FlatUI process
     std::process::exit(0);
 }
 

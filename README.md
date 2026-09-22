@@ -5,7 +5,7 @@
 
 ---
 
-FlatUI Hush replaces the Windows shell experience. The Win key opens the launcher instead of the Start menu. There is **no custom taskbar** — the native Windows taskbar is left untouched — and a systemless **brightness dimmer** overlays the display with a software dim. Everything runs in-process. No helpers, no child processes, no installer.
+FlatUI Hush replaces the Windows shell experience. The Win key opens the launcher instead of the Start menu. There is **no custom taskbar** — the native one is simply hidden while FlatUI runs — and a systemless **brightness dimmer** overlays the display with a software dim. Everything runs in-process. No helpers, no child processes, no installer.
 
 **Requires:** Windows 10/11, run as administrator.
 
@@ -47,7 +47,7 @@ Everything lives in the settings table (Win hold → pie → Settings): hold dur
 
 ## Exit
 
-The exit button in settings removes the dim overlay, restarts explorer and exits clean.
+The exit button in settings un-hides the native taskbar, removes the dim overlay, restarts explorer and exits clean.
 
 ## License
 
