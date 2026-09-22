@@ -1,6 +1,6 @@
 [package]
 name = "flatuihush"
-version = "2.0.0"
+version = "2.1.0"
 description = "FlatUI Hush — tables update of the FlatUI Windows shell replacement"
 authors = ["flatui"]
 edition = "2021"

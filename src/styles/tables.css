@@ -409,6 +409,28 @@
   padding: 2px 0 6px;
 }
 
+/* Hint lines under settings rows (dimmer warning, hold-delay explainer) */
+.settings-hint {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  padding: 0 0 8px;
+}
+
+.settings-hint.warning {
+  color: var(--accent-terracotta);
+}
+
+/* Brightness dim hint inside the widgets table */
+.brightness-hint {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--accent-terracotta);
+  padding-top: 2px;
+}
+
 .settings-slider-row {
   display: flex;
   align-items: center;

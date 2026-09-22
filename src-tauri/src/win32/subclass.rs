@@ -4,7 +4,7 @@
 
 use windows::core::*;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
-use windows::Win32::UI::Shell::{SetWindowSubclass, DefSubclassProc, SUBCLASSPROC};
+use windows::Win32::UI::Shell::{SetWindowSubclass, DefSubclassProc};
 use windows::Win32::UI::WindowsAndMessaging::{
     WM_NCACTIVATE, WM_NCPAINT, WM_NCHITTEST, HTCLIENT,
 };

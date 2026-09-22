@@ -54,6 +54,20 @@
       transition: opacity 300ms var(--ease-out-soft);
     }
     .setup-status.fading { opacity: 0; }
+    .setup-warning {
+      display: none;
+      max-width: 300px;
+      font-family: var(--font-ui);
+      font-size: 11.5px;
+      line-height: 1.45;
+      color: var(--accent-terracotta, #B8835A);
+      background: rgba(var(--accent-terracotta-rgb, 184, 131, 90), 0.12);
+      border: 1px solid rgba(var(--accent-terracotta-rgb, 184, 131, 90), 0.35);
+      border-radius: 8px;
+      padding: 8px 12px;
+      text-align: center;
+    }
+    .setup-warning.visible { display: block; }
     .setup-bar {
       width: 200px;
       height: 3px;
@@ -82,6 +96,9 @@
     <div class="setup-logo">FlatUI Hush</div>
     <div class="setup-status" id="setup-status">Welcome</div>
     <div class="setup-bar"><div class="setup-bar-fill" id="setup-bar-fill"></div></div>
+    <div class="setup-warning" id="setup-warning">
+      Not running as administrator — screen dimming might not work on system apps.
+    </div>
   </div>
   <script type="module" src="./main.ts"></script>
 </body>

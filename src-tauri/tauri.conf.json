@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "FlatUI Hush",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "identifier": "com.flatui.app",
   "build": {
     "frontendDist": "../dist",
@@ -16,7 +16,7 @@
         "title": "FlatUI Hush Setup",
         "url": "setup/index.html",
         "width": 400,
-        "height": 200,
+        "height": 260,
         "decorations": false,
         "transparent": true,
         "resizable": false,
@@ -26,24 +26,6 @@
         "center": true,
         "shadow": false,
         "visible": true
-      },
-      {
-        "label": "taskbar",
-        "title": " ",
-        "url": "taskbar/index.html",
-        "width": 1920,
-        "height": 40,
-        "decorations": false,
-        "transparent": true,
-        "resizable": false,
-        "alwaysOnTop": true,
-        "skipTaskbar": true,
-        "focus": false,
-        "fullscreen": false,
-        "center": false,
-        "x": 0,
-        "y": 1036,
-        "shadow": false
       },
       {
         "label": "launcher",

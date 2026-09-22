@@ -43,7 +43,7 @@ interface Settings {
   table_icon_magnify?: number;
   clock_24h?: boolean;
   minimize_on_launcher?: boolean;
-  disable_shell_taskbar?: boolean;
+  dimmer_level?: number;
   user_name?: string;
   show_desktop_grid?: boolean;
 }
@@ -53,6 +53,7 @@ const WIDGET_IDS = [
   "notes-widget",
   "sysmon-widget",
   "audio-widget",
+  "brightness-widget",
 ] as const;
 
 const sliderHold = document.getElementById("slider-hold") as HTMLInputElement;
@@ -62,7 +63,9 @@ const magnifyVal = document.getElementById("magnify-val")!;
 const themeSelect = document.getElementById("theme-select") as HTMLSelectElement;
 const toggleIconRecolor = document.getElementById("toggle-icon-recolor") as HTMLInputElement;
 const toggleMinimize = document.getElementById("toggle-minimize") as HTMLInputElement;
-const toggleShellTaskbar = document.getElementById("toggle-shell-taskbar") as HTMLInputElement;
+const sliderDim = document.getElementById("slider-dim") as HTMLInputElement;
+const dimVal = document.getElementById("dim-val")!;
+const dimWarning = document.getElementById("dim-warning") as HTMLElement;
 const inputName = document.getElementById("input-name") as HTMLInputElement;
 const segClock = document.getElementById("seg-clock")!;
 const exitBtn = document.getElementById("mt-exit")!;
@@ -78,7 +81,7 @@ function currentSettings(): Settings {
     table_icon_magnify: parseFloat(sliderMagnify.value),
     clock_24h: segClock.querySelector("button.active")?.getAttribute("data-value") === "24",
     minimize_on_launcher: toggleMinimize.checked,
-    disable_shell_taskbar: !toggleShellTaskbar.checked,
+    dimmer_level: parseInt(sliderDim.value, 10) / 100,
     user_name: inputName.value,
   };
 }
@@ -96,7 +99,9 @@ async function load() {
     holdVal.textContent = `${sliderHold.value} ms`;
     magnifyVal.textContent = `${parseFloat(sliderMagnify.value).toFixed(2)}\u00d7`;
     toggleMinimize.checked = s.minimize_on_launcher ?? true;
-    toggleShellTaskbar.checked = !(s.disable_shell_taskbar ?? false);
+    const dimPct = Math.round((s.dimmer_level ?? 0) * 100);
+    sliderDim.value = String(dimPct);
+    dimVal.textContent = `${dimPct}%`;
     inputName.value = s.user_name ?? "";
     setSegClock(s.clock_24h ?? true);
   } catch {}
@@ -137,7 +142,27 @@ sliderMagnify.addEventListener("input", () => {
 });
 
 toggleMinimize.addEventListener("change", saveSettings);
-toggleShellTaskbar.addEventListener("change", saveSettings);
+
+// Brightness dim slider — applies live via the systemless overlay.
+let dimTimer: number | null = null;
+sliderDim.addEventListener("input", () => {
+  const pct = parseInt(sliderDim.value, 10);
+  dimVal.textContent = `${pct}%`;
+  invoke("set_dimmer_level", { level: pct / 100 });
+  if (dimTimer) window.clearTimeout(dimTimer);
+  dimTimer = window.setTimeout(saveSettings, 250);
+});
+
+// Dimmer warning — shown when the app runs without elevation (UAC declined
+// at launch): a non-elevated overlay may not dim system/elevated apps.
+(async () => {
+  try {
+    const st = await invoke<{ elevated?: boolean; uac_declined?: boolean }>("get_elevation_state");
+    if (st.uac_declined || st.elevated === false) {
+      dimWarning.style.display = "";
+    }
+  } catch {}
+})();
 
 let nameTimer: number | null = null;
 inputName.addEventListener("input", () => {

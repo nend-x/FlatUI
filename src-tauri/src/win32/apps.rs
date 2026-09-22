@@ -309,8 +309,3 @@ pub fn activate_or_launch(app_id: &str) -> core::Result<()> {
 
 // ASFW_ANY is `u32 = 4294967295`. Wrap it for the AllowSetForegroundWindow signature.
 const ASFW_ANY_VALUE: u32 = 0xFFFFFFFF;
-
-pub fn show_context_menu(app_id: &str, x: i32, y: i32) -> core::Result<()> {
-    log::info!("context_menu for {} @ ({}, {})", app_id, x, y);
-    Ok(())
-}
