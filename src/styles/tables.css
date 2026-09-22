@@ -756,6 +756,27 @@
   animation: none;
 }
 
+/* Launch spin — the clicked app/folder icon spins for 1s while the item
+   launches, then the desktop table closes (handled by the frontend). */
+.td-grid .launcher-item.launching {
+  pointer-events: none;
+  cursor: default;
+}
+.td-grid .launcher-item.launching .icon-box {
+  border-color: rgba(var(--accent-terracotta-rgb), 0.55);
+}
+.td-grid .launcher-item.launching .icon-box img,
+.td-grid .launcher-item.launching .icon-box span {
+  display: block;
+  animation: td-icon-spin 1s linear;
+}
+
+@keyframes td-icon-spin {
+  from { transform: rotate(0deg) scale(0.9); opacity: 1; }
+  70%  { transform: rotate(252deg) scale(1); opacity: 1; }
+  to   { transform: rotate(360deg) scale(1); opacity: 0.85; }
+}
+
 .td-empty {
   grid-column: 1 / -1;
   text-align: center;

@@ -216,6 +216,15 @@ pub fn run() {
                 if let Some(tables) = app.get_webview_window("tables") {
                     let _ = tables.hide();
                     let _ = win32::window::apply_no_activate(&tables);
+                    // Pre-fit the picker to the monitor NOW, while the
+                    // window is still hidden at startup. Resizing a
+                    // transparent WebView2 at show time makes the
+                    // composition re-attach and flash its default
+                    // background for a frame (the "light-blue flicker"
+                    // on Win-hold). With the window already monitor-sized
+                    // the per-show path becomes a no-op (see
+                    // show_tables_impl) and never touches the surface.
+                    prefit_tables_window(&tables);
                 }
                 if let Some(strip) = app.get_webview_window("table-taskbar") {
                     let _ = strip.hide();
@@ -710,8 +719,10 @@ fn show_tables_impl(app: &tauri::AppHandle, center: bool) {
     let mon_pos = monitor.position();
     let mon_size = monitor.size();
     let scale = monitor.scale_factor();
-    let _ = tables.set_position(tauri::PhysicalPosition::new(mon_pos.x, mon_pos.y));
-    let _ = tables.set_size(tauri::PhysicalSize::new(mon_size.width, mon_size.height));
+    // Only move/resize when it actually drifted (monitor change, DPI
+    // switch). A redundant resize of a transparent WebView2 right before
+    // show() is the source of the one-frame light-blue flicker — skip it.
+    prefit_tables_window(&tables);
 
     let (ax, ay) = if center {
         (
@@ -747,6 +758,27 @@ fn show_tables_impl(app: &tauri::AppHandle, center: bool) {
 
 #[cfg(not(windows))]
 fn show_tables_impl(_app: &tauri::AppHandle, _center: bool) {}
+
+/// Size the tables window to the primary monitor, but ONLY when it has
+/// actually drifted from that geometry. Skipping the no-op resize keeps
+/// WebView2's transparent surface untouched — resizing/re-showing it is
+/// what produces the one-frame light-blue flash when the pie opens.
+#[cfg(windows)]
+fn prefit_tables_window(tables: &tauri::WebviewWindow) {
+    let Some(monitor) = tables.primary_monitor().ok().flatten() else {
+        return;
+    };
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
+    let cur_pos = tables.outer_position().unwrap_or_default();
+    let cur_size = tables.outer_size().unwrap_or_default();
+    if cur_pos.x != mon_pos.x || cur_pos.y != mon_pos.y {
+        let _ = tables.set_position(tauri::PhysicalPosition::new(mon_pos.x, mon_pos.y));
+    }
+    if cur_size.width != mon_size.width || cur_size.height != mon_size.height {
+        let _ = tables.set_size(tauri::PhysicalSize::new(mon_size.width, mon_size.height));
+    }
+}
 
 /// Dismiss the picker with its pop-out animation: emit `tables://hide` (the
 /// frontend scales the buttons back down), then hide the window once the
