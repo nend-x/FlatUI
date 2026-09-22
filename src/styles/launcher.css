@@ -156,7 +156,7 @@ html.background-ready, html.background-ready body {
 }
 
 /* ===== Reduced motion: deliberately NOT honored =====
-   FlatUI's launcher animation is a core part of the shell's identity, not
+   Hush_UI's launcher animation is a core part of the shell's identity, not
    optional decoration. Windows reports `prefers-reduced-motion: reduce`
    whenever system animations are off (e.g. "Adjust for best performance"
    visual effects — a common gaming setup), and obeying it made the

@@ -73,8 +73,8 @@ listen("setup://done", () => {
     document.body.classList.add("exiting");
     setTimeout(() => {
       getCurrentWindow().close();
-    }, 600);
-  }, 1000);
+    }, 400);
+  }, 300);
 });
 
 // Tell backend to start setup

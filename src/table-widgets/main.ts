@@ -48,24 +48,11 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") close();
 });
 
-// ===== Greeting (user name from settings — the new text-input setting) =====
+// ===== Greeting =====
 async function renderGreeting() {
-  try {
-    const s = await invoke<{ user_name?: string }>("load_settings");
-    const name = (s.user_name || "").trim();
-    greeting.innerHTML = name
-      ? `Hush table — <b>${escapeHtml(name)}</b>`
-      : "Hush table";
-  } catch {
-    greeting.textContent = "Hush table";
-  }
+  greeting.textContent = "Hush table";
 }
 
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c)
-  );
-}
 
 // ===== Widget visibility (shared config with the launcher + settings table)
 const WIDGET_IDS = [
@@ -112,7 +99,7 @@ setInterval(updateSysmon, 2000);
 // ===== Brightness widget (systemless dim overlay) =====
 // A pure software dim: a click-through black overlay window whose alpha is
 // the dim strength. Nothing on the system is modified — slide back to 0%
-// (or exit FlatUI) and the display is exactly as before.
+// (or exit Hush_UI) and the display is exactly as before.
 const brightnessSlider = document.getElementById("brightness-slider") as HTMLInputElement;
 const brightnessVal = document.getElementById("brightness-val")!;
 const brightnessHint = document.getElementById("brightness-hint") as HTMLElement;

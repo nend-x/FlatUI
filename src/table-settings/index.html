@@ -36,19 +36,12 @@
         <div class="settings-section-title">Tables</div>
         <div class="settings-row">
           <span class="settings-label">Win hold delay</span>
-          <span class="settings-slider-val" id="hold-val">220 ms</span>
+          <span class="settings-slider-val" id="hold-val">80 ms</span>
         </div>
         <div class="settings-slider-row">
-          <input type="range" class="settings-slider" id="slider-hold" min="80" max="600" step="10" value="220" />
+          <input type="range" class="settings-slider" id="slider-hold" min="40" max="600" step="10" value="80" />
         </div>
         <div class="settings-hint">How long Win must be held before the tables appear. A quick tap still opens flatlight.</div>
-        <div class="settings-row">
-          <span class="settings-label">Taskbar table icon magnify</span>
-          <span class="settings-slider-val" id="magnify-val">1.45&times;</span>
-        </div>
-        <div class="settings-slider-row">
-          <input type="range" class="settings-slider" id="slider-magnify" min="1" max="2" step="0.05" value="1.45" />
-        </div>
       </div>
 
       <div class="settings-section">
@@ -69,6 +62,10 @@
           <span class="settings-label">Volume</span>
           <label class="toggle"><input type="checkbox" id="toggle-audio-widget" checked /><span class="toggle-slider"></span></label>
         </div>
+        <div class="settings-row">
+          <span class="settings-label">Brightness</span>
+          <label class="toggle"><input type="checkbox" id="toggle-brightness-widget" checked /><span class="toggle-slider"></span></label>
+        </div>
       </div>
 
       <div class="settings-section">
@@ -80,21 +77,17 @@
             <button data-value="12">12h</button>
           </div>
         </div>
-        <div class="settings-row">
-          <span class="settings-label">Minimize windows on flatlight</span>
-          <label class="toggle"><input type="checkbox" id="toggle-minimize" checked /><span class="toggle-slider"></span></label>
-        </div>
       </div>
 
       <div class="settings-section">
-        <div class="settings-section-title">Profile</div>
+        <div class="settings-section-title">Maintenance</div>
         <div class="settings-row">
-          <span class="settings-label">Your name</span>
-          <input type="text" class="settings-text" id="input-name" placeholder="shown in widgets table" maxlength="32" />
+          <span class="settings-label">Reset config (restarts the app clean)</span>
+          <button class="mt-exit" id="mt-reset" style="margin:0;padding:6px 14px;" title="Delete all config files and restart">Reset</button>
         </div>
       </div>
 
-      <button class="mt-exit" id="mt-exit" title="Restore the native Windows shell and exit">Exit FlatUI Hush</button>
+      <button class="mt-exit" id="mt-exit" title="Restore the native Windows shell and exit">Exit Hush_UI</button>
     </div>
   </div>
 

@@ -4,7 +4,7 @@
 // monitor brightness, no DDC/CI, no registry, no power plan. The dim is
 // literally a black, topmost, fully click-through layered window sitting
 // ON TOP of the display; its layered alpha is the dim strength. Closing
-// FlatUI (or sliding the widget back to 100%) removes it instantly, and
+// Hush_UI (or sliding the widget back to 100%) removes it instantly, and
 // the system is exactly as it was.
 //
 // Layer composition:
@@ -141,7 +141,7 @@ fn run_overlay() -> windows::core::Result<()> {
 
     unsafe {
         let hinstance = GetModuleHandleW(None)?;
-        let class_name = w!("FlatUIDimmer");
+        let class_name = w!("Hush_UIDimmer");
 
         let wc = WNDCLASSW {
             style: CS_HREDRAW | CS_VREDRAW,

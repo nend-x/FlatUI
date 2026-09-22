@@ -1,4 +1,4 @@
-// FlatUI crash handler
+// Hush_UI crash handler
 // ====================
 //
 // Installs TWO layers of crash detection so that the user always gets a
@@ -94,9 +94,9 @@ mod imp {
                 // We can't read the crash file — show a minimal fallback box
                 // so the user at least knows *something* happened.
                 let msg = format!(
-                    "FlatUI crashed, but the crash report could not be read:\n  {path}\n  {e}"
+                    "Hush_UI crashed, but the crash report could not be read:\n  {path}\n  {e}"
                 );
-                message_box("FlatUI Crashed", &msg);
+                message_box("Hush_UI Crashed", &msg);
                 return 1;
             }
         };
@@ -104,7 +104,7 @@ mod imp {
         // Best-effort cleanup of the temp file.
         let _ = std::fs::remove_file(path);
 
-        message_box("FlatUI Crashed", &info);
+        message_box("Hush_UI Crashed", &info);
         0
     }
 
@@ -244,7 +244,7 @@ mod imp {
         let os = std::env::consts::OS;
 
         let mut s = String::with_capacity(2048);
-        s.push_str("FlatUI has encountered a fatal error and needs to close.\n");
+        s.push_str("Hush_UI has encountered a fatal error and needs to close.\n");
         s.push_str("We're sorry for the inconvenience. Details below.\n\n");
         s.push_str("============================================\n");
         s.push_str(" ERROR DETAILS\n");
@@ -278,7 +278,7 @@ mod imp {
         s.push_str(
             "Please open an issue and paste the entire contents of this dialog:\n",
         );
-        s.push_str("  https://github.com/nend-x/FlatUI/issues\n\n");
+        s.push_str("  https://github.com/nend-x/Hush_UI/issues\n\n");
         s.push_str("If you can reproduce the crash, note the steps you took\n");
         s.push_str("right before this dialog appeared.\n");
         s

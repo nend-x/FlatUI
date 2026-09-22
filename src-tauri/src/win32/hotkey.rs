@@ -1,6 +1,6 @@
 // Win-key tap-vs-combo-vs-hold interception.
 //
-// Behavior (FlatUI Hush tables update):
+// Behavior (Hush_UI tables update):
 //   - Win TAP (down + up alone, quick)          -> toggle the launcher
 //   - Win HOLD (held for HOLD_MS)               -> pie table picker appears
 //       - around the mouse cursor, or centered on the screen when Ctrl is
@@ -57,7 +57,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WM_SYSKEYDOWN, WM_SYSKEYUP, UnhookWindowsHookEx,
 };
 
-/// Win-key behavior for the FlatUI Hush tables update.
+/// Win-key behavior for the Hush_UI tables update.
 ///
 /// Three user-visible gestures share one swallowed Win-down:
 ///   - TAP    (Win down → up with no other key in between, released before

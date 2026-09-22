@@ -1,7 +1,7 @@
 [package]
-name = "flatuihush"
+name = "hush_ui"
 version = "2.1.0"
-description = "FlatUI Hush — tables update of the FlatUI Windows shell replacement"
+description = "Hush_UI — tables update of the Hush_UI Windows shell replacement"
 authors = ["flatui"]
 edition = "2021"
 # prevent-alt-win-menu uses edition 2024, which needs Rust ≥ 1.85.

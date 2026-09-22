@@ -1,4 +1,4 @@
-// FlatUI — Tauri backend entry point
+// Hush_UI — Tauri backend entry point
 //
 // Windows:
 //   - taskbar: bottom, topmost, 44px, frameless, transparent, no-activate, registered as AppBar
@@ -83,7 +83,7 @@ pub fn run() {
         .format_timestamp_millis()
         .init();
 
-    log::info!("FlatUI starting up…");
+    log::info!("Hush_UI starting up…");
 
     // UAC on launch: if not elevated, pop the standard Windows UAC prompt
     // via ShellExecuteW "runas". Two outcomes:
@@ -124,12 +124,12 @@ pub fn run() {
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "-rs") {
         log::info!("Clean start requested (-rs flag) — deleting all config files");
-        reset_config();
+        wipe_configs();
     }
 
     // Native taskbar hider — the in-process monitor keeps Shell_TrayWnd /
     // Shell_SecondaryTrayWnd at alpha 0. Still needed: the custom shell
-    // taskbar is gone, but FlatUI Hush is still a shell replacement and the
+    // taskbar is gone, but Hush_UI is still a shell replacement and the
     // native taskbar must stay out of the way.
     #[cfg(windows)]
     hide_taskbar::start();
@@ -166,14 +166,6 @@ pub fn run() {
             // Run setup in background — emits to setup window
             let handle = app.handle().clone();
             std::thread::spawn(move || {
-                // Wait for setup window to load
-                std::thread::sleep(std::time::Duration::from_millis(500));
-
-                // Step 1: Welcome (already shown), wait 1s
-                std::thread::sleep(std::time::Duration::from_secs(1));
-
-                // Emit a warning when the user declined UAC: the brightness
-                // dimmer overlay may not cover system/elevated apps.
                 #[cfg(windows)]
                 if !elevation::is_elevated() {
                     let _ = handle.emit(
@@ -182,14 +174,10 @@ pub fn run() {
                     );
                 }
 
-                // Step 2: Preparing the shell (the shell taskbar was removed —
-                // the native Windows taskbar is left untouched now)
+                // Step 2: Preparing the shell
                 let _ = handle.emit("setup://step", "Preparing shell...");
-                std::thread::sleep(std::time::Duration::from_secs(1));
-
                 // Step 3: Installing Win key handler
                 let _ = handle.emit("setup://step", "Installing Win key handler...");
-                std::thread::sleep(std::time::Duration::from_secs(1));
                 let _ = handle.emit("setup://done", ());
             });
 
@@ -478,6 +466,7 @@ pub fn run() {
             remove_from_startup,
             close_setup_window,
             exit_flatui,
+            reset_config,
             get_active_theme,
             get_all_themes,
             set_active_theme,
@@ -507,7 +496,7 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("error while running FlatUI");
+        .expect("error while running Hush_UI");
 }
 
 // ===== Setup command (no-op — HideTaskbar runs in-process now) =====
@@ -582,12 +571,7 @@ fn show_launcher(app: &tauri::AppHandle) {
         let _ = flatlight.set_position(tauri::PhysicalPosition::new(x, y));
     }
 
-    // Show-desktop effect (configurable): minimize every open window so the
-    // search experience starts quiet.
-    #[cfg(windows)]
-    if persist::load_settings().minimize_on_launcher {
-        win32::window::minimize_all_windows();
-    }
+    // Show-desktop effect hardcoded OFF.
 
     let _ = flatlight.set_always_on_top(true);
     let _ = flatlight.show();
@@ -1543,17 +1527,8 @@ fn save_settings(settings: serde_json::Value, app: tauri::AppHandle) {
     if let Some(v) = settings.get("tables_hold_ms").and_then(|v| v.as_u64()) {
         current.tables_hold_ms = v.clamp(80, 1000);
     }
-    if let Some(v) = settings.get("table_icon_magnify").and_then(|v| v.as_f64()) {
-        current.table_icon_magnify = v.clamp(1.0, 2.0);
-    }
     if let Some(v) = settings.get("clock_24h").and_then(|v| v.as_bool()) {
         current.clock_24h = v;
-    }
-    if let Some(v) = settings.get("minimize_on_launcher").and_then(|v| v.as_bool()) {
-        current.minimize_on_launcher = v;
-    }
-    if let Some(v) = settings.get("user_name").and_then(|v| v.as_str()) {
-        current.user_name = v.chars().take(32).collect();
     }
     if let Some(v) = settings.get("show_desktop_grid").and_then(|v| v.as_bool()) {
         current.show_desktop_grid = v;
@@ -1578,9 +1553,6 @@ fn save_settings(settings: serde_json::Value, app: tauri::AppHandle) {
         "settings://changed",
         serde_json::json!({
             "clock_24h": current.clock_24h,
-            "minimize_on_launcher": current.minimize_on_launcher,
-            "table_icon_magnify": current.table_icon_magnify,
-            "user_name": current.user_name,
             "show_desktop_grid": current.show_desktop_grid,
         }),
     );
@@ -1882,7 +1854,7 @@ fn close_setup_window(app: tauri::AppHandle) {
 // The dimmer is a pure Win32 overlay — a black, topmost, fully
 // click-through layered window whose alpha is the dim strength. Nothing on
 // the system is modified (no WMI/DDC brightness, no registry, no power
-// plan): closing FlatUI or sliding to 0% removes the dim instantly and the
+// plan): closing Hush_UI or sliding to 0% removes the dim instantly and the
 // display is exactly as before.
 #[tauri::command]
 fn set_dimmer_level(level: f64) {
@@ -1919,7 +1891,7 @@ fn get_elevation_state() -> ElevationState {
     }
 }
 
-// ===== Exit FlatUI — revert everything and quit =====
+// ===== Exit Hush_UI — revert everything and quit =====
 //
 // Called when the user clicks the exit button in the settings table.
 // Reverts all shell modifications:
@@ -1928,7 +1900,7 @@ fn get_elevation_state() -> ElevationState {
 //   3. Remove the brightness dim overlay (instantly restores full brightness)
 //   4. Restart explorer.exe (restores the native shell: taskbar, Start menu,
 //      desktop icons, tray)
-//   5. Exit the FlatUI process
+//   5. Exit the Hush_UI process
 #[tauri::command]
 fn exit_flatui() {
     log::info!("exit_flatui: reverting everything and exiting");
@@ -1943,7 +1915,7 @@ fn exit_flatui() {
     hide_taskbar::stop();
 
     // 3. Kill the brightness dim overlay so the user is never stuck dim
-    //    after FlatUI exits.
+    //    after Hush_UI exits.
     #[cfg(windows)]
     win32::dimmer::set_level(0.0);
 
@@ -1964,7 +1936,7 @@ fn exit_flatui() {
         let _ = Command::new("explorer.exe").spawn();
     }
 
-    // 5. Exit the FlatUI process
+    // 5. Exit the Hush_UI process
     std::process::exit(0);
 }
 
@@ -1991,7 +1963,7 @@ fn shutdown_system() {
 
 #[tauri::command]
 fn add_to_startup() -> bool {
-    log::info!("Adding FlatUI to startup...");
+    log::info!("Adding Hush_UI to startup...");
     #[cfg(windows)]
     {
         if let Ok(appdata) = std::env::var("APPDATA") {
@@ -2001,7 +1973,7 @@ fn add_to_startup() -> bool {
 
             if let Ok(exe_path) = std::env::current_exe() {
                 // Create a .lnk shortcut using PowerShell (reliable, no COM dependency)
-                let lnk_path = startup_dir.join("FlatUI Hush.lnk");
+                let lnk_path = startup_dir.join("Hush_UI.lnk");
                 let exe_dir = exe_path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
                 let ps_script = format!(
                     "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('{}'); $s.TargetPath = '{}'; $s.WorkingDirectory = '{}'; $s.Save()",
@@ -2015,7 +1987,7 @@ fn add_to_startup() -> bool {
                 {
                     Ok(output) => {
                         if output.status.success() {
-                            log::info!("Created FlatUI Hush.lnk shortcut in startup");
+                            log::info!("Created Hush_UI.lnk shortcut in startup");
                             return true;
                         } else {
                             log::error!("PowerShell shortcut creation failed: {}", String::from_utf8_lossy(&output.stderr));
@@ -2025,7 +1997,7 @@ fn add_to_startup() -> bool {
                 }
 
                 // Fallback: .bat file
-                let bat_path = startup_dir.join("FlatUI Hush.bat");
+                let bat_path = startup_dir.join("Hush_UI.bat");
                 let exe_dir = exe_path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
                 let bat_content = format!(
                     "@echo off\ncd /d \"{}\"\nstart \"\" \"{}\"",
@@ -2033,7 +2005,7 @@ fn add_to_startup() -> bool {
                     exe_path.display()
                 );
                 if std::fs::write(&bat_path, bat_content).is_ok() {
-                    log::info!("Created FlatUI Hush.bat fallback in startup");
+                    log::info!("Created Hush_UI.bat fallback in startup");
                     return true;
                 }
             }
@@ -2046,17 +2018,17 @@ fn add_to_startup() -> bool {
 
 #[tauri::command]
 fn remove_from_startup() -> bool {
-    log::info!("Removing FlatUI Hush from startup...");
+    log::info!("Removing Hush_UI from startup...");
     #[cfg(windows)]
     {
         if let Ok(appdata) = std::env::var("APPDATA") {
             let startup_dir = std::path::PathBuf::from(&appdata)
                 .join("Microsoft\\Windows\\Start Menu\\Programs\\Startup");
-            let bat_path = startup_dir.join("FlatUI Hush.bat");
-            let lnk_path = startup_dir.join("FlatUI Hush.lnk");
-            // Also clean up pre-rename FlatUI shortcuts
-            let legacy_bat = startup_dir.join("FlatUI.bat");
-            let legacy_lnk = startup_dir.join("FlatUI.lnk");
+            let bat_path = startup_dir.join("Hush_UI.bat");
+            let lnk_path = startup_dir.join("Hush_UI.lnk");
+            // Also clean up pre-rename Hush_UI shortcuts
+            let legacy_bat = startup_dir.join("Hush_UI.bat");
+            let legacy_lnk = startup_dir.join("Hush_UI.lnk");
             let mut removed = false;
             for path in [bat_path, lnk_path, legacy_bat, legacy_lnk] {
                 if path.exists() {
@@ -2317,7 +2289,7 @@ fn search_programs(query: String) -> Vec<SearchResult> {
             ("magnifier", "magnify.exe"),
             ("narrator", "narrator.exe"),
             ("on-screen keyboard", "osk.exe"),
-            // FlatUI commands
+            // Hush_UI commands
             ("reboot", "flatui:reboot"),
             ("shutdown", "flatui:shutdown"),
             ("add flatui hush to startup", "flatui:addstartup"),
@@ -2367,7 +2339,7 @@ fn search_programs(query: String) -> Vec<SearchResult> {
         }
 
         // Disambiguate colliding display names. The Start Menu walk recurses
-        // into Programs\Startup, so an autostart "FlatUI.lnk" (→ flatui.exe)
+        // into Programs\Startup, so an autostart "Hush_UI.lnk" (→ flatui.exe)
         // is returned alongside a desktop folder "flatui" and "flatui.exe"
         // — three results that all rendered as "flatui", with the exe
         // shortcut sorting FIRST. Picking "the flatui entry" then launched
@@ -2476,8 +2448,8 @@ fn walk_programs(
     }
 }
 
-// ===== Reset config (for -rs flag) =====
-fn reset_config() {
+// ===== Reset config (settings-table command + -rs flag) =====
+fn wipe_configs() {
     let data_dir = persist::data_dir();
 
     let files = [
@@ -2501,6 +2473,13 @@ fn reset_config() {
             }
         }
     }
+}
+
+// Command version: wipe + restart fresh.
+#[tauri::command]
+fn reset_config(app: tauri::AppHandle) {
+    wipe_configs();
+    let _ = app.restart();
 }
 
 // ===== Helpers =====
@@ -2558,7 +2537,7 @@ fn refresh_taskbar_apps(handle: &tauri::AppHandle) {
     // Holding the AppState lock during that work blocks every Tauri command
     // handler that touches AppState (which is most of them), which in turn
     // backs up the IPC layer and can trip Windows' 5s "Not Responding"
-    // threshold for the FlatUI windows. Snapshots in, lock only to write.
+    // threshold for the Hush_UI windows. Snapshots in, lock only to write.
     let all_windows = win32::peek::get_all_windows_with_exe(&[]);
     let blacklisted_snapshot: Vec<app_state::BlacklistEntry> = {
         let state = handle.state::<Arc<Mutex<AppState>>>();

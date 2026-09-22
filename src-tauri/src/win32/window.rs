@@ -170,7 +170,7 @@ pub fn apply_no_activate(window: &WebviewWindow) -> windows::core::Result<()> {
 ///   - DWM-cloaked windows (invisible UWP ghosts on Win10/11)
 ///   - tool windows (floating toolbars, tooltips, helper palettes)
 ///   - owned windows (dialogs minimize with their owner)
-///   - FlatUI's own windows (taskbar, launcher, setup)
+///   - Hush_UI's own windows (taskbar, launcher, setup)
 ///   - the shell desktop (Progman / WorkerW / tray windows)
 ///
 /// Uses ShowWindowAsync so a hung application can never stall the launcher.
@@ -219,7 +219,7 @@ unsafe extern "system" fn minimize_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
     if GetWindowLongPtrW(hwnd, GWL_HWNDPARENT) != 0 {
         return BOOL(1);
     }
-    // FlatUI's own windows (taskbar / launcher / setup).
+    // Hush_UI's own windows (taskbar / launcher / setup).
     let mut pid = 0u32;
     GetWindowThreadProcessId(hwnd, Some(&mut pid));
     if pid == GetCurrentProcessId() {

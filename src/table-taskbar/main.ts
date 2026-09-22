@@ -47,23 +47,8 @@ listen<boolean>("icon-recolor://changed", (e) => {
   document.documentElement.classList.toggle("icon-recolor", e.payload);
 });
 
-// ===== Magnification strength (settings) — hovered icon only =====
-let magnify = 1.45;
-async function loadMagnify() {
-  try {
-    const s = await invoke<{ table_icon_magnify?: number }>("load_settings");
-    if (typeof s.table_icon_magnify === "number") magnify = s.table_icon_magnify;
-  } catch {}
-}
-listen<{ table_icon_magnify?: number }>("settings://changed", (e) => {
-  if (typeof e.payload.table_icon_magnify === "number") {
-    magnify = e.payload.table_icon_magnify;
-    if (hoveredIdx >= 0) {
-      const el = iconEls()[hoveredIdx];
-      if (el) el.style.setProperty("--mag", magnify.toFixed(3));
-    }
-  }
-});
+// ===== Magnification strength — hardcoded 1.45x (hovered icon only) =====
+const magnify = 1.45;
 
 // ===== App data + keyed icon reconciliation =====
 // DOM order is append-only; the payload's order is IGNORED so a refresh can
@@ -339,7 +324,6 @@ listen("table://taskbar-shown", () => {
 
 (async function init() {
   await loadInitialTheme();
-  await loadMagnify();
   try {
     apps = await invoke<TaskbarApp[]>("get_taskbar_apps");
   } catch {}

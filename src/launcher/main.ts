@@ -906,7 +906,7 @@ function doLaunch(item: LauncherItem | SearchResult) {
   if (isDesktopItem) {
     invoke("launch_desktop_item", { itemId: item.id });
   } else {
-    // Check for special FlatUI commands
+    // Check for special Hush_UI commands
     const path = item.path;
     if (path === "flatui:reboot") {
       invoke("reboot_system");
