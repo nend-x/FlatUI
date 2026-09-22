@@ -40,11 +40,7 @@ document.addEventListener("keydown", (e) => {
 // ===== Settings state =====
 interface Settings {
   tables_hold_ms?: number;
-  table_icon_magnify?: number;
   clock_24h?: boolean;
-  minimize_on_launcher?: boolean;
-  dimmer_level?: number;
-  user_name?: string;
   show_desktop_grid?: boolean;
 }
 
@@ -57,15 +53,17 @@ const WIDGET_IDS = [
 ] as const;
 
 const sliderHold = document.getElementById("slider-hold") as HTMLInputElement;
-const sliderMagnify = document.getElementById("slider-magnify") as HTMLInputElement;
 const holdVal = document.getElementById("hold-val")!;
-const magnifyVal = document.getElementById("magnify-val")!;
 const themeSelect = document.getElementById("theme-select") as HTMLSelectElement;
 const toggleIconRecolor = document.getElementById("toggle-icon-recolor") as HTMLInputElement;
-const toggleMinimize = document.getElementById("toggle-minimize") as HTMLInputElement;
-const inputName = document.getElementById("input-name") as HTMLInputElement;
 const segClock = document.getElementById("seg-clock")!;
+const resetBtn = document.getElementById("mt-reset")!;
 const exitBtn = document.getElementById("mt-exit")!;
+
+resetBtn.addEventListener("click", () => {
+  resetBtn.classList.add("active");
+  invoke("reset_config");
+});
 
 exitBtn.addEventListener("click", () => {
   exitBtn.classList.add("active");
@@ -75,10 +73,7 @@ exitBtn.addEventListener("click", () => {
 function currentSettings(): Settings {
   return {
     tables_hold_ms: parseInt(sliderHold.value, 10),
-    table_icon_magnify: parseFloat(sliderMagnify.value),
     clock_24h: segClock.querySelector("button.active")?.getAttribute("data-value") === "24",
-    minimize_on_launcher: toggleMinimize.checked,
-    user_name: inputName.value,
   };
 }
 
@@ -90,12 +85,8 @@ function saveSettings() {
 async function load() {
   try {
     const s = await invoke<Settings>("load_settings");
-    sliderHold.value = String(s.tables_hold_ms ?? 220);
-    sliderMagnify.value = String(s.table_icon_magnify ?? 1.45);
+    sliderHold.value = String(s.tables_hold_ms ?? 80);
     holdVal.textContent = `${sliderHold.value} ms`;
-    magnifyVal.textContent = `${parseFloat(sliderMagnify.value).toFixed(2)}\u00d7`;
-    toggleMinimize.checked = s.minimize_on_launcher ?? true;
-    inputName.value = s.user_name ?? "";
     setSegClock(s.clock_24h ?? true);
   } catch {}
 
@@ -127,19 +118,6 @@ function setSegClock(is24: boolean) {
 sliderHold.addEventListener("input", () => {
   holdVal.textContent = `${sliderHold.value} ms`;
   saveSettings();
-});
-
-sliderMagnify.addEventListener("input", () => {
-  magnifyVal.textContent = `${parseFloat(sliderMagnify.value).toFixed(2)}\u00d7`;
-  saveSettings();
-});
-
-toggleMinimize.addEventListener("change", saveSettings);
-
-let nameTimer: number | null = null;
-inputName.addEventListener("input", () => {
-  if (nameTimer) window.clearTimeout(nameTimer);
-  nameTimer = window.setTimeout(saveSettings, 350); // debounce typing
 });
 
 segClock.addEventListener("click", (e) => {

@@ -1,4 +1,4 @@
-// FlatUI entry point
+// Hush_UI entry point
 // GUI subsystem in release: a shell replacement must never flash a console
 // window on launch. (This attribute only has an effect here in the binary
 // crate — having it only in lib.rs, as before, silently did nothing.)
@@ -7,7 +7,7 @@
 fn main() {
     // Crash-report subprocess mode.
     //
-    // When the main FlatUI process crashes, the crash handler (see
+    // When the main Hush_UI process crashes, the crash handler (see
     // `crash_handler.rs`) writes the crash info to a temp file and
     // re-launches THIS binary with `--crash-report <path>`. We detect that
     // here, before doing any Tauri setup, and short-circuit straight to the

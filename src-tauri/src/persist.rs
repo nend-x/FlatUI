@@ -1,11 +1,11 @@
 // Persistence — load/save config files
 //
-// Config path (FlatUI Hush): %LOCALAPPDATA%\FlatUIHush\
+// Config path (Hush_UI): %LOCALAPPDATA%\Hush_UI\
 //   blacklist.json, clipboard.json, notes.txt, widgets.json,
 //   widget_visibility.json, icon_recolor.json, settings.json,
 //   themes.json, tables.json
 //
-// (FlatUI pre-0.2 used %LOCALAPPDATA%\FlatUI — the rename to FlatUI Hush
+// (Hush_UI pre-0.2 used %LOCALAPPDATA%\Hush_UI — the rename to Hush_UI
 // ships a fresh config directory; no migration for the pre-release.)
 
 use std::path::PathBuf;
@@ -17,12 +17,12 @@ use crate::app_state::BlacklistEntry;
 pub fn data_dir() -> PathBuf {
     // Always use LOCALAPPDATA — no admin required, user-specific
     if let Some(lad) = std::env::var_os("LOCALAPPDATA") {
-        let dir = PathBuf::from(&lad).join("FlatUIHush");
+        let dir = PathBuf::from(&lad).join("Hush_UI");
         let _ = fs::create_dir_all(&dir);
         return dir;
     }
     if let Some(pd) = std::env::var_os("PROGRAMDATA") {
-        let dir = PathBuf::from(&pd).join("FlatUIHush");
+        let dir = PathBuf::from(&pd).join("Hush_UI");
         let _ = fs::create_dir_all(&dir);
         return dir;
     }
@@ -124,7 +124,7 @@ pub fn save_icon_recolor(enabled: bool) {
 }
 
 // ===== Settings =====
-// Extended for the FlatUI Hush 0.2 tables update. New fields all use
+// Extended for the Hush_UI 0.2 tables update. New fields all use
 // #[serde(default)] so a settings.json written by an older build (or a
 // hand-edited one) still deserializes.
 #[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
@@ -138,19 +138,9 @@ pub struct Settings {
     /// A shorter tap still toggles the launcher. 80–1000 ms.
     #[serde(default = "default_tables_hold_ms")]
     pub tables_hold_ms: u64,
-    /// macOS-style hover magnification strength for the taskbar table.
-    /// 1.0 = off, 1.6 = strong. Applied as the max scale of the hovered icon.
-    #[serde(default = "default_table_icon_magnify")]
-    pub table_icon_magnify: f64,
     /// Taskbar clock format — true = 24h, false = 12h (segmented control).
     #[serde(default = "default_true")]
     pub clock_24h: bool,
-    /// Minimize every open window when the launcher (flatlight) opens.
-    #[serde(default = "default_true")]
-    pub minimize_on_launcher: bool,
-    /// Display name shown in the widgets-table header (text input).
-    #[serde(default)]
-    pub user_name: String,
     /// Hide the desktop icons inside the launcher grid (toggle).
     #[serde(default = "default_true")]
     pub show_desktop_grid: bool,
@@ -162,8 +152,7 @@ pub struct Settings {
     pub dimmer_level: f64,
 }
 
-fn default_tables_hold_ms() -> u64 { 220 }
-fn default_table_icon_magnify() -> f64 { 1.45 }
+fn default_tables_hold_ms() -> u64 { 80 }
 fn default_true() -> bool { true }
 
 pub fn load_settings() -> Settings {
@@ -181,11 +170,8 @@ fn default_settings() -> Settings {
         dimmer_level: 0.0,
         refresh_interval: 2,
         cube_animation: true,
-        tables_hold_ms: 220,
-        table_icon_magnify: 1.45,
+        tables_hold_ms: 80,
         clock_24h: true,
-        minimize_on_launcher: true,
-        user_name: String::new(),
         show_desktop_grid: true,
     }
 }

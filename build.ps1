@@ -1,4 +1,4 @@
-# build.ps1 — one-shot build of the FlatUI Hush portable exe on Windows.
+# build.ps1 — one-shot build of the Hush_UI portable exe on Windows.
 #
 # Usage:
 #   .\build.ps1
@@ -34,7 +34,7 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
 }
 
 try {
-    Write-Host "=== FlatUI Hush build ===" -ForegroundColor Cyan
+    Write-Host "=== Hush_UI build ===" -ForegroundColor Cyan
     Write-Host "Source tree: $root"
     Write-Host ""
 

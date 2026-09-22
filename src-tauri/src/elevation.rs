@@ -3,18 +3,18 @@
 // WHY: the win-key block (low-level keyboard hook installed by
 // `prevent-alt-win-menu` + `win32::hotkey`) cannot intercept keystrokes
 // destined for elevated apps (UIPI — User Interface Privilege Isolation).
-// A non-elevated FlatUI can hook the Win key when the focused window is
+// A non-elevated Hush_UI can hook the Win key when the focused window is
 // also non-elevated, but the moment an elevated app (Task Manager, an
 // installer, anything Run as administrator) has focus, the hook is
 // bypassed and the native Start menu opens on a Win tap.
 //
-// The fix is to run FlatUI itself elevated. The setup flow calls
+// The fix is to run Hush_UI itself elevated. The setup flow calls
 // `request_elevation()` once. Three outcomes:
 //
 //   - `AlreadyElevated` — the process is already admin; no prompt was
 //     shown. The caller continues normally.
 //   - `Accepted` — the user accepted the UAC prompt. A new elevated
-//     FlatUI process has been launched with the same args; the caller
+//     Hush_UI process has been launched with the same args; the caller
 //     should exit so the elevated process can take over.
 //   - `Declined` — the user declined the UAC prompt (or ShellExecuteW
 //     returned an error). The caller continues with basic rights; the

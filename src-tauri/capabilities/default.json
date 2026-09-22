@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capability for FlatUI",
+  "description": "Default capability for Hush_UI",
   "windows": ["launcher", "setup", "flatlight", "tables", "table-taskbar", "table-settings", "table-widgets", "table-desktop"],
   "permissions": [
     "core:default",
