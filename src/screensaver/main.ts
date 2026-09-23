@@ -1,9 +1,10 @@
 /* =========================================================================
-   Hush_UI — Screensaver (canvas drift field)
-   Fullscreen OLED surface. A slow constellation of particles drifts across
-   the screen, linking up when they pass close; two large soft orbs wander
-   behind everything. The clock sits centered on top, using the time format
-   from settings. Any input fades it all out smoothly.
+   Hush_UI — Screensaver (ribbon aurora)
+   Fullscreen OLED surface. Wide monochrome light ribbons flow across the
+   screen on layered sine paths — bright enough to notice from across the
+   room, still flat, still quiet. A fine dot grid beneath the ribbons
+   brightens as each ribbon passes over it, and the clock sits centered
+   with a soft pulse halo. Any input fades it all out smoothly.
    ========================================================================= */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -51,102 +52,103 @@ function startClock() {
   clockTimer = window.setInterval(tick, 1000);
 }
 
-// ===== Drift field =====
-// Small monochrome particles with individual sinusoidal drift; when two get
-// close, a faint link line fades in. Two big soft orbs wander behind. All
-// speeds are tiny — the field is meant to be noticed slowly, not watched.
-interface P {
-  x: number; y: number;
-  vx: number; vy: number;
-  r: number;
-  phase: number; freq: number; amp: number;
-  px: number; py: number;
+// ===== Ribbon aurora =====
+// Three wide ribbons travel horizontally on independent sine paths with
+// different speeds, amplitudes and thicknesses. Beneath them a sparse dot
+// grid lights up as a ribbon passes over. Everything is drawn additively
+// (screen-like) so overlaps bloom brighter — noticeable, but monochrome.
+interface Ribbon {
+  yBase: number;      // fraction of H
+  amp: number;        // px (dpr-scaled at draw time)
+  freq: number;       // spatial waves across the width
+  speed: number;      // phase advance per second
+  thickness: number;  // px
+  alpha: number;      // peak brightness
+  phase: number;
+  drift: number;      // slow vertical wander rate
 }
 
 let W = 0;
 let H = 0;
-let particles: P[] = [];
-let orbs: { x: number; y: number; dx: number; dy: number; r: number; a: number }[] = [];
+let dpr = 1;
+let ribbons: Ribbon[] = [];
+let grid: { x: number; y: number }[] = [];
 
 function seed() {
-  W = canvas.width = window.innerWidth * devicePixelRatio;
-  H = canvas.height = window.innerHeight * devicePixelRatio;
+  dpr = devicePixelRatio;
+  W = canvas.width = Math.round(window.innerWidth * dpr);
+  H = canvas.height = Math.round(window.innerHeight * dpr);
 
-  const count = Math.min(90, Math.max(40, Math.round((W * H) / 38000)));
-  particles = Array.from({ length: count }, () => ({
-    x: Math.random() * W,
-    y: Math.random() * H,
-    vx: (Math.random() - 0.5) * 0.14,
-    vy: (Math.random() - 0.5) * 0.14,
-    r: 0.9 + Math.random() * 1.7,
-    phase: Math.random() * Math.PI * 2,
-    freq: 0.00012 + Math.random() * 0.0001,
-    amp: 12 + Math.random() * 30,
-    px: 0, py: 0,
-  }));
-
-  orbs = [
-    { x: W * 0.22, y: H * 0.3, dx: 0.05, dy: -0.03, r: Math.min(W, H) * 0.38, a: 0.05 },
-    { x: W * 0.78, y: H * 0.72, dx: -0.04, dy: 0.045, r: Math.min(W, H) * 0.3, a: 0.04 },
+  ribbons = [
+    { yBase: 0.32, amp: H * 0.055, freq: 1.1, speed: 0.35, thickness: H * 0.05, alpha: 0.20, phase: 0.0, drift: 0.020 },
+    { yBase: 0.55, amp: H * 0.080, freq: 0.8, speed: -0.24, thickness: H * 0.035, alpha: 0.30, phase: 1.8, drift: -0.014 },
+    { yBase: 0.74, amp: H * 0.045, freq: 1.6, speed: 0.5, thickness: H * 0.028, alpha: 0.24, phase: 4.1, drift: 0.026 },
   ];
-}
 
-const dprScale = () => devicePixelRatio;
-
-function frame(t: number) {
-  const dpr = dprScale();
-  ctx.clearRect(0, 0, W, H);
-
-  // orbs — big, soft, slow
-  for (const o of orbs) {
-    o.x += o.dx * dpr; o.y += o.dy * dpr;
-    if (o.x < -o.r || o.x > W + o.r) o.dx *= -1;
-    if (o.y < -o.r || o.y > H + o.r) o.dy *= -1;
-    const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r);
-    g.addColorStop(0, `rgba(200, 200, 205, ${o.a})`);
-    g.addColorStop(1, "rgba(200, 200, 205, 0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(o.x - o.r, o.y - o.r, o.r * 2, o.r * 2);
-  }
-
-  // particles
-  const link = 150 * dpr;
-  for (const p of particles) {
-    p.x += p.vx * dpr;
-    p.y += p.vy * dpr;
-    const wob = Math.sin(t * p.freq + p.phase) * p.amp * dpr;
-    if (p.x < 0) p.x = W; else if (p.x > W) p.x = 0;
-    if (p.y < 0) p.y = H; else if (p.y > H) p.y = 0;
-
-    const px = p.x + wob;
-    const py = p.y + Math.cos(t * p.freq + p.phase) * p.amp * dpr;
-    p.px = px; p.py = py;
-
-    ctx.beginPath();
-    ctx.arc(px, py, p.r * dpr, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(220, 220, 225, 0.55)";
-    ctx.fill();
-  }
-
-  // links
-  ctx.lineWidth = 0.6 * dpr;
-  for (let i = 0; i < particles.length; i++) {
-    const a = particles[i];
-    for (let j = i + 1; j < particles.length; j++) {
-      const b = particles[j];
-      const dx = a.px - b.px;
-      const dy = a.py - b.py;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < link * link) {
-        const alpha = 0.14 * (1 - Math.sqrt(d2) / link);
-        ctx.beginPath();
-        ctx.moveTo(a.px, a.py);
-        ctx.lineTo(b.px, b.py);
-        ctx.strokeStyle = `rgba(210, 210, 215, ${alpha})`;
-        ctx.stroke();
-      }
+  // sparse dot grid
+  const step = Math.round(46 * dpr);
+  grid = [];
+  for (let y = step; y < H; y += step) {
+    for (let x = step; x < W; x += step) {
+      grid.push({ x, y });
     }
   }
+}
+
+function ribbonY(r: Ribbon, x: number, t: number) {
+  const wander = Math.sin(t * 0.00021 * r.speed + r.phase * 0.7) * r.drift * H;
+  return (r.yBase + wander) * H + Math.sin((x / W) * Math.PI * 2 * r.freq + t * 0.001 * r.speed + r.phase) * r.amp;
+}
+
+function drawRibbon(r: Ribbon, t: number) {
+  // draw as a soft vertical gradient band that follows the sine path
+  const layers = 5; // inner core to outer glow
+  for (let l = layers; l >= 1; l--) {
+    const spread = r.thickness * l * 0.75;
+    const a = r.alpha * (l === 1 ? 1.0 : 0.28 / (l - 1));
+    ctx.beginPath();
+    const stepX = Math.max(8 * dpr, W / 160);
+    for (let x = -spread; x <= W + spread; x += stepX) {
+      const y = ribbonY(r, x, t);
+      const top = y - spread * 0.5;
+      if (x <= 0) ctx.moveTo(x, top);
+      else ctx.lineTo(x, top);
+    }
+    for (let x = W + spread; x >= -spread; x -= stepX) {
+      const y = ribbonY(r, x, t);
+      const bot = y + spread * 0.5;
+      ctx.lineTo(x, bot);
+    }
+    ctx.closePath();
+    ctx.fillStyle = `rgba(255, 255, 255, ${a.toFixed(4)})`;
+    ctx.fill();
+  }
+}
+
+function frame(t: number) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.globalCompositeOperation = "lighter";
+
+  // dot grid — lights up near ribbons
+  for (const g of grid) {
+    let glow = 0;
+    for (const r of ribbons) {
+      const ry = ribbonY(r, g.x, t);
+      const d = Math.abs(g.y - ry) / (r.thickness * 3);
+      if (d < 1) glow += (1 - d) * (1 - d) * r.alpha * 1.5;
+    }
+    if (glow > 0.01) {
+      const size = 1.1 * dpr + glow * 2.2 * dpr;
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(0.5, glow).toFixed(4)})`;
+      ctx.fill();
+    }
+  }
+
+  for (const r of ribbons) drawRibbon(r, t);
+
+  ctx.globalCompositeOperation = "source-over";
 
   rafId = requestAnimationFrame(frame);
 }

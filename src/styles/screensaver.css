@@ -1,7 +1,7 @@
 /* =========================================================================
    Hush_UI — Screensaver styles
-   OLED black canvas with a slow particle drift field, big thin clock
-   centered on top. Everything monochrome, everything slow.
+   OLED black canvas with the ribbon aurora field, big thin clock centered
+   on top with a soft breathing halo. Everything monochrome, everything slow.
    ========================================================================= */
 
 html,
@@ -38,7 +38,7 @@ body {
   height: 100%;
 }
 
-/* ===== Clock overlay — large, thin, quiet ===== */
+/* ===== Clock overlay — large, thin, with a quiet pulse halo ===== */
 .ss-overlay {
   position: absolute;
   left: 50%;
@@ -48,6 +48,7 @@ body {
   flex-direction: column;
   align-items: center;
   pointer-events: none;
+  animation: ss-breathe 12s ease-in-out infinite;
 }
 
 .ss-clock {
@@ -56,7 +57,12 @@ body {
   font-weight: 200;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.95);
+  /* soft halo so the clock reads even when a ribbon passes behind it */
+  text-shadow:
+    0 0 24px rgba(255, 255, 255, 0.28),
+    0 0 90px rgba(255, 255, 255, 0.12);
+  animation: ss-pulse 8s ease-in-out infinite;
 }
 
 .ss-date {
@@ -65,16 +71,18 @@ body {
   font-weight: 400;
   letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.34);
+  color: rgba(255, 255, 255, 0.42);
   margin-top: 14px;
-}
-
-/* the clock group breathes very slowly, in sync with nothing in particular */
-.ss-overlay {
-  animation: ss-breathe 12s ease-in-out infinite;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.14);
 }
 
 @keyframes ss-breathe {
-  0%, 100% { opacity: 0.92; }
-  50%      { opacity: 0.75; }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.86; }
+}
+
+/* the halo gently swells — noticeable but never blinking */
+@keyframes ss-pulse {
+  0%, 100% { text-shadow: 0 0 24px rgba(255, 255, 255, 0.28), 0 0 90px rgba(255, 255, 255, 0.10); }
+  50%      { text-shadow: 0 0 34px rgba(255, 255, 255, 0.40), 0 0 120px rgba(255, 255, 255, 0.16); }
 }
