@@ -535,20 +535,6 @@ function applyTheme(theme: Theme) {
     root.style.setProperty("--" + key, value);
   }
 
-  // Build the SVG noise tile with the theme's sand-cream RGB values.
-  // CSS data URIs can't reference CSS variables directly, so we inject
-  // the RGB values into the feColorMatrix. The values are "R G B A 0"
-  // where R/G/B are 0-1 floats.
-  const creamRgb = colors["sand-cream-rgb"].split(",").map((s) => parseFloat(s.trim()));
-  if (creamRgb.length === 3) {
-    const [r, g, b] = creamRgb;
-    const rNorm = (r / 255).toFixed(3);
-    const gNorm = (g / 255).toFixed(3);
-    const bNorm = (b / 255).toFixed(3);
-    const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
-    root.style.setProperty("--grain-noise-svg", noiseSvg);
-  }
-
   // Apply per-theme icon recolor values
   const recolor = THEME_ICON_RECOLOR[theme.name];
   if (recolor) {

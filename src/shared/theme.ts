@@ -24,15 +24,6 @@ export function applyThemeColors(colors: Record<string, string>): void {
   for (const [key, value] of Object.entries(colors)) {
     r.style.setProperty("--" + key, value);
   }
-  const creamRgb = colors["sand-cream-rgb"];
-  if (creamRgb) {
-    const parts = creamRgb.split(",").map((s) => parseFloat(s.trim()));
-    if (parts.length === 3) {
-      const [red, green, blue] = parts;
-      const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${(red / 255).toFixed(3)}  0 0 0 0 ${(green / 255).toFixed(3)}  0 0 0 0 ${(blue / 255).toFixed(3)}  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
-      r.style.setProperty("--grain-noise-svg", noiseSvg);
-    }
-  }
 }
 
 /// Apply a theme fully: colors + per-theme icon-recolor values. Every table

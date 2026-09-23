@@ -128,36 +128,16 @@
   --z-launcher: 2000;
   --z-flyout: 1500;
 
-  /* ===== Texture: NONE for material3-dark =====
-     The old themes layered a dot-grid + SVG grain tile (a cheap stand-in
-     for backdrop-filter blur). Material 3 surfaces are FLAT — opaque
-     M3 neutral panels with elevation shadows, no grain, no blur.
-     The --grain-bg washes are FULLY OPAQUE now — a translucent panel over
-     the desktop reads as "frosted", which this theme must not have.
-     (The --grain-noise-svg runtime injection in applyTheme() is now a
-     no-op: nothing composes it into a background anymore.)
-  */
-  --grain-bg: var(--bg-espresso-deep);
-  --grain-bg-light: var(--bg-espresso);
-  --grain-bg-dark: var(--bg-espresso-deep);
-  --grain-image: none;
-  --grain-size: auto;
-  --grain-position: 0 0;
-  --grain-repeat: repeat;
-
-  /* The SVG noise tile — set at runtime by applyTheme() with the theme's
-     sand-cream RGB values. Default is sand-cream (237, 228, 211). */
-  --grain-noise-svg: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.929  0 0 0 0 0.894  0 0 0 0 0.827  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-
-  /* Line-grid variant — retired with the grain (flat M3 surfaces). */
-  --grain-lines-image: none;
-  --grain-lines-size: auto;
-  --grain-lines-position: 0 0;
-  --grain-lines-repeat: repeat;
+  /* ===== Panels: PLAIN COLOR =====
+     No textures, no grain, no blur — surfaces are flat, opaque colors.
+     --panel-bg* are the panel washes used by the launcher and tables. */
+  --panel-bg: var(--bg-espresso-deep);
+  --panel-bg-light: var(--bg-espresso);
+  --panel-bg-dark: var(--bg-espresso-deep);
 
   /* ===== Icon recolor filter values (per-theme) =====
      When icon recoloring is enabled, icons get:
-       1. opacity 0.5 (grain transparency — the launcher bg shows through)
+       1. reduced opacity (the launcher bg shows through)
        2. grayscale(1) (remove all original color)
        3. sepia(1) hue-rotate(X) saturate(Y) (tint to the theme's accent color)
      The hue-rotate and saturate values are computed per-theme to match

@@ -29,20 +29,11 @@ html.background-ready, html.background-ready body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  /* Background policy (v0.1.6+): the old `backdrop-filter: blur(20px)
-     saturate(160%)` is gone — it smeared the desktop under GPU load and
-     was the single most expensive effect to render fullscreen. We now
-     layer three cheap effects instead (see --grain-* vars in theme.css):
-       1. A flat espresso wash at ~62% alpha — the warm shell tint.
-       2. A repeating SVG grain tile (fractalNoise, ~13% max alpha) so
-          the transparency reads as "translucent frosted" instead of a
-          flat wash. Cheap: one tiled bitmap.
-       3. A 22px dot-grid (radial-gradient) — the design grid. */
-  background-color: var(--grain-bg);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
+  /* Background policy: the old `backdrop-filter: blur(20px) saturate(160%)`
+     is gone — it smeared the desktop under GPU load and was the single most
+     expensive effect to render fullscreen. The background is now a flat,
+     opaque panel color (see --panel-bg in theme.css). */
+  background-color: var(--panel-bg);
   /* Collapsed state: zero-size rounded rect at screen center */
   clip-path: inset(50% 50% round 16px);
   opacity: 0;
@@ -245,13 +236,8 @@ html.background-ready, html.background-ready body {
   font-family: var(--font-display);
   font-size: 14px;
   color: var(--text-primary);
-  /* Transparent grainy line-grid — matches the icon frames and the rest
-     of the app's aesthetic. Low alpha so the launcher bg shows through. */
+  /* Semi-transparent espresso so the launcher bg shows through. */
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.45);
-  background-image: var(--grain-lines-image);
-  background-size: var(--grain-lines-size);
-  background-position: var(--grain-lines-position);
-  background-repeat: var(--grain-lines-repeat);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   outline: none;
@@ -359,11 +345,9 @@ html.background-ready, html.background-ready body {
   100% { opacity: 0.6; }
 }
 
-/* ===== App icon frames — transparent grainy with line grid =====
+/* ===== App icon frames =====
    Each icon box has:
-   - A transparent espresso base (low alpha so the launcher bg shows through)
-   - A line grid + grain noise texture (same family as the launcher bg but
-     with lines instead of dots — reads better at small icon sizes)
+   - A semi-transparent espresso base (low alpha so the launcher bg shows through)
    - A 1px border that brightens on hover
    - An outer glow ring (box-shadow) that appears on hover
    - A subtle inner highlight (inset shadow) for depth
@@ -373,13 +357,8 @@ html.background-ready, html.background-ready body {
   width: var(--launcher-icon-size);
   height: var(--launcher-icon-size);
   border-radius: var(--launcher-icon-radius);
-  /* Transparent espresso base — low alpha so the launcher background
-     shows through, with the line-grid + grain texture on top. */
+  /* Semi-transparent espresso base — the launcher background shows through. */
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.45);
-  background-image: var(--grain-lines-image);
-  background-size: var(--grain-lines-size);
-  background-position: var(--grain-lines-position);
-  background-repeat: var(--grain-lines-repeat);
   border: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
@@ -479,7 +458,7 @@ html.background-ready, html.background-ready body {
 /* ===== Icon recoloring (toggled via Settings) =====
    When the launcher root has the .icon-recolor class, all icons get a
    3-layer recolor:
-     1. opacity 0.5 (grain transparency — the launcher bg shows through)
+     1. reduced opacity (the launcher bg shows through)
      2. grayscale(1) (remove all original color)
      3. sepia(1) hue-rotate(var(--icon-recolor-hue)) saturate(var(--icon-recolor-sat))
         (tint to the theme's accent color)
@@ -523,10 +502,6 @@ html.background-ready, html.background-ready body {
   padding: 3px 8px;
   border-radius: var(--radius-sm);
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.30);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
   max-width: calc(100% - 4px);
 }
 
@@ -540,10 +515,6 @@ html.background-ready, html.background-ready body {
   position: fixed;
   inset: 0;
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.72);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
   z-index: 2500;
   display: flex;
   align-items: center;
@@ -570,10 +541,6 @@ html.background-ready, html.background-ready body {
   position: fixed;
   min-width: 180px;
   background-color: var(--bg-espresso-glass);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-popup);
@@ -624,10 +591,6 @@ html.background-ready, html.background-ready body {
   top: -4px;
   min-width: 160px;
   background-color: var(--bg-espresso-glass);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-popup);
@@ -652,10 +615,6 @@ html.background-ready, html.background-ready body {
 .modal-dialog {
   width: min(360px, 80vw);
   background-color: var(--bg-espresso-glass);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 18px;
@@ -726,10 +685,6 @@ html.background-ready, html.background-ready body {
 .widget {
   position: absolute;
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.70);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popup);
@@ -1118,10 +1073,6 @@ html.background-ready, html.background-ready body {
   padding: 3px 8px;
   border-radius: var(--radius-sm);
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.30);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
 }
 
 .spotlight-item-path {
@@ -1157,10 +1108,6 @@ html.background-ready, html.background-ready body {
 .run-dialog-content {
   width: min(420px, 80vw);
   background-color: var(--bg-espresso-glass);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 18px;
@@ -1341,10 +1288,6 @@ html.background-ready, html.background-ready body {
   position: fixed;
   inset: 0;
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.80);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
   z-index: 4500;
   display: flex;
   align-items: center;
@@ -1359,10 +1302,6 @@ html.background-ready, html.background-ready body {
   max-height: 80vh;
   overflow-y: auto;
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.70);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-popup);
@@ -1448,10 +1387,6 @@ html.background-ready, html.background-ready body {
   font-size: 11px;
   color: var(--text-primary);
   background-color: rgba(var(--bg-espresso-deep-rgb), 0.60);
-  background-image: var(--grain-lines-image);
-  background-size: var(--grain-lines-size);
-  background-position: var(--grain-lines-position);
-  background-repeat: var(--grain-lines-repeat);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   outline: none;
@@ -1741,10 +1676,6 @@ html.background-ready, html.background-ready body {
   position: fixed;
   inset: 0;
   background-color: rgba(var(--bg-espresso-rgb), 0.95);
-  background-image: var(--grain-image);
-  background-size: var(--grain-size);
-  background-position: var(--grain-position);
-  background-repeat: var(--grain-repeat);
   z-index: 9999;
   display: flex;
   align-items: center;
