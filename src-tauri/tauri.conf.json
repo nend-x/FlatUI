@@ -139,6 +139,22 @@
         "visible": false
       },
       {
+        "label": "tutorial",
+        "title": "Hush_UI — Tutorial",
+        "url": "tutorial/index.html",
+        "width": 560,
+        "height": 470,
+        "decorations": false,
+        "transparent": true,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "focus": true,
+        "center": true,
+        "shadow": false,
+        "visible": false
+      },
+      {
         "label": "table-desktop",
         "title": "Hush_UI — Desktop",
         "url": "table-desktop/index.html",

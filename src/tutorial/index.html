@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hush_UI — Tutorial</title>
+  <link rel="stylesheet" href="../styles/theme.css" />
+  <link rel="stylesheet" href="../styles/tutorial.css" />
+</head>
+<body>
+  <div class="tut-root" id="tut-root">
+    <!-- The looping gesture demo -->
+    <div class="tut-stage">
+      <div class="tut-desktop">
+        <!-- Fake pie menu (matches the real picker's look) -->
+        <svg class="tut-pie" id="tut-pie" viewBox="0 0 320 320">
+          <g id="tut-pie-g"></g>
+          <circle class="tut-pie-hub" id="tut-pie-hub" r="20" />
+        </svg>
+
+        <!-- Fake settings window (appears on the "release over settings" beat) -->
+        <div class="tut-fakewin" id="tut-fakewin">
+          <div class="tut-fakewin-header">
+            <span class="tut-fakewin-dot"></span><span class="tut-fakewin-dot"></span><span class="tut-fakewin-dot"></span>
+            <span class="tut-fakewin-title">Settings</span>
+          </div>
+          <div class="tut-fakewin-row"></div>
+          <div class="tut-fakewin-row"></div>
+          <div class="tut-fakewin-row"></div>
+          <div class="tut-fakewin-row"></div>
+        </div>
+
+        <!-- Windows key with hold-fill animation (bottom-left, keyboard
+             gesture — the cursor never touches it) -->
+        <div class="tut-winkey" id="tut-winkey">
+          <div class="tut-winkey-fill" id="tut-winkey-fill"></div>
+          <span class="tut-winkey-label">⊞ Win</span>
+        </div>
+
+        <!-- Mouse cursor -->
+        <div class="tut-cursor" id="tut-cursor">
+          <svg viewBox="0 0 24 24">
+            <path d="M5 3l14 8-6.5 1.5L16 19l-3 1.4-3.4-6.3L5 18.5z" fill="currentColor" stroke="var(--text-primary)" stroke-width="1"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instruction text + understood button -->
+    <div class="tut-text" id="tut-text">
+      To start the menu, hold windows key, to choose a table hover over it and let go of the windows key
+    </div>
+    <button class="tut-btn" id="tut-btn">Understood</button>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

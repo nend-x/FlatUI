@@ -60,6 +60,7 @@ interface P {
   vx: number; vy: number;
   r: number;
   phase: number; freq: number; amp: number;
+  px: number; py: number;
 }
 
 let W = 0;
@@ -81,6 +82,7 @@ function seed() {
     phase: Math.random() * Math.PI * 2,
     freq: 0.00012 + Math.random() * 0.0001,
     amp: 12 + Math.random() * 30,
+    px: 0, py: 0,
   }));
 
   orbs = [
@@ -112,13 +114,13 @@ function frame(t: number) {
   for (const p of particles) {
     p.x += p.vx * dpr;
     p.y += p.vy * dpr;
-    const wob = Math.sin(t * p.freq + p.phase) * p.a * dpr;
+    const wob = Math.sin(t * p.freq + p.phase) * p.amp * dpr;
     if (p.x < 0) p.x = W; else if (p.x > W) p.x = 0;
     if (p.y < 0) p.y = H; else if (p.y > H) p.y = 0;
 
     const px = p.x + wob;
-    const py = p.y + Math.cos(t * p.freq + p.phase) * p.a * dpr;
-    p._px = px; p._py = py;
+    const py = p.y + Math.cos(t * p.freq + p.phase) * p.amp * dpr;
+    p.px = px; p.py = py;
 
     ctx.beginPath();
     ctx.arc(px, py, p.r * dpr, 0, Math.PI * 2);
@@ -129,17 +131,17 @@ function frame(t: number) {
   // links
   ctx.lineWidth = 0.6 * dpr;
   for (let i = 0; i < particles.length; i++) {
-    const a = particles[i] as unknown as { _px: number; _py: number };
+    const a = particles[i];
     for (let j = i + 1; j < particles.length; j++) {
-      const b = particles[j] as unknown as { _px: number; _py: number };
-      const dx = a._px - b._px;
-      const dy = a._py - b._py;
+      const b = particles[j];
+      const dx = a.px - b.px;
+      const dy = a.py - b.py;
       const d2 = dx * dx + dy * dy;
       if (d2 < link * link) {
         const alpha = 0.14 * (1 - Math.sqrt(d2) / link);
         ctx.beginPath();
-        ctx.moveTo(a._px, a._py);
-        ctx.lineTo(b._px, b._py);
+        ctx.moveTo(a.px, a.py);
+        ctx.lineTo(b.px, b.py);
         ctx.strokeStyle = `rgba(210, 210, 215, ${alpha})`;
         ctx.stroke();
       }

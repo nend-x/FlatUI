@@ -158,12 +158,26 @@ pub fn run() {
         .setup(move |app| {
             let handle = app.handle().clone();
 
-            // First-run notification — the notification framework is now the
-            // app's startup feedback surface (the setup window is gone).
-            std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_millis(1500));
-                show_notification(&handle, "Hush_UI", "Hello world!", 2000);
-            });
+            // First-run tutorial — a small looping animation window teaches
+            // the Win-hold pie gesture on a genuinely first start (or after
+            // "Reset config", which wipes tutorial_seen.json too).
+            #[cfg(windows)]
+            if !persist::load_tutorial_seen() {
+                let tapp = handle.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(1500));
+                    show_tutorial(&tapp);
+                });
+            }
+
+            // Returning users just get the usual startup notification.
+            if persist::load_tutorial_seen() {
+                let napp = handle.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(1500));
+                    show_notification(&napp, "Hush_UI", "Hello world!", 2000);
+                });
+            }
 
             // The shell taskbar was REMOVED — the bottom bar (and its AppBar
             // edge reservation) no longer exists. Only the taskbar TABLE
@@ -454,6 +468,7 @@ pub fn run() {
             hide_screensaver,
             exit_flatui,
             reset_config,
+            finish_tutorial,
             get_active_theme,
             get_all_themes,
             set_active_theme,
@@ -2484,6 +2499,24 @@ fn walk_programs(
     }
 }
 
+// ===== First-run tutorial =====
+fn show_tutorial(app: &tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window("tutorial") {
+        let _ = win.show();
+        let _ = win.set_focus();
+        let _ = app.emit("tutorial://start", ());
+    }
+}
+
+/// Mark the tutorial acknowledged and close the tutorial window.
+#[tauri::command]
+fn finish_tutorial(app: tauri::AppHandle) {
+    persist::save_tutorial_seen(true);
+    if let Some(win) = app.get_webview_window("tutorial") {
+        let _ = win.hide();
+    }
+}
+
 // ===== Reset config (settings-table command + -rs flag) =====
 fn wipe_configs() {
     let data_dir = persist::data_dir();
@@ -2498,6 +2531,7 @@ fn wipe_configs() {
         "settings.json",
         "themes.json",
         "tables.json",
+        "tutorial_seen.json",
     ];
 
     for file in &files {
