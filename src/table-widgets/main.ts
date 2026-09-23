@@ -92,8 +92,19 @@ async function updateSysmon() {
     cpuVal.textContent = `${Math.round(stats.cpu_usage)}%`;
     ramVal.textContent = `${Math.round(stats.ram_usage)}%`;
   } catch {}
-}
+  // Battery row — only shown when the device has a battery (laptop).
+  try {
+    const bat = await invoke<{ percent: number; charging: boolean } | null>("get_battery_status");
+    const row = document.getElementById("battery-row");
+    if (!bat || !row) { if (row) row.style.display = "none"; return; }
+    row.style.display = "";
+    const fill = document.getElementById("battery-fill")!;
+    fill.style.width = `${bat.percent}%`;
+    fill.style.background = bat.charging ? "#3fb950" : "";
+    document.getElementById("battery-val")!.textContent = `${bat.percent}%${bat.charging ? " ⚡" : ""}`;
+  } catch {}
 
+}
 setInterval(updateSysmon, 2000);
 
 // ===== Brightness widget (systemless dim overlay) =====

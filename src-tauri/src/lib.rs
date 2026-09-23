@@ -421,6 +421,7 @@ pub fn run() {
             save_notes,
             load_notes,
             get_system_stats,
+            get_battery_status,
             get_volume,
             set_volume,
             get_app_volumes,
@@ -1292,6 +1293,41 @@ fn get_system_stats() -> SystemStats {
     #[cfg(not(windows))]
     {
         SystemStats { cpu_usage: 0.0, ram_usage: 0.0, ram_total_gb: 0.0, ram_used_gb: 0.0 }
+    }
+}
+
+// ===== Battery status (laptops) =====
+// Returns None on desktops (no battery) — GetSystemPowerStatus reports
+// BatteryFlag 128 (no system battery) there.
+#[derive(serde::Serialize)]
+struct BatteryStatus {
+    percent: u32,
+    charging: bool,
+}
+
+#[tauri::command]
+fn get_battery_status() -> Option<BatteryStatus> {
+    #[cfg(windows)]
+    {
+        use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
+        let mut sps = SYSTEM_POWER_STATUS::default();
+        unsafe {
+            if GetSystemPowerStatus(&mut sps).is_err() {
+                return None;
+            }
+        }
+        // 128 = no battery, 255 = unknown. BatteryLifePercent 255 = unknown.
+        if sps.BatteryFlag & 128 != 0 || sps.BatteryLifePercent == 255 {
+            return None;
+        }
+        Some(BatteryStatus {
+            percent: sps.BatteryLifePercent as u32,
+            charging: sps.ACLineStatus == 1,
+        })
+    }
+    #[cfg(not(windows))]
+    {
+        None
     }
 }
 
