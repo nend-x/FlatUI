@@ -18,7 +18,6 @@ interface ShowPayload {
 // — the picker must follow the active theme (startup load AND live events).
 
 const root = document.getElementById("tables-root")!;
-const pie = document.getElementById("pie")! as unknown as SVGSVGElement;
 const slices = Array.from(document.querySelectorAll<SVGGElement>(".pie-slice"));
 
 let hoverTask: number | null = null;
@@ -90,11 +89,6 @@ function reportHover(id: number) {
   hoverTask = window.setTimeout(() => {
     invoke("set_tables_hover", { id });
   }, 8);
-}
-
-function clearHover() {
-  slices.forEach((s) => s.classList.remove("hover"));
-  reportHover(0);
 }
 
 // Hover tracking — the whole release gesture depends on this staying fresh.

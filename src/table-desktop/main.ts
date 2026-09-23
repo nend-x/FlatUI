@@ -79,10 +79,6 @@ listen<LauncherItem[]>("launcher://items-updated", (e) => {
   render();
 });
 
-function launch(item: LauncherItem) {
-  launchWithSpin(item, null);
-}
-
 /// Launch an item and play the 1s spin animation on its icon, then close
 /// the desktop table. `el` is the tile that was clicked (null for the
 /// context-menu "Open" path when the tile reference is unavailable).

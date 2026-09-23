@@ -1,7 +1,7 @@
 /* =========================================================================
    TABLE 3 — widgets table. The hushlight launcher's widgets in a small
    non-fullscreen movable window (position persists to tables.json).
-   Same design language: grain panels, launcher.css widget styles.
+   Same design language: flat panels, launcher.css widget styles.
    ========================================================================= */
 
 import { invoke } from "@tauri-apps/api/core";

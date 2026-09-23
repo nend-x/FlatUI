@@ -8,7 +8,7 @@
 //     Start menu and fires our `on_released` callback so we can toggle the
 //     launcher (the old `flatwin.exe` AutoHotkey v2 helper + HTTP :2290
 //     /toggle bridge has been removed); opening the launcher also minimizes
-//     every visible window (show-desktop effect, win32::window::minimize_all_windows)
+//     every visible window (show-desktop effect)
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 

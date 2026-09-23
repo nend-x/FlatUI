@@ -42,14 +42,11 @@ const grid = document.getElementById("grid")!;
 const spotlightResultsEl = document.getElementById("spotlight-results")!;
 const actionsWrap = document.querySelector<HTMLElement>(".launcher-actions")!;
 const searchWrap = document.querySelector<HTMLElement>(".launcher-search-wrap")!;
-const appsWidget = document.getElementById("apps-widget")!;
 const appsBody = document.getElementById("apps-body")!;
 const minimizeAllBtn = document.getElementById("minimize-all-btn")!;
 const runBtn = document.getElementById("run-btn")!;
 const blacklistBtn = document.getElementById("blacklist-btn")!;
 const exitBtn = document.getElementById("exit-btn")!;
-const winSwitcherOverlay = document.getElementById("win-switcher-overlay")!;
-const winSwitcherGrid = document.getElementById("win-switcher-grid")!;
 const blacklistOverlay = document.getElementById("blacklist-overlay")!;
 const blacklistGrid = document.getElementById("blacklist-grid")!;
 const runDialog = document.getElementById("run-dialog")!;
@@ -538,20 +535,6 @@ function applyTheme(theme: Theme) {
     root.style.setProperty("--" + key, value);
   }
 
-  // Build the SVG noise tile with the theme's sand-cream RGB values.
-  // CSS data URIs can't reference CSS variables directly, so we inject
-  // the RGB values into the feColorMatrix. The values are "R G B A 0"
-  // where R/G/B are 0-1 floats.
-  const creamRgb = colors["sand-cream-rgb"].split(",").map((s) => parseFloat(s.trim()));
-  if (creamRgb.length === 3) {
-    const [r, g, b] = creamRgb;
-    const rNorm = (r / 255).toFixed(3);
-    const gNorm = (g / 255).toFixed(3);
-    const bNorm = (b / 255).toFixed(3);
-    const noiseSvg = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${rNorm}  0 0 0 0 ${gNorm}  0 0 0 0 ${bNorm}  0 0 0 0.252 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`;
-    root.style.setProperty("--grain-noise-svg", noiseSvg);
-  }
-
   // Apply per-theme icon recolor values
   const recolor = THEME_ICON_RECOLOR[theme.name];
   if (recolor) {
@@ -696,7 +679,6 @@ function resetLauncherDom(): void {
   expandOverlay.classList.remove("expanding", "expanded", "collapsing", "fading");
   searchInput.value = "";
   runDialog.classList.add("hidden");
-  winSwitcherOverlay.classList.add("hidden");
   blacklistOverlay.classList.add("hidden");
   blacklistBtn.classList.remove("active");
   document.querySelectorAll(".context-menu").forEach((el) => el.remove());
@@ -795,65 +777,6 @@ function waitElementCascadeOut(): Promise<void> {
   return Promise.all(
     els.map((el) => waitAnimationEnd(el, "launcher-element-out", 1200))
   ).then(() => undefined);
-}
-
-// ===== Desktop grid render =====
-function renderGrid() {
-  grid.innerHTML = "";
-  filteredItems.forEach((item, idx) => {
-    const el = document.createElement("div");
-    el.className = "launcher-item";
-    if (idx === selectedIdx) el.classList.add("selected");
-    el.style.animationDelay = `${Math.min(idx * 10, 160)}ms`;
-    el.dataset.id = item.id;
-
-    const iconBox = document.createElement("div");
-    iconBox.className = "icon-box";
-    if (item.icon_data_url) {
-      const img = document.createElement("img");
-      img.src = item.icon_data_url;
-      img.alt = item.name;
-      img.draggable = false;
-      iconBox.appendChild(img);
-    } else {
-      const fb = document.createElement("span");
-      fb.textContent = item.is_folder ? "▤" : (item.name || "?")[0].toUpperCase();
-      fb.style.cssText = "font-family:var(--font-display);font-size:22px;color:var(--sand);";
-      iconBox.appendChild(fb);
-    }
-
-    const label = document.createElement("div");
-    label.className = "label";
-    label.textContent = item.name;
-    el.appendChild(iconBox);
-    el.appendChild(label);
-
-    el.addEventListener("click", (e) => {
-      if (e.shiftKey) {
-        // Shift+click → run as admin
-        invoke("execute_run_admin", { command: item.path });
-      } else {
-        launch(item);
-      }
-    });
-    el.addEventListener("mouseenter", () => {
-      selectedIdx = idx;
-      updateSelection();
-    });
-    el.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      showItemContextMenu(e.clientX, e.clientY, item);
-    });
-
-    grid.appendChild(el);
-  });
-
-  if (filteredItems.length === 0) {
-    const empty = document.createElement("div");
-    empty.style.cssText = "grid-column:1/-1;text-align:center;padding:40px;color:var(--sand-dim);font-size:12px;";
-    empty.textContent = searchInput.value ? "Nothing found" : "Desktop folder is empty";
-    grid.appendChild(empty);
-  }
 }
 
 function updateSelection() {
@@ -1129,15 +1052,6 @@ document.addEventListener("keydown", (e) => {
     return;
   }
 
-  // If window switcher is open
-  if (!winSwitcherOverlay.classList.contains("hidden")) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      winSwitcherOverlay.classList.add("hidden");
-    }
-    return;
-  }
-
   if (e.key === "Escape") {
     e.preventDefault();
     closeLauncher();
@@ -1289,7 +1203,6 @@ blacklistBtn.addEventListener("click", async () => {
     blacklistBtn.classList.remove("active");
     return;
   }
-  winSwitcherOverlay.classList.add("hidden");
   blacklistOverlay.classList.remove("hidden");
   blacklistBtn.classList.add("active");
   await showBlacklist();
@@ -1325,67 +1238,6 @@ runAdminBtn.addEventListener("click", () => {
     invoke("execute_run_admin", { command: cmd });
     hideRunDialog();
     closeLauncher();
-  }
-});
-
-// ===== Window switcher =====
-async function showWindowSwitcher() {
-  winSwitcherGrid.innerHTML = "";
-  winSwitcherOverlay.classList.remove("hidden");
-
-  let windows: WindowEntry[] = [];
-  try {
-    windows = await invoke<WindowEntry[]>("get_all_windows");
-  } catch (err) {
-    console.error("get_all_windows failed:", err);
-  }
-
-  if (windows.length === 0) {
-    const empty = document.createElement("div");
-    empty.style.cssText = "grid-column:1/-1;text-align:center;padding:40px;color:var(--sand-dim);font-size:12px;";
-    empty.textContent = "No open windows";
-    winSwitcherGrid.appendChild(empty);
-    return;
-  }
-
-  for (const w of windows) {
-    const card = document.createElement("div");
-    card.className = "win-switcher-card";
-
-    if (w.icon_data_url) {
-      const imgWrap = document.createElement("div");
-      imgWrap.className = "win-switcher-card-img";
-      const img = document.createElement("img");
-      img.src = w.icon_data_url;
-      img.alt = w.title;
-      imgWrap.appendChild(img);
-      card.appendChild(imgWrap);
-    } else {
-      const placeholder = document.createElement("div");
-      placeholder.className = "win-switcher-card-img";
-      placeholder.style.cssText = "display:flex;align-items:center;justify-content:center;color:var(--sand-dim);font-size:14px;font-family:var(--font-display);";
-      placeholder.textContent = (w.title || "?")[0].toUpperCase();
-      card.appendChild(placeholder);
-    }
-
-    const label = document.createElement("div");
-    label.className = "win-switcher-card-label";
-    label.textContent = w.title;
-    card.appendChild(label);
-
-    card.addEventListener("click", () => {
-      invoke("activate_window", { hwnd: w.hwnd });
-      winSwitcherOverlay.classList.add("hidden");
-      closeLauncher();
-    });
-
-    winSwitcherGrid.appendChild(card);
-  }
-}
-
-winSwitcherOverlay.addEventListener("click", (e) => {
-  if (e.target === winSwitcherOverlay) {
-    winSwitcherOverlay.classList.add("hidden");
   }
 });
 
@@ -1551,52 +1403,6 @@ function showBackgroundContextMenu(x: number, y: number) {
   if (rect.bottom > window.innerHeight - 8) menu.style.top = `${y - rect.height}px`;
 }
 
-function showItemContextMenu(x: number, y: number, item: LauncherItem) {
-  document.querySelectorAll(".context-menu").forEach((el) => el.remove());
-
-  const menu = document.createElement("div");
-  menu.className = "context-menu";
-  menu.style.left = `${x}px`;
-  menu.style.top = `${y}px`;
-
-  const open = document.createElement("div");
-  open.className = "context-menu-item";
-  open.textContent = "Open";
-  open.addEventListener("click", () => {
-    menu.remove();
-    launch(item);
-  });
-  menu.appendChild(open);
-
-  const sep1 = document.createElement("div");
-  sep1.className = "context-menu-separator";
-  menu.appendChild(sep1);
-
-  const rename = document.createElement("div");
-  rename.className = "context-menu-item";
-  rename.textContent = "Rename";
-  rename.addEventListener("click", () => {
-    menu.remove();
-    showRenameDialog(item);
-  });
-  menu.appendChild(rename);
-
-  const del = document.createElement("div");
-  del.className = "context-menu-item danger";
-  del.textContent = "Delete";
-  del.addEventListener("click", () => {
-    menu.remove();
-    invoke("delete_desktop_item", { itemId: item.id });
-  });
-  menu.appendChild(del);
-
-  document.body.appendChild(menu);
-
-  const rect = menu.getBoundingClientRect();
-  if (rect.right > window.innerWidth - 8) menu.style.left = `${x - rect.width}px`;
-  if (rect.bottom > window.innerHeight - 8) menu.style.top = `${y - rect.height}px`;
-}
-
 // ===== Dialogs =====
 function showNewFolderDialog() {
   showDialog("New folder", "", "Folder name", (name) => {
@@ -1607,12 +1413,6 @@ function showNewFolderDialog() {
 function showNewFileDialog() {
   showDialog("New file", "", "name.extension", (name) => {
     invoke("create_desktop_item", { name, isFolder: false });
-  });
-}
-
-function showRenameDialog(item: LauncherItem) {
-  showDialog("Rename", item.name, "New name", (name) => {
-    invoke("rename_desktop_item", { itemId: item.id, newName: name });
   });
 }
 

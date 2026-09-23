@@ -12,10 +12,6 @@ pub struct TaskbarApp {
     pub pinned: bool,
     /// True if this app currently has the foreground (active) window
     pub is_foreground: bool,
-    /// HWNDs of windows from this app that are blacklisted
-    /// (won't appear in window switcher or taskbar previews)
-    #[serde(skip_serializing, skip_deserializing)]
-    pub blacklisted_windows: Option<Vec<usize>>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -35,10 +31,6 @@ pub struct AppState {
     pub blacklisted: Vec<BlacklistEntry>,
     pub blacklisted_hwnds: Vec<usize>,
     pub app_order: Vec<String>,
-    /// IDs of apps that the user has just launched and is waiting for
-    /// the corresponding window to appear. When a new window matches the
-    /// launching app, we emit "app-ready://<id>" and remove from this list.
-    pub pending_launches: Vec<(String, std::time::Instant)>,
 }
 
 /// A persistent blacklist entry — matches by exe_path (permanent).
@@ -62,7 +54,6 @@ impl AppState {
             blacklisted: Vec::new(),
             blacklisted_hwnds: Vec::new(),
             app_order: Vec::new(),
-            pending_launches: Vec::new(),
         }
     }
 }

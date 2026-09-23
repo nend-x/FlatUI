@@ -2,17 +2,13 @@
 // Window helpers — topmost + WS_EX_NOACTIVATE + WS_EX_TOOLWINDOW + AppBar
 
 use tauri::WebviewWindow;
-use windows::core::BOOL;
-use windows::Win32::Foundation::{HWND, LPARAM};
+use windows::Win32::Foundation::HWND;
 use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_FRAMECHANGED, SWP_SHOWWINDOW, GWL_EXSTYLE, GWL_STYLE,
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_LAYERED, WS_EX_TRANSPARENT,
     WS_OVERLAPPEDWINDOW, WS_POPUP, WS_VISIBLE,
-    EnumWindows, IsWindowVisible, IsIconic, GetClassNameW, ShowWindowAsync, SW_MINIMIZE,
-    GetWindowThreadProcessId,};
-use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DwmSetWindowAttribute, DWMWA_CLOAKED, DWMWA_CLOAK};
-use windows::Win32::System::Threading::GetCurrentProcessId;
-use windows::Win32::UI::WindowsAndMessaging::GWL_HWNDPARENT;
+    IsWindowVisible,};
+use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_CLOAK};
 
 fn hwnd_of(window: &WebviewWindow) -> HWND {
     window.hwnd().expect("hwnd() failed")
@@ -179,86 +175,3 @@ pub fn apply_no_activate(window: &WebviewWindow) -> windows::core::Result<()> {
     Ok(())
 }
 
-// ===== Minimize all windows (show-desktop effect for the launcher) =====
-
-/// Minimize every visible top-level application window — the same effect as
-/// Win+D. Called every time the launcher opens so it sits on a clean desktop
-/// instead of stacking on top of other windows.
-///
-/// Skips:
-///   - invisible / already-minimized windows
-///   - DWM-cloaked windows (invisible UWP ghosts on Win10/11)
-///   - tool windows (floating toolbars, tooltips, helper palettes)
-///   - owned windows (dialogs minimize with their owner)
-///   - Hush_UI's own windows (taskbar, launcher, setup)
-///   - the shell desktop (Progman / WorkerW / tray windows)
-///
-/// Uses ShowWindowAsync so a hung application can never stall the launcher.
-pub fn minimize_all_windows() {
-    let mut minimized: u32 = 0;
-    unsafe {
-        let lparam = LPARAM(&mut minimized as *mut u32 as isize);
-        if let Err(e) = EnumWindows(Some(minimize_proc), lparam) {
-            log::warn!("minimize_all_windows: EnumWindows failed — {e}");
-            return;
-        }
-    }
-    if minimized > 0 {
-        log::info!("minimize_all_windows: minimized {minimized} window(s)");
-    }
-}
-
-unsafe extern "system" fn minimize_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
-    let counter = unsafe { &mut *(lparam.0 as *mut u32) };
-
-    // Invisible windows.
-    if !IsWindowVisible(hwnd).as_bool() {
-        return BOOL(1);
-    }
-    // Already minimized.
-    if IsIconic(hwnd).as_bool() {
-        return BOOL(1);
-    }
-    // DWM-cloaked (virtual, hidden) windows — UWP apps suspended in background.
-    let mut cloaked: u32 = 0;
-    let hr = DwmGetWindowAttribute(
-        hwnd,
-        DWMWA_CLOAKED,
-        &mut cloaked as *mut u32 as *mut core::ffi::c_void,
-        std::mem::size_of::<u32>() as u32,
-    );
-    if hr.is_ok() && cloaked != 0 {
-        return BOOL(1);
-    }
-    // Tool windows (palettes, tooltips, helper overlays).
-    let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
-    if ex & WS_EX_TOOLWINDOW.0 != 0 {
-        return BOOL(1);
-    }
-    // Owned windows (dialogs) — their owner gets minimized with them.
-    if GetWindowLongPtrW(hwnd, GWL_HWNDPARENT) != 0 {
-        return BOOL(1);
-    }
-    // Hush_UI's own windows (taskbar / launcher / setup).
-    let mut pid = 0u32;
-    GetWindowThreadProcessId(hwnd, Some(&mut pid));
-    if pid == GetCurrentProcessId() {
-        return BOOL(1);
-    }
-    // Shell desktop windows.
-    let mut buf = [0u16; 64];
-    let n = GetClassNameW(hwnd, &mut buf);
-    if n > 0 {
-        let class = String::from_utf16_lossy(&buf[..n as usize]);
-        match class.as_str() {
-            "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd" => {
-                return BOOL(1);
-            }
-            _ => {}
-        }
-    }
-
-    let _ = ShowWindowAsync(hwnd, SW_MINIMIZE);
-    *counter += 1;
-    BOOL(1)
-}

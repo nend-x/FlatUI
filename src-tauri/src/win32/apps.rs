@@ -66,7 +66,6 @@ pub fn scan_taskbar(blacklist: &[usize]) -> core::Result<Vec<TaskbarApp>> {
                         running: false,
                         pinned: true,
                         is_foreground: false,
-                        blacklisted_windows: None,
                     });
                 }
             }
@@ -158,7 +157,6 @@ fn scan_running_windows(blacklist: &[usize]) -> core::Result<Vec<TaskbarApp>> {
             running: true,
             pinned: false,
             is_foreground: false,
-            blacklisted_windows: None,
         });
     }
 
