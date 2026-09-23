@@ -560,61 +560,6 @@ html.background-ready, html.background-ready body {
   padding: 24px;
 }
 
-.win-switcher-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
-}
-
-.win-switcher-card {
-  background: var(--bg-espresso-glass);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 14px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: transform 200ms var(--ease-spring),
-              border-color 160ms var(--ease-out-soft),
-              background-color 160ms var(--ease-out-soft);
-  animation: card-fade-in 240ms var(--ease-out-soft) backwards;
-}
-
-@keyframes card-fade-in {
-  0%   { opacity: 0; transform: translateY(10px) scale(0.96); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.win-switcher-card:hover {
-  transform: translateY(-4px) scale(1.04);
-  border-color: var(--accent-terracotta);
-  background: rgba(var(--bg-espresso-raised-rgb), 0.85);
-}
-
-.win-switcher-card-img {
-  width: 36px;
-  height: 36px;
-  margin: 0 auto;
-}
-
-.win-switcher-card-img img {
-  width: 100%;
-  height: 100%;
-  filter: brightness(0.94) saturate(0.78) sepia(0.15) hue-rotate(-6deg);
-}
-
-.win-switcher-card-label {
-  font-family: var(--font-ui);
-  font-size: 11px;
-  color: var(--text-primary);
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.01em;
-}
-
 @keyframes fade-in {
   0%   { opacity: 0; }
   100% { opacity: 1; }
