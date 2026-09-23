@@ -120,18 +120,17 @@ async function runLoop() {
   await sleep(600); // beat 1 — cursor + Win key visible
   winkey.classList.add("shown");
 
-  // beat 2 — cursor glides onto the Win key, key presses + fills
-  moveCursor(cx, cy + 6, 700);
-  await sleep(850);
+  // beat 2 — the Win key presses itself (keyboard gesture, no cursor): a
+  // quick press flash, then the hold-fill runs while Win is held.
   winkey.classList.add("pressed");
+  await sleep(280);
   fill.style.transition = "transform 600ms linear";
   fill.style.transform = "scaleX(1)";
   await sleep(700);
 
-  // pie pops in
+  // pie pops in around the cursor while Win is still held
   pie.classList.add("shown");
   await sleep(450);
-
   // cursor glides to the settings slice (top-left wedge, mid-angle -126°)
   const [sx, sy] = polar(cx, cy, 86, -126);
   moveCursor(sx, sy, 750);
@@ -139,20 +138,26 @@ async function runLoop() {
   setSliceHover(true);
   await sleep(450);
 
-  // beat 3 — Win release: key pops back, the fill drains right→left
+  // beat 3 — Win release while the settings slice is hovered: the unhold
+  // animation plays (fill drains right→left, key pops back), the slice
+  // highlight drops and the pie dismisses.
   winkey.classList.remove("pressed");
   fill.style.transition = "transform 320ms cubic-bezier(0.32,0.72,0.45,1)";
   fill.style.transform = "scaleX(0)";
-
-  // beat 4 — the settings window appears; pie dismisses
+  await sleep(280);
+  setSliceHover(false);
   pie.classList.remove("shown");
+
+  // beat 4 — the settings window opens as a result of the release
+  await sleep(260);
   fakewin.classList.add("shown");
   await sleep(1800);
 
   // reset — then the loop restarts
   fakewin.classList.remove("shown");
+  await sleep(500);
   setSliceHover(false);
-  await sleep(600);
+  await sleep(300);
   running = false;
   void runLoop();
 }

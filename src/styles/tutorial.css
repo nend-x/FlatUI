@@ -135,11 +135,10 @@
 /* ===== Windows key with hold-fill ======================================== */
 .tut-winkey {
   position: absolute;
-  left: 50%;
-  top: 45%;
+  left: 12%;
+  bottom: 7%;
   width: 86px;
   height: 34px;
-  margin: -17px 0 0 -43px;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: var(--bg-espresso-raised);
