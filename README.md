@@ -1,58 +1,52 @@
 <div align="center">
 <img src="assets/banner.png" alt="Hush_UI" width="100%"/>
-<p>Windows, but quieter. A custom shell replacement in one portable exe.</p>
+<p><em>Windows, but quieter.</em></p>
+<p><strong>Hush_UI</strong> is a custom shell for Windows 10/11 — one portable exe, no installer, no helper processes.<br/>The Win key opens a launcher instead of the Start menu. Hold it, and a radial table picker appears under your cursor.<br/>A systemless brightness dimmer overlays the display — nothing is modified, nothing persists after exit.</p>
+<p>Run as administrator. Build with Tauri + Rust + TypeScript. See <a href="BUILD.md">BUILD.md</a>.</p>
 </div>
 
 ---
 
-Hush_UI replaces the Windows shell experience. The Win key opens the launcher instead of the Start menu. There is **no custom taskbar** — the native one is simply hidden while Hush_UI runs — and a systemless **brightness dimmer** overlays the display with a software dim. Everything runs in-process. No helpers, no child processes, no installer.
+## Design
 
-**Requires:** Windows 10/11, run as administrator.
+Hush_UI is not a reskin of Windows — it is a bet that a desktop can be
+almost silent. The design follows from that:
 
-## Keys
+**Quiet by default.** Nothing animates, blinks, or demands attention.
+The native taskbar is hidden; there is no replacement pinned to an edge.
+The launcher only exists while you are using it. When you are not,
+the screen is simply your wallpaper.
 
-- **Win (tap)** — toggle the launcher. Search installed programs, run commands, take region screenshots to clipboard.
-- **Win (hold 80ms default, adjustable 40-600ms)** — the pie table picker appears at the cursor. Hover a slice, release Win, that table opens:
-  - **Taskbar** — your taskbar icons on a vertical line strip (wheel-scrolls, each app has a permanent name bar)
-  - **Settings** — the settings panel as a movable window
-  - **Widgets** — clipboard, notes, audio, system and **brightness** widgets in one window
-  - **Hushlight** — the launcher itself
-  - **Desktop** — desktop icons in a movable window
-- **Ctrl + Win (hold)** — same, centered on screen.
-- **Win + anything else** — real combos (Win+D, Win+E...) pass through untouched.
-- The start menu can't open: the Win-down is swallowed before the shell ever sees it, and a background monitor kills `StartMenuExperienceHost.exe` on sight.
+**One key.** The entire interface hangs off the Win key. A tap is the
+launcher — search apps, run commands, screenshot a region. A hold is
+the *tables*: a radial picker that appears at the cursor and folds away
+the moment you release. Every surface (taskbar strip, settings, widgets,
+Hushlight, desktop icons) is a table — the same shape, the same gesture,
+learned once.
 
-## Brightness dimmer (systemless)
+**Flat, neutral, opaque.** The `material3-dark` theme is a pure gray
+ramp — `#131313` deep, `#1C1C1C` surface, `#C6C6C6` text. No hue tint,
+no blur, no frost, no shadows-as-decoration. Depth comes from three
+tones of gray and one pixel of outline, nothing else. Iconography is
+recolored to the same desaturated ramp so nothing screams in color.
 
-A pure software dim: a black, topmost, fully click-through overlay window whose alpha is the dim strength. Nothing on the system is modified — no WMI/DDC brightness, no registry, no power plan. Slide the **Brightness** widget (pie → Widgets) or the **Brightness dim** slider (Settings → System) and the change is instant; exit Hush_UI (or slide back to 0%) and the display is exactly as before. The dim level persists across restarts. The overlay never goes fully opaque, so the widget stays reachable.
+**Grain, not gloss.** The one concession to texture is a faint fractal
+noise — the same `feTurbulence` grain tiled across surfaces — which
+keeps large flat areas from banding. It is atmosphere at 0.25 alpha,
+not a texture pack.
 
-**Note:** on launch Hush_UI requests administrator rights via UAC. If you decline, the app still runs, but you'll get a warning that the dimming might not work on system apps (elevated windows sit above a non-elevated overlay).
+**Systemless.** The brightness dimmer is a click-through, topmost
+overlay whose alpha *is* the dim level. No WMI, no DDC, no registry,
+no power plan. Exit the app — or slide back to 0% — and the display
+is exactly as it was. The same philosophy applies everywhere: Hush_UI
+changes what you see, not what Windows is.
 
-## Theme
+**In-process.** Every window — launcher, tables, dimmer, screensaver —
+runs inside the single exe. No background services, no children to
+clean up, nothing left behind.
 
-One theme: **Material 3 dark** — neutral gray surfaces, no blur, no grain, no hue tint. Fully opaque panels, soft elevation shadows. Icons can be recolored to match (Settings → Icon Recoloring). Stored in `%LOCALAPPDATA%\Hush_UI\themes.json`.
+---
 
-## Build
-
-See [BUILD.md](BUILD.md). Short version: Node 18+, Rust stable with the `x86_64-pc-windows-msvc` target, VS Build Tools with the C++ workload, then:
-
-```powershell
-.\build.ps1
-# -> src-tauri\target\x86_64-pc-windows-msvc\release\flatuihush.exe
-```
-
-## Settings
-
-Everything lives in the settings table (Win hold → pie → Settings): hold duration, magnification, clock format, icon recoloring, brightness dim, widget visibility, theme. Persists across restarts.
-
-## Exit
-
-The exit button in settings un-hides the native taskbar, removes the dim overlay, restarts explorer and exits clean.
-
-## License
-
-[MIT](LICENSE)
-
-## Reset config
-
-Settings → Maintenance → **Reset** deletes every config file under `%LOCALAPPDATA%\Hush_UI` and restarts the app with factory defaults (Win hold 80ms, icon recoloring off, 24h clock).
+<div align="center">
+<sub>releases are renumbered chronologically — <code>v0.2.3-pre.4</code> is the latest</sub>
+</div>
