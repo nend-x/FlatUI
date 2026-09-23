@@ -456,3 +456,17 @@ pub fn set_active_theme(name: &str) {
     save_themes(&config);
 }
 
+
+// ===== First-run tutorial =====
+// tutorial_seen.json marks that the looping first-run tutorial has been
+// acknowledged. The file is in the wipe list (see lib.rs wipe_configs), so
+// "Reset config" (or the -rs flag) brings the tutorial back on next start.
+pub fn load_tutorial_seen() -> bool {
+    let path = data_dir().join("tutorial_seen.json");
+    fs::read_to_string(&path).map(|s| s.trim() == "true").unwrap_or(false)
+}
+
+pub fn save_tutorial_seen(seen: bool) {
+    let path = data_dir().join("tutorial_seen.json");
+    let _ = fs::write(&path, if seen { "true" } else { "false" });
+}

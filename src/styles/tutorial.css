@@ -1,0 +1,231 @@
+/* ===== First-run tutorial — looping gesture demo =========================
+   A fake desktop stage replays the Win-hold → pie → hover settings →
+   release gesture forever. Pure CSS/JS (no screenshots), themed via the
+   shared theme.css vars so it follows the active theme.
+   ======================================================================== */
+
+.tut-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg-espresso-deep);
+  font-family: "Inter Variable", system-ui, sans-serif;
+  color: var(--text-primary);
+  user-select: none;
+  overflow: hidden;
+}
+
+/* ===== Demo stage ======================================================== */
+.tut-stage {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  background: linear-gradient(160deg,
+    rgba(var(--bg-espresso-rgb), 0.55), rgba(var(--bg-espresso-deep-rgb), 0.9));
+}
+
+.tut-desktop {
+  position: absolute;
+  inset: 0;
+}
+
+/* ===== Fake pie menu ===================================================== */
+.tut-pie {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 300px;
+  height: 300px;
+  margin: -150px 0 0 -150px;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 260ms var(--ease-out-soft), transform 320ms var(--ease-spring);
+}
+
+.tut-pie.shown {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.tut-pie-wedge {
+  fill: var(--bg-espresso-raised);
+  fill-opacity: 0.9;
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  transition: fill 200ms var(--ease-out-soft), stroke 200ms var(--ease-out-soft);
+}
+
+.tut-pie-slice.hover .tut-pie-wedge {
+  fill: var(--accent-terracotta);
+  fill-opacity: 0.35;
+  stroke: var(--accent-terracotta);
+}
+
+.tut-pie-icon {
+  stroke: var(--text-secondary);
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.tut-pie-hub {
+  fill: var(--bg-espresso-deep);
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+/* ===== Fake settings window ============================================== */
+.tut-fakewin {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 210px;
+  margin-left: -105px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-espresso);
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.86);
+  transform-origin: 50% 0;
+  transition: opacity 220ms var(--ease-out-soft), transform 300ms var(--ease-spring);
+  pointer-events: none;
+}
+
+.tut-fakewin.shown {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.tut-fakewin-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-espresso-raised);
+}
+
+.tut-fakewin-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sand-dim);
+}
+
+.tut-fakewin-title {
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.tut-fakewin-row {
+  height: 26px;
+  margin: 8px 10px;
+  border-radius: 6px;
+  background: rgba(var(--sand-rgb), 0.14);
+}
+
+/* ===== Windows key with hold-fill ======================================== */
+.tut-winkey {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 86px;
+  height: 34px;
+  margin: -17px 0 0 -43px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-espresso-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 220ms var(--ease-out-soft), transform 260ms var(--ease-spring);
+}
+
+.tut-winkey.shown {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.tut-winkey.pressed {
+  transform: scale(0.94);
+}
+
+.tut-winkey-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: var(--accent-terracotta);
+  opacity: 0.28;
+}
+
+/* Hold-fill: driven by CSS var --tut-fill (0..1) from JS so the demo can
+   hold it at 100% while the pie is open. */
+.tut-winkey.pressed .tut-winkey-fill {
+  transition: transform 260ms linear;
+}
+
+.tut-winkey-label {
+  position: relative;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+/* ===== Mouse cursor ====================================================== */
+.tut-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  color: var(--text-primary);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  z-index: 10;
+  transition: none;
+}
+
+.tut-cursor svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ===== Instruction text + button ========================================= */
+.tut-text {
+  max-width: 480px;
+  padding: 0 24px;
+  margin-top: 14px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.tut-btn {
+  margin: 12px 0 18px;
+  padding: 8px 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-espresso-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 160ms var(--ease-out-soft), transform 120ms var(--ease-spring);
+}
+
+.tut-btn:hover { background: rgba(var(--sand-rgb), 0.16); }
+.tut-btn:active { transform: scale(0.97); }
