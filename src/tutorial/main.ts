@@ -80,11 +80,13 @@ function buildPie() {
 // ===== Timeline ==========================================================
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+// Move the cursor so its TIP lands exactly on (x, y). The arrow tip sits at
+// ~(5,3)/24 of the 22px box, so offset the element by that amount.
 function moveCursor(x: number, y: number, ms: number) {
   const t = `left ${ms}ms cubic-bezier(0.32,0.72,0.45,1), top ${ms}ms cubic-bezier(0.32,0.72,0.45,1)`;
   cursor.style.transition = t;
-  cursor.style.left = `${x}px`;
-  cursor.style.top = `${y}px`;
+  cursor.style.left = `${x - (5 / 24) * 22}px`;
+  cursor.style.top = `${y - (3 / 24) * 22}px`;
 }
 
 function setSliceHover(on: boolean) {
@@ -131,8 +133,12 @@ async function runLoop() {
   // pie pops in around the cursor while Win is still held
   pie.classList.add("shown");
   await sleep(450);
-  // cursor glides to the settings slice (top-left wedge, mid-angle -126°)
-  const [sx, sy] = polar(cx, cy, 86, -126);
+  // cursor glides to the settings slice. Settings is the 5th wedge (i=4):
+  // mid-angle = -90 + 4*72 = 198°  (≡ -162°) — exactly up-left. Aim at the
+  // icon point (ICON_R from center), not an arbitrary radius, and stop
+  // between hub and icon so the tip is clearly inside the wedge.
+  const SETTINGS_MID = -90 + 4 * SLICE_DEG; // 198°
+  const [sx, sy] = polar(cx, cy, (ICON_R + HUB_R) / 2 + 12, SETTINGS_MID);
   moveCursor(sx, sy, 750);
   await sleep(850);
   setSliceHover(true);
