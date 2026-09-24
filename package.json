@@ -1,6 +1,6 @@
 {
   "name": "hush_ui",
-  "version": "2.1.0",
+  "version": "0.2.5",
   "private": true,
   "type": "module",
   "scripts": {
