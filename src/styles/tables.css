@@ -733,11 +733,16 @@
    inside the table chrome and scrolls when there are many icons. */
 .td-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Auto-fill columns: the grid reflows to the window width, so a narrow
+     window gets fewer columns instead of a horizontal scrollbar. The
+     desktop table now only ever scrolls vertically. */
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 6px;
   align-content: start;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
+  min-width: 0;
   padding: 4px 2px 8px;
 }
 .td-grid::-webkit-scrollbar { width: 4px; }
@@ -747,6 +752,23 @@
   position: static;
   width: auto;
   animation: none;
+}
+
+/* Compact tiles for the smaller table window: smaller icon box + tighter
+   padding so more columns fit on narrow displays. */
+.td-grid .launcher-item {
+  padding: 8px 4px 6px;
+  gap: 4px;
+}
+.td-grid .launcher-item .icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+.td-grid .launcher-item img,
+.td-grid .launcher-item svg {
+  width: 26px;
+  height: 26px;
 }
 
 /* Launch spin — the clicked app/folder icon spins for 1s while the item

@@ -115,7 +115,7 @@ function render() {
     } else {
       const fb = document.createElement("span");
       fb.textContent = item.is_folder ? "▤" : (item.name || "?")[0].toUpperCase();
-      fb.style.cssText = "font-family:var(--font-display);font-size:20px;color:var(--sand);";
+      fb.style.cssText = "font-family:var(--font-display);font-size:16px;color:var(--sand);";
       iconBox.appendChild(fb);
     }
 
